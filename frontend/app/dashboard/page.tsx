@@ -1,22 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Nav } from "@/components/Nav";
 import { generateReport, getUserSessions } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Session } from "@/lib/types";
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const { getToken, userId } = useAuth();
 
   useEffect(() => {
-    getToken().then((token) => getUserSessions(userId, token)).then(setSessions).catch(() => setSessions([]));
+    getToken().then((token: string | null) => getUserSessions(userId, token)).then(setSessions).catch(() => setSessions([]));
   }, [getToken, userId]);
 
   async function openReport(session: Session) {
@@ -29,7 +31,11 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-[#f4f8fc] dark:bg-[#0e1020]">
       <Nav />
+      <ProtectedRoute>
       <AnimatedPage className="mx-auto max-w-6xl px-4 py-16">
+        {searchParams.get("admin") === "denied" && (
+          <div className="mb-5 rounded-2xl bg-rose-50 p-4 font-semibold text-rose-700 ring-1 ring-rose-100">You do not have admin access.</div>
+        )}
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <h1 className="text-5xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white md:text-6xl">Dashboard</h1>
@@ -60,6 +66,15 @@ export default function DashboardPage() {
           )}
         </div>
       </AnimatedPage>
+      </ProtectedRoute>
     </main>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[#f4f8fc] dark:bg-[#0e1020]"><Nav /><div className="px-4 py-12 text-center font-semibold text-slate-600">Loading dashboard...</div></main>}>
+      <DashboardContent />
+    </Suspense>
   );
 }

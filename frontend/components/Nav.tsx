@@ -52,8 +52,8 @@ export function Nav() {
               {loading ? "..." : "Sign in"}
             </Link>
           )}
-          <Link href="/practice" className="hidden rounded-2xl bg-[#6200a8] px-6 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b] sm:inline-flex">
-            Try for free
+          <Link href="/signup" className="hidden rounded-2xl bg-[#6200a8] px-6 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b] sm:inline-flex">
+            Start free
           </Link>
         </div>
       </nav>

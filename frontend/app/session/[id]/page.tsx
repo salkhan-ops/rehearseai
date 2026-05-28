@@ -24,7 +24,7 @@ export default function SessionPage() {
   const voice = useContinuousVoice();
 
   useEffect(() => {
-    getToken().then((token) => getSession(id, token)).then((data) => {
+    getToken().then((token: string | null) => getSession(id, token)).then((data: { session: Session; messages: Message[] }) => {
         setSession(data.session);
         setMessages(data.messages);
       });

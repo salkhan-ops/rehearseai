@@ -41,7 +41,7 @@ export default function ReportPage() {
   const { getToken } = useAuth();
 
   useEffect(() => {
-    getToken().then((token) => Promise.all([getReport(id, token), getReportAnalytics(id, token)])).then(([nextReport, nextAnalytics]) => {
+    getToken().then((token: string | null) => Promise.all([getReport(id, token), getReportAnalytics(id, token)])).then(([nextReport, nextAnalytics]: [Report, PerformanceAnalytics]) => {
       setReport(nextReport);
       setAnalytics(nextAnalytics);
     });

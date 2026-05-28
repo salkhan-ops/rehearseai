@@ -2,7 +2,7 @@
 
 Practice the moment before it matters.
 
-RehearseAI is a full-stack MVP for rehearsing high-stakes real-life situations with AI roleplay and structured feedback reports.
+RehearseAI is a full-stack MVP for cognitive performance training: adaptive pressure simulation, communication intelligence, reasoning analytics, and structured feedback reports.
 
 ## Stack
 
@@ -84,6 +84,44 @@ Use short feature branches such as `feature/session-flow`, `feature/firebase-aut
 - Structured mock report generation
 - Dashboard session listing
 - Pricing page with Paddle placeholder
+- Firebase email/password auth, Google sign-in, password reset, and protected dashboard
+- Admin console at `/admin` for plan templates, users, entitlements, user plan assignment, and billing placeholders
+- Firestore user profile creation with role-based admin access
+
+## Admin setup
+
+1. Sign up normally in the app.
+2. In Firebase Console, open `Firestore > users/{uid}`.
+3. Set `role` to `admin`.
+4. Reopen the app and visit `/admin`.
+
+The current admin protection uses frontend Firestore role checks for MVP speed. Before production, enforce `/api/admin/*` with Firebase Admin token verification and admin custom claims. See `docs/firestore-security.md`.
+
+## Firestore design, rules, and indexes
+
+The full Firestore collection design is documented in `docs/firestore-design.md`.
+
+Deploy Firestore security rules:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+Deploy Firestore indexes:
+
+```bash
+firebase deploy --only firestore:indexes
+```
+
+Seed default plans and optional first admin:
+
+```bash
+cd backend
+source venv/bin/activate
+FIRST_ADMIN_EMAIL=you@example.com FIRST_ADMIN_UID=YOUR_FIREBASE_UID python scripts/seed_firestore.py
+```
+
+Backend writes that use Firebase Admin SDK or Google service-account credentials bypass Firestore security rules. Never expose service account keys or Gemini/Paddle secrets to the frontend.
 
 ## AI cost controls
 

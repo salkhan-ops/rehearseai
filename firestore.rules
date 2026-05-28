@@ -1,0 +1,129 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    function isOwnUserDoc(uid) {
+      return isOwner(uid);
+    }
+
+    function isOwnSession(sessionId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/sessions/$(sessionId))
+        && get(/databases/$(database)/documents/sessions/$(sessionId)).data.userId == request.auth.uid;
+    }
+
+    function isOwnReport() {
+      return signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    function isOwnEntitlement(uid) {
+      return isOwner(uid);
+    }
+
+    function safeUserProfileUpdate() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        "role",
+        "planId",
+        "planName",
+        "status"
+      ]);
+    }
+
+    match /users/{uid} {
+      allow read: if isOwnUserDoc(uid) || isAdmin();
+      allow create: if isOwnUserDoc(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.role == "user";
+      allow update: if (isOwnUserDoc(uid) && safeUserProfileUpdate()) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /sessions/{sessionId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status in ["active", "completed", "archived"];
+      allow read: if isOwnSession(sessionId) || isAdmin();
+      allow update: if (isOwnSession(sessionId)
+        && resource.data.status == "active"
+        && request.resource.data.userId == resource.data.userId) || isAdmin();
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isOwnSession(sessionId) || isAdmin();
+        allow create: if isOwnSession(sessionId)
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.role == "user";
+        allow update, delete: if false;
+      }
+    }
+
+    match /reports/{reportId} {
+      allow read: if isOwnReport() || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /analytics/{analyticsId} {
+      allow read: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /reasoningTrees/{treeId} {
+      allow read: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /historicalPerformance/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /plans/{planId} {
+      allow read: if (signedIn() && resource.data.isActive == true) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /userEntitlements/{uid} {
+      allow read: if isOwnEntitlement(uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /billing_customers/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /billing_subscriptions/{subscriptionId} {
+      allow read: if (signedIn() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /billing_checkouts/{checkoutId} {
+      allow read: if (signedIn() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /featureUsage/{usageId} {
+      allow read: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}
