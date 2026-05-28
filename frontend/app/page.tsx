@@ -8,8 +8,8 @@ import { ButtonLink } from "@/components/ButtonLink";
 import { Nav } from "@/components/Nav";
 import { practiceTypes } from "@/lib/types";
 
-const steps = ["Choose the situation", "Set the pressure", "Respond in the moment", "Review your feedback"];
-const useCases = ["Job interview follow-ups", "Panel questions and interruptions", "Salary and sales objections"];
+const steps = ["Choose the pressure arena", "Train the cognitive skill", "Respond in the moment", "Study your performance map"];
+const useCases = ["Adaptive pressure simulation", "Reasoning and decision training", "Longitudinal communication intelligence"];
 const faqs = [
   ["Is this therapy?", "No. RehearseAI is practice and feedback software. It is not therapy, legal, medical, or financial advice."],
   ["Does it guarantee success?", "No. It helps you rehearse, improve confidence, and prepare better for the real moment."],
@@ -25,19 +25,19 @@ export default function Home() {
         <AnimatedPage className="mx-auto max-w-6xl text-center">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full bg-white/70 px-5 py-3 text-[15px] font-semibold text-slate-700 shadow-[0_10px_30px_rgba(35,45,75,0.05)] ring-1 ring-slate-200/80 dark:bg-white/10 dark:text-white/75 dark:ring-white/10">
             <Sparkles size={17} className="text-[#6200a8]" />
-            AI rehearsal coach now available
+            Cognitive Performance Training now available
             <ArrowRight size={17} className="text-[#6200a8]" />
           </motion.div>
 
           <motion.h1 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.08 }} className="mx-auto max-w-5xl text-balance text-[3.4rem] font-semibold leading-[1.02] tracking-[-0.055em] text-[#242936] dark:text-white sm:text-7xl lg:text-[5.4rem]">
-            Practice difficult conversations
+            Train how you think
             <span className="block bg-gradient-to-r from-[#8b00ff] via-[#6d48ff] to-[#5577ff] bg-clip-text text-transparent">
-              powered by AI
+              under pressure
             </span>
           </motion.h1>
 
           <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="mx-auto mt-7 max-w-3xl text-balance text-xl font-medium leading-9 text-slate-700 dark:text-white/70">
-            <span className="text-[#8b00ff]">Rehearse before the pressure hits</span> with interviews, presentations, panels, negotiations, and difficult conversations that react like real people.
+            <span className="text-[#8b00ff]">Build reasoning, confidence, and communication resilience</span> with adaptive simulations that respond to how you think under pressure.
           </motion.p>
 
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.24 }} className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -53,17 +53,17 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <p className="text-sm font-semibold text-slate-600 dark:text-white/60">Built for real conversations, not generic chat.</p>
+            <p className="text-sm font-semibold text-slate-600 dark:text-white/60">A reasoning gym for real-life pressure, not a chatbot.</p>
           </div>
 
           <motion.div animate={{ y: [0, -7, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} className="relative mx-auto mt-16 max-w-5xl">
             <div className="absolute -left-6 top-10 hidden rounded-2xl bg-white/85 px-5 py-4 text-left shadow-[0_16px_45px_rgba(35,45,75,0.08)] ring-1 ring-slate-200/80 backdrop-blur dark:bg-white/10 dark:ring-white/10 md:block">
               <div className="text-sm font-semibold text-slate-500 dark:text-white/55">Live prompt</div>
-              <div className="mt-1 max-w-56 text-[15px] font-semibold text-slate-800 dark:text-white/80">“What evidence supports that claim?”</div>
+              <div className="mt-1 max-w-56 text-[15px] font-semibold text-slate-800 dark:text-white/80">“What assumption are you making?”</div>
             </div>
             <div className="absolute -right-6 bottom-10 hidden rounded-2xl bg-white/85 px-5 py-4 text-left shadow-[0_16px_45px_rgba(35,45,75,0.08)] ring-1 ring-slate-200/80 backdrop-blur dark:bg-white/10 dark:ring-white/10 md:block">
               <div className="text-sm font-semibold text-slate-500 dark:text-white/55">Report preview</div>
-              <div className="mt-1 text-[15px] font-semibold text-slate-800 dark:text-white/80">Clarity +14% after rehearsal</div>
+              <div className="mt-1 text-[15px] font-semibold text-slate-800 dark:text-white/80">Pressure recovery +14%</div>
             </div>
             <div className="overflow-hidden rounded-[2rem] bg-white/75 p-2 shadow-[0_26px_80px_rgba(35,45,75,0.10)] ring-1 ring-slate-200/80 dark:bg-white/10 dark:ring-white/10">
               <Image
@@ -94,7 +94,7 @@ export default function Home() {
         <AnimatedSection className="mx-auto max-w-6xl px-4">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-5xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white">Practice categories</h2>
-            <p className="mt-4 text-lg font-medium leading-8 text-slate-600 dark:text-white/60">Each mode has its own persona, tone, objections, and feedback style.</p>
+            <p className="mt-4 text-lg font-medium leading-8 text-slate-600 dark:text-white/60">Each mode adapts pressure, skepticism, interruptions, and conceptual depth based on your behavior.</p>
           </div>
           <StaggeredGrid className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {practiceTypes.map((type) => (
@@ -104,7 +104,7 @@ export default function Home() {
                     <span className="font-semibold text-slate-900 dark:text-white">{type}</span>
                     <ArrowRight className="text-[#6200a8] transition group-hover:translate-x-1" size={18} />
                   </div>
-                  <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-white/60">Realistic questions, objections, and next-step feedback.</p>
+                  <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-white/60">Adaptive pressure, reasoning challenges, and performance intelligence.</p>
                 </a>
               </AnimatedCard>
             ))}
@@ -114,12 +114,12 @@ export default function Home() {
 
       <section className="mx-auto grid max-w-6xl gap-8 px-4 py-20 md:grid-cols-[0.9fr_1.1fr] md:items-center">
         <div>
-          <h2 className="text-5xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white">Feedback that turns pressure into practice.</h2>
-          <p className="mt-5 text-lg font-medium leading-8 text-slate-600 dark:text-white/60">After each session, RehearseAI scores confidence, clarity, calmness, structure, and persuasiveness, then turns the moment into drills.</p>
+          <h2 className="text-5xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white">Analytics that show how your mind performs.</h2>
+          <p className="mt-5 text-lg font-medium leading-8 text-slate-600 dark:text-white/60">After each session, RehearseAI maps pressure stability, reasoning quality, emotional recovery, communication efficiency, and decision pathways.</p>
         </div>
         <div className="rounded-[1.75rem] bg-white p-7 shadow-[0_18px_55px_rgba(35,45,75,0.06)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
-          <div className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white"><BarChart3 size={21} /> Sample report</div>
-          {["Confidence", "Clarity", "Persuasiveness", "Calmness", "Structure"].map((score, index) => {
+          <div className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white"><BarChart3 size={21} /> Cognitive performance report</div>
+          {["Pressure Stability", "Reasoning Quality", "Recovery", "Communication IQ", "Persuasion"].map((score, index) => {
             const value = 88 - index * 5;
             return (
               <div key={score} className="mt-5">
@@ -133,7 +133,7 @@ export default function Home() {
 
       <section className="mx-auto max-w-6xl px-4 py-8">
         <div className="rounded-[2rem] bg-[#6200a8] p-8 text-white shadow-[0_24px_70px_rgba(98,0,168,0.20)] md:p-12">
-          <h2 className="max-w-2xl text-4xl font-semibold tracking-[-0.04em]">Pressure, without the real-world consequences.</h2>
+          <h2 className="max-w-2xl text-4xl font-semibold tracking-[-0.04em]">A pressure simulator for reasoning, resilience, and communication.</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {useCases.map((item) => (
               <div key={item} className="rounded-[1.5rem] bg-white/12 p-5 backdrop-blur">
@@ -159,8 +159,8 @@ export default function Home() {
 
       <section className="px-4 pb-20">
         <div className="mx-auto max-w-6xl rounded-[2rem] bg-white p-10 text-center shadow-[0_18px_55px_rgba(35,45,75,0.06)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10 md:p-14">
-          <h2 className="text-5xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white">Walk in better prepared.</h2>
-          <p className="mx-auto mt-4 max-w-2xl font-medium text-slate-600 dark:text-white/60">Practice, rehearse, improve confidence, and get feedback before the real moment.</p>
+          <h2 className="text-5xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white">Build pressure-tested thinking.</h2>
+          <p className="mx-auto mt-4 max-w-2xl font-medium text-slate-600 dark:text-white/60">Train reasoning, confidence, composure, and communication intelligence before the real moment.</p>
           <div className="mt-8"><ButtonLink href="/practice">Start Rehearsing Free</ButtonLink></div>
         </div>
       </section>

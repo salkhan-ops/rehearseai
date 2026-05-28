@@ -4,6 +4,7 @@ from google.cloud import firestore
 from app.config import get_settings
 from app.models.message import Message
 from app.models.report import Report
+from app.models.analytics import PerformanceAnalytics, ReasoningTree
 from app.models.session import Session, SessionCreate
 from app.utils.timestamps import utc_now_iso
 
@@ -16,6 +17,7 @@ class FirestoreService:
         self.sessions: dict[str, Session] = {}
         self.messages: dict[str, list[Message]] = {}
         self.reports: dict[str, Report] = {}
+        self.analytics: dict[str, PerformanceAnalytics] = {}
 
     async def create_session(self, payload: SessionCreate) -> Session:
         session = Session(id=str(uuid4()), createdAt=utc_now_iso(), **payload.model_dump())
@@ -80,4 +82,47 @@ class FirestoreService:
             docs = self.client.collection("reports").where("sessionId", "==", session_id).limit(1).stream()
             for doc in docs:
                 return Report(**doc.to_dict())
+        return None
+
+    async def save_analytics(self, analytics: PerformanceAnalytics) -> PerformanceAnalytics:
+        if self.client:
+            self.client.collection("analytics").document(analytics.id).set(analytics.model_dump())
+            for tree in analytics.decisionTrees:
+                self.client.collection("reasoningTrees").document(tree.id).set(tree.model_dump())
+            if analytics.challengeResult:
+                self.client.collection("challengeResults").document(str(analytics.challengeResult["id"])).set(
+                    {
+                        "userId": analytics.userId,
+                        **analytics.challengeResult,
+                    }
+                )
+            self.client.collection("historicalPerformance").document(analytics.userId).set(
+                {
+                    "userId": analytics.userId,
+                    "latestAnalyticsId": analytics.id,
+                    "rollingAverages": analytics.metrics.model_dump(),
+                    "skillGrowth": analytics.progression,
+                    "trendData": analytics.trendData,
+                    "pressureHistory": analytics.pressureData,
+                    "reasoningEvolution": analytics.reasoningMetrics,
+                    "communicationEvolution": analytics.communicationMetrics,
+                    "benchmarkComparisons": analytics.benchmarkMetrics,
+                    "categoryPerformance": {analytics.sessionId: analytics.metrics.reasoningQuality},
+                    "growthMetrics": analytics.historicalInsights,
+                    "recurringWeaknesses": analytics.heatmapData,
+                    "updatedAt": analytics.createdAt,
+                },
+                merge=True,
+            )
+        self.analytics[analytics.id] = analytics
+        return analytics
+
+    async def get_analytics_by_report(self, report: Report) -> Optional[PerformanceAnalytics]:
+        for analytics in self.analytics.values():
+            if analytics.sessionId == report.sessionId:
+                return analytics
+        if self.client:
+            docs = self.client.collection("analytics").where("sessionId", "==", report.sessionId).limit(1).stream()
+            for doc in docs:
+                return PerformanceAnalytics(**doc.to_dict())
         return None

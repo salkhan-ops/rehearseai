@@ -2,9 +2,11 @@ import json
 import re
 import google.generativeai as genai
 from app.config import get_settings
+from app.models.analytics import PerformanceAnalytics
 from app.models.message import Message
 from app.models.report import Report
 from app.models.session import Session
+from app.services.analytics_service import AnalyticsService
 from app.services.prompt_service import build_report_prompt, build_roleplay_prompt
 from app.utils.timestamps import utc_now_iso
 
@@ -52,6 +54,44 @@ class GeminiService:
             return Report(id=report_id, userId=session.userId, sessionId=session.id, createdAt=utc_now_iso(), **payload)
         except Exception:
             return self._mock_report(report_id, session)
+
+    async def generate_performance_analytics(
+        self,
+        session: Session,
+        report: Report,
+        history: list[Message],
+        previous_sessions_count: int = 0,
+    ) -> PerformanceAnalytics:
+        fallback = AnalyticsService().build(session, report, history, previous_sessions_count)
+        if not self.enabled or self.report_model is None:
+            return fallback
+        try:
+            prompt = (
+                "You are RehearseAI's cognitive performance intelligence engine. "
+                "Return valid JSON only. Keep the exact schema and keys from the baseline JSON. "
+                "You may improve the reasoning analysis, coaching suggestions, replay alternatives, heatmap labels, "
+                "historical insights, and decision-tree wording. Keep all numerical scores between 0 and 100. "
+                "Do not claim guaranteed success, therapy, legal advice, medical advice, or financial advice.\n\n"
+                f"Session type: {session.practiceType}\n"
+                f"Difficulty: {session.difficulty}\n"
+                f"Topic: {session.topic}\n"
+                f"Goal: {session.goal}\n\n"
+                "Conversation history:\n"
+                + "\n".join([f"{message.role}: {message.content}" for message in history[-24:]])
+                + "\n\nBaseline JSON schema and fallback values:\n"
+                + fallback.model_dump_json()
+            )
+            response = await self.report_model.generate_content_async(
+                prompt,
+                generation_config={
+                    "max_output_tokens": max(self.settings.ai_report_max_output_tokens, 2600),
+                    "temperature": 0.25,
+                    "response_mime_type": "application/json",
+                },
+            )
+            return PerformanceAnalytics(**self._parse_json(response.text or ""))
+        except Exception:
+            return fallback
 
     def _parse_json(self, text: str) -> dict:
         cleaned = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()

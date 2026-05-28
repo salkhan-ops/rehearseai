@@ -1,4 +1,4 @@
-import type { Message, Report, Session, SessionPayload } from "./types";
+import type { Message, PerformanceAnalytics, Report, Session, SessionPayload } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -47,6 +47,10 @@ export function generateReport(sessionId: string, token?: string | null) {
 
 export function getReport(reportId: string, token?: string | null) {
   return request<Report>(`/api/reports/${reportId}`, { token });
+}
+
+export function getReportAnalytics(reportId: string, token?: string | null) {
+  return request<PerformanceAnalytics>(`/api/reports/${reportId}/analytics`, { token });
 }
 
 export function getUserSessions(userId = "guest", token?: string | null) {

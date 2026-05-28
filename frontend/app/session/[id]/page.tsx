@@ -1,14 +1,14 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Mic, MicOff, Send, Square, Volume2 } from "lucide-react";
 import { AnimatedMessage, AnimatedPage, TypingIndicator } from "@/components/animations";
 import { Nav } from "@/components/Nav";
 import { ScenarioAvatar } from "@/components/ScenarioAvatar";
 import { endSession, generateReport, getSession, sendMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useSpeech } from "@/lib/useSpeech";
+import { useContinuousVoice } from "@/hooks/useContinuousVoice";
 import type { Message, Session } from "@/lib/types";
 
 export default function SessionPage() {
@@ -19,10 +19,9 @@ export default function SessionPage() {
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [seconds, setSeconds] = useState(0);
-  const lastAutoSentRef = useRef("");
-  const autoSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [voiceMode, setVoiceMode] = useState(false);
   const { getToken, userId } = useAuth();
-  const speech = useSpeech();
+  const voice = useContinuousVoice();
 
   useEffect(() => {
     getToken().then((token) => getSession(id, token)).then((data) => {
@@ -39,39 +38,39 @@ export default function SessionPage() {
   const time = useMemo(() => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`, [seconds]);
 
   useEffect(() => {
-    if (speech.transcript) {
-      setDraft(speech.transcript);
+    if (voice.transcript || voice.interimTranscript) {
+      setDraft(`${voice.transcript} ${voice.interimTranscript}`.trim());
     }
-  }, [speech.transcript]);
+  }, [voice.transcript, voice.interimTranscript]);
 
   useEffect(() => {
-    if (!speech.liveMode || loading || speech.speaking || !speech.transcript.trim()) return;
-    if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
-    autoSendTimerRef.current = setTimeout(() => {
-      const next = speech.transcript.trim();
-      if (next.length < 4 || next === lastAutoSentRef.current) return;
-      lastAutoSentRef.current = next;
-      speech.stopListening();
-      submitContent(next, true);
-    }, 1150);
+    return voice.onFinalTranscript((nextTranscript) => {
+      if (!voiceMode || loading) return;
+      submitContent(nextTranscript, true);
+    });
+  }, [voice.onFinalTranscript, voiceMode, loading]);
+
+  useEffect(() => {
+    if (!voiceMode || loading || voice.isSpeaking) return;
+    if (voice.supported && voice.voiceState === "idle") voice.startListening();
     return () => {
-      if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+      if (!voiceMode) voice.stopListening();
     };
-  }, [speech.transcript, speech.liveMode, speech.speaking, loading]);
+  }, [voiceMode, loading, voice.isSpeaking, voice.supported, voice.voiceState, voice.startListening, voice.stopListening]);
 
   async function submitContent(content: string, fromVoice = false) {
     if (!content.trim()) return;
     setDraft("");
-    speech.clearTranscript();
+    voice.resetTranscript();
     setLoading(true);
     const token = await getToken();
     const result = await sendMessage(id, content.trim(), userId, token);
     setMessages((current) => [...current, result.userMessage, result.aiMessage]);
     setSession((current) => current ? { ...current, turnCount: result.turnCount } : current);
-    await speech.speak(result.aiMessage.content);
+    await voice.speak(result.aiMessage.content);
     setLoading(false);
-    if (fromVoice && speech.liveMode) {
-      speech.startListening();
+    if (fromVoice && voiceMode) {
+      voice.startListening();
     }
   }
 
@@ -81,6 +80,8 @@ export default function SessionPage() {
   }
 
   async function finish() {
+    voice.stopListening();
+    voice.stopSpeaking();
     setLoading(true);
     const token = await getToken();
     await endSession(id, token);
@@ -93,26 +94,56 @@ export default function SessionPage() {
       <Nav />
       <AnimatedPage className="mx-auto grid max-w-6xl gap-5 px-4 py-6 lg:grid-cols-[0.9fr_1.1fr]">
         <aside className="space-y-4">
-          <ScenarioAvatar practiceType={session?.practiceType} speaking={loading || speech.speaking} />
+          <ScenarioAvatar practiceType={session?.practiceType} speaking={loading || voice.isSpeaking || voice.isListening} />
           <div className="rounded-[1.75rem] bg-white p-5 shadow-[0_18px_55px_rgba(35,45,75,0.06)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6200a8] dark:text-violet-200">Voice mode</div>
             <div className="mt-4 grid gap-3">
               <button
                 type="button"
-                onClick={speech.liveMode ? speech.disableLiveMode : speech.enableLiveMode}
-                disabled={!speech.supported}
-                className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition disabled:opacity-45 ${speech.liveMode ? "bg-[#6200a8] text-white shadow-[0_14px_30px_rgba(98,0,168,0.18)]" : "bg-slate-50 text-slate-700 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}
+                onClick={() => {
+                  if (voiceMode) {
+                    setVoiceMode(false);
+                    voice.stopListening();
+                    voice.stopSpeaking();
+                  } else {
+                    setVoiceMode(true);
+                    voice.startListening();
+                  }
+                }}
+                disabled={!voice.supported}
+                className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition disabled:opacity-45 ${voiceMode ? "bg-[#6200a8] text-white shadow-[0_14px_30px_rgba(98,0,168,0.18)]" : "bg-slate-50 text-slate-700 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}
               >
-                {speech.liveMode ? <MicOff size={18} /> : <Mic size={18} />}
-                {speech.liveMode ? "Stop live conversation" : "Start live conversation"}
+                {voiceMode ? <MicOff size={18} /> : <Mic size={18} />}
+                {voiceMode ? "Stop live conversation" : "Start live conversation"}
               </button>
+              {voice.isSpeaking && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    voice.stopSpeaking();
+                    if (voiceMode) voice.startListening();
+                  }}
+                  className="inline-flex items-center justify-center rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600 ring-1 ring-rose-100 transition hover:bg-rose-100 dark:bg-rose-400/10 dark:text-rose-100 dark:ring-rose-300/20"
+                >
+                  Interrupt and respond
+                </button>
+              )}
+            </div>
+            <div className="mt-4 flex justify-center">
+              <div className={`h-24 w-24 rounded-full bg-gradient-to-br from-violet-500 to-sky-400 shadow-[0_0_55px_rgba(98,0,168,0.28)] transition ${voice.isListening ? "animate-pulse scale-105" : voice.isSpeaking ? "scale-100 opacity-90" : "scale-95 opacity-55"}`} />
             </div>
             <div className="mt-3 flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/60 dark:ring-white/10">
               <Volume2 size={17} />
-              {speech.speaking ? "AI is speaking..." : speech.listening ? "Listening. Pause to send automatically." : speech.liveMode ? "Waiting to resume..." : "Hands-free mode listens, sends, and replies aloud."}
+              {loading || voice.isProcessing ? "Thinking..." : voice.isSpeaking ? "AI responding..." : voice.voiceState === "user_speaking" ? "Listening..." : voice.voiceState === "silence_detected" ? "Pause detected. Finalizing..." : voiceMode ? "Listening for your next answer..." : "Hands-free mode listens, sends, and replies aloud."}
             </div>
-            {!speech.supported && <p className="mt-3 text-sm font-medium text-slate-600 dark:text-white/60">Speech recognition works best in Chrome or Edge.</p>}
-            {speech.transcript && <p className="mt-3 rounded-2xl bg-white/70 p-3 text-sm font-medium text-slate-600 dark:bg-white/10 dark:text-white/65">{speech.transcript}</p>}
+            {!voice.supported && <p className="mt-3 text-sm font-medium text-slate-600 dark:text-white/60">Speech recognition works best in Chrome or Edge. Text input is available below.</p>}
+            {(voice.transcript || voice.interimTranscript) && (
+              <div className="mt-3 rounded-2xl bg-white/70 p-3 text-sm font-medium text-slate-600 dark:bg-white/10 dark:text-white/65">
+                <p>{voice.transcript}</p>
+                {voice.interimTranscript && <p className="text-slate-400 dark:text-white/40">{voice.interimTranscript}</p>}
+              </div>
+            )}
+            <div className="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-white/35">State: {voice.voiceState}</div>
           </div>
         </aside>
 
@@ -148,7 +179,7 @@ export default function SessionPage() {
               onChange={(event) => setDraft(event.target.value)}
               rows={2}
               className="min-w-0 flex-1 resize-none rounded-3xl border border-violet-100 bg-white/90 px-4 py-3 font-medium text-slate-800 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-200/50 dark:border-white/10 dark:bg-white/10 dark:text-white"
-              placeholder="Type your response, or press Speak..."
+              placeholder="Fallback text response..."
             />
             <button className="inline-flex items-center justify-center rounded-3xl bg-[#6200a8] px-5 py-3 font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.18)] transition hover:-translate-y-0.5">
               <Send size={18} />
