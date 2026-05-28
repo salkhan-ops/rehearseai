@@ -4,12 +4,12 @@ from app.prompts.report_prompts import REPORT_SCHEMA
 from app.prompts.roleplay_prompts import DIFFICULTY_BEHAVIOR, PERSONAS
 
 
-def build_roleplay_prompt(session: Session, history: list[Message]) -> str:
-    turns = "\n".join([f"{message.role.upper()}: {message.content}" for message in history[-12:]])
+def build_roleplay_prompt(session: Session, history: list[Message], max_history_messages: int = 8) -> str:
+    turns = "\n".join([f"{message.role.upper()}: {message.content}" for message in history[-max_history_messages:]])
     persona = PERSONAS[session.practiceType]
     difficulty = DIFFICULTY_BEHAVIOR[session.difficulty]
     return f"""
-You are running a structured RehearseAI practice session.
+Run a structured RehearseAI practice session. Reply only as the counterpart, not as a coach.
 
 Persona:
 {persona}
@@ -27,8 +27,8 @@ Scenario:
 Conversation so far:
 {turns}
 
-Reply in character as the realistic counterpart. Keep it concise, human, and useful for rehearsal.
-Ask one pointed follow-up or objection. Never be abusive. Do not give a feedback report yet.
+Reply in character in 1-3 sentences. Ask one pointed follow-up or objection.
+Never be abusive. Do not give a feedback report yet.
 """
 
 

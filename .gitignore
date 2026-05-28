@@ -2,11 +2,14 @@
 .env
 .env.local
 .env.*.local
+backend/.env
+frontend/.env.local
 node_modules/
 .next/
 out/
 dist/
 venv/
+venv-old-after-flatten/
 .venv/
 __pycache__/
 *.pyc
@@ -18,4 +21,10 @@ coverage/
 .vscode/
 *.log
 firepit-log.txt
+firebase-debug.log
+.firebase/
+.firebaserc
+.vercel/
 service-account.json
+*.pem
+*.key

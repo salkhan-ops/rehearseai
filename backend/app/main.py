@@ -1,3 +1,8 @@
+import warnings
+
+warnings.filterwarnings("ignore", category=FutureWarning, module=r"google\..*")
+warnings.filterwarnings("ignore", message=r"urllib3 v2 only supports OpenSSL.*")
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings

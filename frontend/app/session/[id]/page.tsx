@@ -1,10 +1,14 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Mic, MicOff, Send, Square, Volume2 } from "lucide-react";
+import { AnimatedMessage, AnimatedPage, TypingIndicator } from "@/components/animations";
 import { Nav } from "@/components/Nav";
+import { ScenarioAvatar } from "@/components/ScenarioAvatar";
 import { endSession, generateReport, getSession, sendMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useSpeech } from "@/lib/useSpeech";
 import type { Message, Session } from "@/lib/types";
 
 export default function SessionPage() {
@@ -12,9 +16,13 @@ export default function SessionPage() {
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const lastAutoSentRef = useRef("");
+  const autoSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { getToken, userId } = useAuth();
+  const speech = useSpeech();
 
   useEffect(() => {
     getToken().then((token) => getSession(id, token)).then((data) => {
@@ -30,19 +38,46 @@ export default function SessionPage() {
 
   const time = useMemo(() => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`, [seconds]);
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const content = String(data.get("message") || "").trim();
-    if (!content) return;
-    form.reset();
+  useEffect(() => {
+    if (speech.transcript) {
+      setDraft(speech.transcript);
+    }
+  }, [speech.transcript]);
+
+  useEffect(() => {
+    if (!speech.liveMode || loading || speech.speaking || !speech.transcript.trim()) return;
+    if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+    autoSendTimerRef.current = setTimeout(() => {
+      const next = speech.transcript.trim();
+      if (next.length < 4 || next === lastAutoSentRef.current) return;
+      lastAutoSentRef.current = next;
+      speech.stopListening();
+      submitContent(next, true);
+    }, 1150);
+    return () => {
+      if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+    };
+  }, [speech.transcript, speech.liveMode, speech.speaking, loading]);
+
+  async function submitContent(content: string, fromVoice = false) {
+    if (!content.trim()) return;
+    setDraft("");
+    speech.clearTranscript();
     setLoading(true);
     const token = await getToken();
-    const result = await sendMessage(id, content, userId, token);
+    const result = await sendMessage(id, content.trim(), userId, token);
     setMessages((current) => [...current, result.userMessage, result.aiMessage]);
     setSession((current) => current ? { ...current, turnCount: result.turnCount } : current);
+    await speech.speak(result.aiMessage.content);
     setLoading(false);
+    if (fromVoice && speech.liveMode) {
+      speech.startListening();
+    }
+  }
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitContent(draft);
   }
 
   async function finish() {
@@ -54,42 +89,78 @@ export default function SessionPage() {
   }
 
   return (
-    <main className="min-h-screen bg-mist">
+    <main className="mesh-bg min-h-screen">
       <Nav />
-      <section className="mx-auto flex max-w-4xl flex-col px-4 py-6">
-        <div className="rounded-[2rem] bg-white p-4 shadow-soft ring-1 ring-black/5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 pb-4">
-            <div>
-              <div className="text-xl font-black">{session?.practiceType || "Loading session"}</div>
-              <div className="text-sm text-black/55">Persona rehearsal</div>
+      <AnimatedPage className="mx-auto grid max-w-6xl gap-5 px-4 py-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <aside className="space-y-4">
+          <ScenarioAvatar practiceType={session?.practiceType} speaking={loading || speech.speaking} />
+          <div className="rounded-[1.75rem] bg-white p-5 shadow-[0_18px_55px_rgba(35,45,75,0.06)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6200a8] dark:text-violet-200">Voice mode</div>
+            <div className="mt-4 grid gap-3">
+              <button
+                type="button"
+                onClick={speech.liveMode ? speech.disableLiveMode : speech.enableLiveMode}
+                disabled={!speech.supported}
+                className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition disabled:opacity-45 ${speech.liveMode ? "bg-[#6200a8] text-white shadow-[0_14px_30px_rgba(98,0,168,0.18)]" : "bg-slate-50 text-slate-700 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}
+              >
+                {speech.liveMode ? <MicOff size={18} /> : <Mic size={18} />}
+                {speech.liveMode ? "Stop live conversation" : "Start live conversation"}
+              </button>
             </div>
-            <div className="flex items-center gap-2 text-sm font-bold">
-              <span className="rounded-full bg-mist px-3 py-2">{session?.difficulty}</span>
-              <span className="rounded-full bg-mist px-3 py-2">Turn {session?.turnCount || 0}/8</span>
-              <span className="rounded-full bg-mist px-3 py-2">{time}</span>
+            <div className="mt-3 flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/60 dark:ring-white/10">
+              <Volume2 size={17} />
+              {speech.speaking ? "AI is speaking..." : speech.listening ? "Listening. Pause to send automatically." : speech.liveMode ? "Waiting to resume..." : "Hands-free mode listens, sends, and replies aloud."}
+            </div>
+            {!speech.supported && <p className="mt-3 text-sm font-medium text-slate-600 dark:text-white/60">Speech recognition works best in Chrome or Edge.</p>}
+            {speech.transcript && <p className="mt-3 rounded-2xl bg-white/70 p-3 text-sm font-medium text-slate-600 dark:bg-white/10 dark:text-white/65">{speech.transcript}</p>}
+          </div>
+        </aside>
+
+        <div className="rounded-[1.75rem] bg-white/90 p-4 shadow-[0_18px_55px_rgba(35,45,75,0.06)] ring-1 ring-slate-200/75 backdrop-blur dark:bg-white/10 dark:ring-white/10">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-white/10">
+            <div>
+              <div className="text-xl font-semibold tracking-[-0.03em] text-slate-900 dark:text-white">{session?.practiceType || "Loading session"}</div>
+              <div className="text-sm font-medium text-slate-500 dark:text-white/55">Structured persona rehearsal</div>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <span className="rounded-full bg-[#6200a8] px-3 py-2 text-white">{session?.difficulty}</span>
+              <span className="rounded-full bg-white px-3 py-2 text-slate-600 ring-1 ring-violet-100 dark:bg-white/10 dark:text-white/70 dark:ring-white/10">Turn {session?.turnCount || 0}/8</span>
+              <span className="rounded-full bg-white px-3 py-2 text-slate-600 ring-1 ring-violet-100 dark:bg-white/10 dark:text-white/70 dark:ring-white/10">{time}</span>
             </div>
           </div>
           <div className="flex min-h-[52vh] flex-col gap-4 py-5">
             {messages.length === 0 && (
-              <div className="rounded-3xl bg-ink p-5 text-white">
+              <div className="rounded-[1.5rem] bg-[#6200a8] p-5 font-medium text-white shadow-[0_14px_30px_rgba(98,0,168,0.16)]">
                 I am ready. Start with your opening response, and I will react like the real person in the room.
               </div>
             )}
             {messages.map((message) => (
-              <div key={message.id} className={`max-w-[85%] rounded-3xl p-4 ${message.role === "user" ? "ml-auto bg-iris text-white" : "bg-mist text-ink"}`}>
-                <div className="mb-1 text-xs font-black uppercase opacity-60">{message.role === "user" ? "You" : "AI persona"}</div>
+              <AnimatedMessage key={message.id} className={`max-w-[85%] rounded-3xl p-4 font-medium leading-7 ${message.role === "user" ? "ml-auto bg-gradient-to-br from-violet-600 to-sky-500 text-white" : "bg-violet-50 text-slate-800 dark:bg-white/10 dark:text-white/82"}`}>
+                <div className="mb-1 text-xs font-semibold uppercase opacity-60">{message.role === "user" ? "You" : "AI persona"}</div>
                 {message.content}
-              </div>
+              </AnimatedMessage>
             ))}
-            {loading && <div className="w-fit rounded-full bg-mist px-4 py-3 text-sm font-bold">Thinking...</div>}
+            {loading && <TypingIndicator />}
           </div>
-          <form onSubmit={onSubmit} className="flex gap-2 border-t border-black/10 pt-4">
-            <input name="message" className="min-w-0 flex-1 rounded-full border border-black/10 px-4 py-3" placeholder="Type your response..." />
-            <button className="rounded-full bg-ink px-5 py-3 font-bold text-white">Send</button>
+          <form onSubmit={onSubmit} className="flex gap-2 border-t border-violet-100 pt-4 dark:border-white/10">
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              rows={2}
+              className="min-w-0 flex-1 resize-none rounded-3xl border border-violet-100 bg-white/90 px-4 py-3 font-medium text-slate-800 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-200/50 dark:border-white/10 dark:bg-white/10 dark:text-white"
+              placeholder="Type your response, or press Speak..."
+            />
+            <button className="inline-flex items-center justify-center rounded-3xl bg-[#6200a8] px-5 py-3 font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.18)] transition hover:-translate-y-0.5">
+              <Send size={18} />
+            </button>
           </form>
-          <button onClick={finish} disabled={loading} className="mt-3 w-full rounded-full bg-ember px-5 py-3 font-black text-white disabled:opacity-60">End session and generate report</button>
+          <AnimatedMessage className="mt-3">
+            <button onClick={finish} disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-500 px-5 py-3 font-semibold text-white shadow-[0_14px_30px_rgba(244,63,94,0.18)] transition hover:-translate-y-0.5 disabled:opacity-60">
+            <Square size={16} /> End session and generate report
+            </button>
+          </AnimatedMessage>
         </div>
-      </section>
+      </AnimatedPage>
     </main>
   );
 }

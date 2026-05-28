@@ -15,24 +15,39 @@ class GeminiService:
         self.enabled = bool(self.settings.gemini_api_key)
         if self.enabled:
             genai.configure(api_key=self.settings.gemini_api_key)
-            self.model = genai.GenerativeModel(self.settings.gemini_model)
+            self.roleplay_model = genai.GenerativeModel(self.settings.gemini_roleplay_model)
+            self.report_model = genai.GenerativeModel(self.settings.gemini_model)
         else:
-            self.model = None
+            self.roleplay_model = None
+            self.report_model = None
 
     async def generate_roleplay_response(self, session: Session, history: list[Message]) -> str:
-        if not self.enabled or self.model is None:
+        if not self.enabled or self.roleplay_model is None:
             return self._mock_roleplay(session, history)
         try:
-            response = await self.model.generate_content_async(build_roleplay_prompt(session, history))
+            response = await self.roleplay_model.generate_content_async(
+                build_roleplay_prompt(session, history, self.settings.ai_history_messages),
+                generation_config={
+                    "max_output_tokens": self.settings.ai_roleplay_max_output_tokens,
+                    "temperature": self.settings.ai_temperature,
+                },
+            )
             return (response.text or self._mock_roleplay(session, history)).strip()
         except Exception:
             return self._mock_roleplay(session, history)
 
     async def generate_feedback_report(self, report_id: str, session: Session, history: list[Message]) -> Report:
-        if not self.enabled or self.model is None:
+        if not self.enabled or self.report_model is None:
             return self._mock_report(report_id, session)
         try:
-            response = await self.model.generate_content_async(build_report_prompt(session, history))
+            response = await self.report_model.generate_content_async(
+                build_report_prompt(session, history[-24:]),
+                generation_config={
+                    "max_output_tokens": self.settings.ai_report_max_output_tokens,
+                    "temperature": 0.35,
+                    "response_mime_type": "application/json",
+                },
+            )
             payload = self._parse_json(response.text or "")
             return Report(id=report_id, userId=session.userId, sessionId=session.id, createdAt=utc_now_iso(), **payload)
         except Exception:

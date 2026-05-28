@@ -16,12 +16,11 @@ RehearseAI is a full-stack MVP for rehearsing high-stakes real-life situations w
 ## Project structure
 
 ```text
-rehearseai/
-  frontend/
-  backend/
-  docs/
-  docker-compose.yml
-  .env.example
+frontend/
+backend/
+docs/
+docker-compose.yml
+.env.example
 ```
 
 ## Local setup
@@ -77,12 +76,36 @@ Use short feature branches such as `feature/session-flow`, `feature/firebase-aut
 - Practice type selection
 - Setup form
 - Session creation through FastAPI
-- Chat-style roleplay session
+- Text and live voice roleplay session
+- Browser speech recognition and AI read-aloud
+- Scenario-specific animated 3D personas
 - Mock AI responses without Gemini credentials
 - Session ending
 - Structured mock report generation
 - Dashboard session listing
 - Pricing page with Paddle placeholder
+
+## AI cost controls
+
+The backend is configured to keep per-user Gemini costs low:
+
+- `GEMINI_ROLEPLAY_MODEL=gemini-2.5-flash-lite` for cheap live turns.
+- `GEMINI_MODEL=gemini-2.5-flash` for more detailed final reports.
+- `AI_HISTORY_MESSAGES=8` so each roleplay call sends only recent context.
+- `AI_ROLEPLAY_MAX_OUTPUT_TOKENS=180` to keep spoken replies short.
+- `AI_REPORT_MAX_OUTPUT_TOKENS=900` to cap report generation.
+- Reports are generated once per session and reused if requested again.
+- Mock fallback remains available when `GEMINI_API_KEY` is empty.
+
+More cost strategies for production:
+
+- Limit free plan sessions and turns per month.
+- Cache/reuse generated reports.
+- Summarize older conversation turns instead of sending full history.
+- Use flash-lite for all live turns and reserve larger models for paid tiers.
+- Add rate limits per `userId` and IP.
+- Stop sessions automatically after 8 turns unless the user upgrades.
+- Stream short responses rather than long coaching essays during roleplay.
 
 ## Credentials needed for production
 

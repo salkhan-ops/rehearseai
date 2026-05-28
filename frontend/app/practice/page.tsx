@@ -1,23 +1,28 @@
 import Link from "next/link";
+import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { Nav } from "@/components/Nav";
 import { practiceTypes } from "@/lib/types";
 
 export default function PracticePage() {
   return (
-    <main>
+    <main className="min-h-screen bg-[#f4f8fc] dark:bg-[#0e1020]">
       <Nav />
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <h1 className="text-4xl font-black tracking-tight md:text-6xl">What do you want to rehearse?</h1>
-        <p className="mt-4 max-w-2xl text-lg text-black/60">Pick a situation. RehearseAI will shape the persona, pressure, and feedback around it.</p>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {practiceTypes.map((type) => (
-            <Link key={type} href={`/practice/setup?type=${encodeURIComponent(type)}`} className="min-h-40 rounded-3xl bg-white p-6 shadow-soft ring-1 ring-black/5 transition hover:-translate-y-1 hover:ring-black/15">
-              <div className="text-xl font-black">{type}</div>
-              <p className="mt-3 text-sm leading-6 text-black/55">Practice realistic responses, follow-ups, and pressure.</p>
-            </Link>
-          ))}
+      <AnimatedPage className="mx-auto max-w-6xl px-4 py-16">
+        <div className="mx-auto max-w-3xl text-center">
+          <h1 className="text-5xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white md:text-6xl">What do you want to rehearse?</h1>
+          <p className="mt-5 text-lg font-medium leading-8 text-slate-600 dark:text-white/60">Pick a situation. RehearseAI shapes the persona, pressure, and feedback around it.</p>
         </div>
-      </section>
+        <StaggeredGrid className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {practiceTypes.map((type) => (
+            <AnimatedCard key={type} className="min-h-40 rounded-[1.5rem] bg-white p-6 shadow-[0_14px_40px_rgba(35,45,75,0.04)] ring-1 ring-slate-200/75 transition dark:bg-white/10 dark:ring-white/10">
+              <Link href={`/practice/setup?type=${encodeURIComponent(type)}`} className="block h-full">
+                <div className="text-xl font-semibold tracking-[-0.03em] text-slate-900 dark:text-white">{type}</div>
+                <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-white/60">Practice realistic responses, follow-ups, and pressure.</p>
+              </Link>
+            </AnimatedCard>
+          ))}
+        </StaggeredGrid>
+      </AnimatedPage>
     </main>
   );
 }

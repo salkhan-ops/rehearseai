@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     google_application_credentials: Optional[str] = None
     gemini_api_key: Optional[str] = None
     gemini_model: str = "gemini-2.5-flash"
+    gemini_roleplay_model: str = "gemini-2.5-flash-lite"
+    ai_history_messages: int = 8
+    ai_roleplay_max_output_tokens: int = 180
+    ai_report_max_output_tokens: int = 900
+    ai_temperature: float = 0.65
     firestore_project_id: Optional[str] = None
     paddle_api_key: Optional[str] = None
     paddle_webhook_secret: Optional[str] = None
