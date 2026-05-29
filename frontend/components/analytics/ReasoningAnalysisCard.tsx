@@ -12,14 +12,14 @@ export function ReasoningAnalysisCard({ analytics }: { analytics: PerformanceAna
   ];
 
   return (
-    <div className="rounded-[1.5rem] bg-white p-6 shadow-[0_14px_40px_rgba(35,45,75,0.04)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
-      <h3 className="text-xl font-semibold tracking-[-0.03em] text-slate-900 dark:text-white">Reasoning Intelligence</h3>
-      <p className="mt-2 font-medium leading-7 text-slate-600 dark:text-white/60">{analytics.reasoningSummary}</p>
+    <div className="rounded-[1.5rem] surface-low p-6">
+      <h3 className="text-xl font-semibold tracking-[-0.03em] text-primary-token">Reasoning Intelligence</h3>
+      <p className="mt-2 font-medium leading-7 text-secondary-token">{analytics.reasoningSummary}</p>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {blocks.map(([title, items]) => (
-          <div key={title as string} className="rounded-2xl bg-slate-50 p-4 dark:bg-white/10">
-            <div className="font-semibold text-slate-900 dark:text-white">{title}</div>
-            <ul className="mt-3 space-y-2 text-sm font-medium text-slate-600 dark:text-white/60">
+          <div key={title as string} className="rounded-2xl surface-medium p-4">
+            <div className="font-semibold text-primary-token">{title}</div>
+            <ul className="mt-3 space-y-2 text-sm font-medium text-secondary-token">
               {(items as string[]).map((item) => <li key={item}>• {item}</li>)}
             </ul>
           </div>

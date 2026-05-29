@@ -87,6 +87,7 @@ Use short feature branches such as `feature/session-flow`, `feature/firebase-aut
 - Firebase email/password auth, Google sign-in, password reset, and protected dashboard
 - Admin console at `/admin` for plan templates, users, entitlements, user plan assignment, and billing placeholders
 - Firestore user profile creation with role-based admin access
+- Deepgram live speech-to-text through the FastAPI WebSocket proxy with browser fallback
 
 ## Admin setup
 
@@ -150,6 +151,37 @@ More cost strategies for production:
 - Firebase client config for frontend authentication
 - Google Cloud service account or workload identity for Firestore
 - `GEMINI_API_KEY` for real Gemini responses and reports
+- `DEEPGRAM_API_KEY` in the backend only for real streaming speech-to-text
+- `CARTESIA_API_KEY` in the backend only for realistic AI text-to-speech
 - Paddle sandbox or production API keys and webhook secret
 
 Do not commit secrets. Keep them in local `.env`, Vercel/Firebase config, or Google Cloud Secret Manager.
+
+## Deepgram voice mode
+
+Set this only in backend `.env`:
+
+```env
+DEEPGRAM_API_KEY=your_deepgram_key
+```
+
+Set this in frontend `.env.local`:
+
+```env
+NEXT_PUBLIC_API_WS_URL=ws://localhost:8000
+```
+
+The frontend opens `ws://localhost:8000/ws/voice/deepgram` and streams microphone chunks to FastAPI. FastAPI connects to Deepgram with the backend-only `DEEPGRAM_API_KEY` and forwards transcript JSON back to the browser. The Deepgram key is never sent to frontend code. If the proxy or Deepgram connection fails, the app falls back to browser speech recognition/mock voice mode.
+
+## Cartesia AI voice mode
+
+Set this only in backend `.env`:
+
+```env
+CARTESIA_API_KEY=your_cartesia_key
+CARTESIA_VOICE_ID=a0e99841-438c-4a64-b679-ae501e7d6091
+CARTESIA_MODEL_ID=sonic-3
+CARTESIA_VERSION=2026-03-01
+```
+
+The frontend sends AI response text to FastAPI at `/api/voice/tts`. FastAPI calls Cartesia and returns browser-playable MP3 audio. The Cartesia key is never exposed to frontend code. If Cartesia fails or is missing, the app falls back to browser `speechSynthesis`, preferring a natural female voice when available.

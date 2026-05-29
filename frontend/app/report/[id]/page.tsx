@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BrainCircuit, Sparkles } from "lucide-react";
 import { BenchmarkComparisonChart } from "@/components/analytics/BenchmarkComparisonChart";
 import { CommunicationEfficiencyChart } from "@/components/analytics/CommunicationEfficiencyChart";
 import { ConfidenceTrendChart } from "@/components/analytics/ConfidenceTrendChart";
@@ -25,12 +26,23 @@ import type { PerformanceAnalytics, Report } from "@/lib/types";
 
 function ListSection({ title, items }: { title: string; items: string[] }) {
   return (
-    <AnimatedSection className="rounded-[1.5rem] bg-white p-6 shadow-[0_14px_40px_rgba(35,45,75,0.04)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
-      <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-900 dark:text-white">{title}</h2>
-      <ul className="mt-4 space-y-3 font-medium text-slate-600 dark:text-white/60">
+    <AnimatedSection className="rounded-[1.5rem] surface-low p-6">
+      <h2 className="text-xl font-semibold tracking-[-0.03em] text-primary-token">{title}</h2>
+      <ul className="mt-4 space-y-3 font-medium text-secondary-token">
         {items.map((item) => <li key={item}>• {item}</li>)}
       </ul>
     </AnimatedSection>
+  );
+}
+
+function ReportAmbient() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute left-1/2 top-24 h-[42rem] w-[42rem] -translate-x-1/2 rounded-full bg-violet-500/18 blur-3xl" />
+      <div className="absolute right-[-12rem] top-1/3 h-[34rem] w-[34rem] rounded-full bg-cyan-400/14 blur-3xl" />
+      <div className="absolute bottom-[-14rem] left-[-10rem] h-[32rem] w-[32rem] rounded-full bg-blue-500/16 blur-3xl" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:74px_74px] opacity-25" />
+    </div>
   );
 }
 
@@ -47,16 +59,35 @@ export default function ReportPage() {
     });
   }, [id, getToken]);
 
-  if (!report || !analytics) return <main className="min-h-screen bg-[#f4f8fc] dark:bg-[#0e1020]"><Nav /><div className="px-4 py-12 text-center font-semibold text-slate-700 dark:text-white/70">Loading performance intelligence...</div></main>;
+  if (!report || !analytics) return <main className="cog-bg min-h-screen text-primary-token"><ReportAmbient /><div className="relative px-4 py-12 text-center font-semibold text-secondary-token">Loading performance intelligence...</div></main>;
 
   return (
-    <main className="min-h-screen bg-[#f4f8fc] dark:bg-[#0e1020]">
+    <main className="cog-bg relative min-h-screen overflow-hidden text-primary-token">
+      <ReportAmbient />
       <Nav />
-      <AnimatedPage className="mx-auto max-w-6xl px-4 py-16">
-        <div className="max-w-4xl">
-          <p className="w-fit rounded-full bg-white px-4 py-2 text-sm font-semibold text-violet-700 ring-1 ring-violet-100 dark:bg-white/10 dark:text-violet-100 dark:ring-white/10">Performance Intelligence</p>
-          <h1 className="mt-6 text-5xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white md:text-6xl">Cognitive performance under pressure.</h1>
-          <p className="mt-5 text-lg font-medium leading-8 text-slate-600 dark:text-white/60">{report.summary}</p>
+      <AnimatedPage className="relative z-10 mx-auto max-w-6xl px-4 py-12">
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full surface-low px-4 py-2 text-sm font-semibold text-secondary-token"><BrainCircuit size={16} /> Performance Intelligence</p>
+            <h1 className="mt-6 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-primary-token md:text-7xl">Your pressure signature.</h1>
+            <p className="mt-5 text-lg font-medium leading-8 text-secondary-token">{report.summary}</p>
+          </div>
+          <div className="rounded-[2rem] surface-high p-5">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--accent-primary)]"><Sparkles size={16} /> Session snapshot</div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              {[
+                ["Confidence", report.confidenceScore],
+                ["Clarity", report.clarityScore],
+                ["Calmness", report.calmnessScore],
+                ["Structure", report.structureScore],
+              ].map(([label, score]) => (
+                <div key={String(label)} className="rounded-2xl surface-medium p-4">
+                  <div className="text-3xl font-semibold tracking-[-0.04em] text-primary-token">{score}</div>
+                  <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-tertiary-token">{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <StaggeredGrid className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -69,19 +100,19 @@ export default function ReportPage() {
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
           <ResilienceScoreCard metrics={analytics.pressureMetrics} />
-          <AnimatedSection className="rounded-[1.5rem] bg-white p-6 shadow-[0_14px_40px_rgba(35,45,75,0.04)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
-            <h2 className="text-2xl font-semibold tracking-[-0.035em] text-slate-900 dark:text-white">Adaptive AI personality engine</h2>
-            <p className="mt-3 font-medium leading-7 text-slate-600 dark:text-white/60">
+          <AnimatedSection className="rounded-[1.5rem] surface-low p-6">
+            <h2 className="text-2xl font-semibold tracking-[-0.035em] text-primary-token">Adaptive AI personality engine</h2>
+            <p className="mt-3 font-medium leading-7 text-secondary-token">
               The persona adjusted pressure based on hesitation, generic phrasing, evidence strength, defensiveness, and recovery signals.
             </p>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
-              <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/10">
-                <div className="text-sm font-semibold text-slate-500 dark:text-white/50">Pressure level</div>
-                <div className="mt-1 text-xl font-semibold capitalize text-slate-900 dark:text-white">{String(analytics.adaptivePersona.currentPressureLevel || "moderate")}</div>
+              <div className="rounded-2xl surface-medium p-4">
+                <div className="text-sm font-semibold text-tertiary-token">Pressure level</div>
+                <div className="mt-1 text-xl font-semibold capitalize text-primary-token">{String(analytics.adaptivePersona.currentPressureLevel || "moderate")}</div>
               </div>
-              <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/10">
-                <div className="text-sm font-semibold text-slate-500 dark:text-white/50">Next behavior</div>
-                <div className="mt-1 font-semibold text-slate-900 dark:text-white">{String(analytics.adaptivePersona.nextBehavior || "challenge weak logic")}</div>
+              <div className="rounded-2xl surface-medium p-4">
+                <div className="text-sm font-semibold text-tertiary-token">Next behavior</div>
+                <div className="mt-1 font-semibold text-primary-token">{String(analytics.adaptivePersona.nextBehavior || "challenge weak logic")}</div>
               </div>
             </div>
           </AnimatedSection>
@@ -109,9 +140,9 @@ export default function ReportPage() {
         </AnimatedSection>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
-          <AnimatedSection className="rounded-[1.5rem] bg-white p-6 shadow-[0_14px_40px_rgba(35,45,75,0.04)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
-            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-900 dark:text-white">Challenge mode result</h2>
-            <p className="mt-2 font-medium capitalize text-slate-600 dark:text-white/60">{String(analytics.challengeResult.challengeType || "pressure simulation")}</p>
+          <AnimatedSection className="rounded-[1.5rem] surface-low p-6">
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-primary-token">Challenge mode result</h2>
+            <p className="mt-2 font-medium capitalize text-secondary-token">{String(analytics.challengeResult.challengeType || "pressure simulation")}</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {[
                 ["Survival", analytics.challengeResult.survivalScore],
@@ -119,17 +150,17 @@ export default function ReportPage() {
                 ["Reasoning Stability", analytics.challengeResult.reasoningStabilityScore],
                 ["Interruption Recovery", analytics.challengeResult.interruptionRecoveryScore],
               ].map(([label, score]) => (
-                <div key={String(label)} className="rounded-2xl bg-slate-50 p-4 dark:bg-white/10">
-                  <div className="text-3xl font-semibold tracking-[-0.04em] text-[#6200a8] dark:text-violet-100">{String(score)}</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-600 dark:text-white/60">{label}</div>
+                <div key={String(label)} className="rounded-2xl surface-medium p-4">
+                  <div className="text-3xl font-semibold tracking-[-0.04em] text-[var(--accent-primary)]">{String(score)}</div>
+                  <div className="mt-1 text-sm font-semibold text-secondary-token">{label}</div>
                 </div>
               ))}
             </div>
           </AnimatedSection>
-          <AnimatedSection className="rounded-[1.5rem] bg-white p-6 shadow-[0_14px_40px_rgba(35,45,75,0.04)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
-            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-900 dark:text-white">Progression system</h2>
-            <p className="mt-2 font-medium text-slate-600 dark:text-white/60">Level: {String(analytics.progression.skillLevel || "Foundation")} • Streak: {String(analytics.progression.streak || 1)}</p>
-            <ul className="mt-4 space-y-3 font-medium text-slate-600 dark:text-white/60">
+          <AnimatedSection className="rounded-[1.5rem] surface-low p-6">
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-primary-token">Progression system</h2>
+            <p className="mt-2 font-medium text-secondary-token">Level: {String(analytics.progression.skillLevel || "Foundation")} • Streak: {String(analytics.progression.streak || 1)}</p>
+            <ul className="mt-4 space-y-3 font-medium text-secondary-token">
               {Array.isArray(analytics.progression.achievements) && analytics.progression.achievements.map((item) => <li key={String(item)}>• {item}</li>)}
             </ul>
           </AnimatedSection>
@@ -140,15 +171,15 @@ export default function ReportPage() {
         </AnimatedSection>
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <AnimatedSection className="rounded-[1.5rem] bg-white p-6 shadow-[0_14px_40px_rgba(35,45,75,0.04)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
-            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-900 dark:text-white">Historical intelligence</h2>
-            <ul className="mt-4 space-y-3 font-medium text-slate-600 dark:text-white/60">
+          <AnimatedSection className="rounded-[1.5rem] surface-low p-6">
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-primary-token">Historical intelligence</h2>
+            <ul className="mt-4 space-y-3 font-medium text-secondary-token">
               {analytics.historicalInsights.map((item) => <li key={item}>• {item}</li>)}
             </ul>
           </AnimatedSection>
-          <AnimatedSection className="rounded-[1.5rem] bg-[#6200a8] p-6 text-white shadow-[0_18px_55px_rgba(98,0,168,0.16)]">
-            <h2 className="text-xl font-semibold tracking-[-0.03em]">Motivation loop</h2>
-            <ul className="mt-4 space-y-3 font-medium text-white/75">
+          <AnimatedSection className="rounded-[1.5rem] surface-medium p-6">
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-primary-token">Motivation loop</h2>
+            <ul className="mt-4 space-y-3 font-medium text-secondary-token">
               {analytics.milestones.map((item) => <li key={item}>• {item}</li>)}
             </ul>
           </AnimatedSection>
@@ -160,9 +191,9 @@ export default function ReportPage() {
           <ListSection title="Missed opportunities" items={report.missedOpportunities} />
           <ListSection title="Improved responses" items={report.improvedResponses} />
           <ListSection title="Practice drills" items={report.drills} />
-          <div className="rounded-[1.5rem] bg-[#6200a8] p-6 text-white shadow-[0_18px_55px_rgba(98,0,168,0.16)]">
-            <h2 className="text-xl font-semibold tracking-[-0.03em]">Next session recommendation</h2>
-            <p className="mt-4 font-medium text-white/75">{report.nextRecommendation}</p>
+          <div className="rounded-[1.5rem] surface-medium p-6">
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-primary-token">Next session recommendation</h2>
+            <p className="mt-4 font-medium text-secondary-token">{report.nextRecommendation}</p>
           </div>
         </div>
       </AnimatedPage>

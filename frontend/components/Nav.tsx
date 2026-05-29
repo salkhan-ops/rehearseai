@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, LogOut, Moon, Sun } from "lucide-react";
+import { BrainCircuit, ChevronDown, LogOut, Moon, Sparkles, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 
@@ -26,8 +26,14 @@ export function Nav() {
 
   return (
     <header className="relative z-40">
-      <div className="mesh-bg border-b border-white/50 px-4 py-3 text-center text-sm font-medium text-slate-800 dark:border-white/10 dark:text-white/80">
-        Hello, 🇵🇰. Practice the moment before it matters.
+      <div className="border-b border-slate-200/70 bg-gradient-to-r from-cyan-50 via-violet-50 to-blue-50 px-4 py-3 text-center text-sm font-semibold text-slate-700 dark:border-white/10 dark:from-cyan-400/10 dark:via-violet-500/10 dark:to-blue-500/10 dark:text-white/76">
+        <span className="inline-flex items-center justify-center gap-2">
+          <BrainCircuit size={16} className="text-violet-700 dark:text-cyan-100" />
+          Practice the moment before it matters.
+          <span className="hidden items-center gap-2 text-slate-500 dark:text-white/42 sm:inline-flex">
+            <Sparkles size={14} /> Voice-first cognitive simulation
+          </span>
+        </span>
       </div>
       <nav className="mx-auto mt-6 flex max-w-6xl items-center justify-between rounded-[1.75rem] bg-white/80 px-5 py-4 shadow-[0_18px_50px_rgba(35,45,75,0.06)] ring-1 ring-slate-200/70 backdrop-blur-xl dark:bg-white/10 dark:ring-white/10">
         <Link href="/" className="flex items-center gap-3 text-lg font-semibold tracking-[0.28em] text-slate-900 dark:text-white">

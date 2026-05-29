@@ -1,39 +1,66 @@
+import { CheckCircle2, Radio, Sparkles } from "lucide-react";
 import { Nav } from "@/components/Nav";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
 
 const plans = [
-  { name: "Free", price: "$0", href: "/practice", features: ["3 sessions/month", "Basic feedback"] },
-  { name: "Pro", price: "$19/mo", href: process.env.NEXT_PUBLIC_PADDLE_PRO_CHECKOUT_URL || "", features: ["Unlimited sessions", "Advanced reports", "Brutal mode", "Session history"] },
-  { name: "Coach", price: "$49/mo", href: process.env.NEXT_PUBLIC_PADDLE_COACH_CHECKOUT_URL || "", features: ["Advanced personas", "Detailed analytics", "Priority features"] }
+  { name: "Free", price: "$0", href: "/practice", signal: "Start", features: ["3 sessions/month", "Basic feedback", "Text rehearsal", "Starter reports"] },
+  { name: "Pro", price: "$19/mo", href: process.env.NEXT_PUBLIC_PADDLE_PRO_CHECKOUT_URL || "", signal: "Most adaptive", features: ["Unlimited sessions", "Advanced reports", "Brutal mode", "Session history", "Decision tree analysis"] },
+  { name: "Coach", price: "$49/mo", href: process.env.NEXT_PUBLIC_PADDLE_COACH_CHECKOUT_URL || "", signal: "Deep intelligence", features: ["Advanced personas", "Detailed analytics", "Benchmarking", "Priority features", "Extended history"] },
 ];
 
 export default function PricingPage() {
   return (
-    <main className="min-h-screen bg-[#f4f8fc] dark:bg-[#0e1020]">
+    <main className="cog-bg min-h-screen text-primary-token">
       <Nav />
-      <AnimatedPage className="mx-auto max-w-6xl px-4 py-16">
+      <AnimatedPage className="mx-auto max-w-6xl px-4 py-14">
         <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-5xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white md:text-6xl">Simple rehearsal plans</h1>
-          <p className="mt-5 text-lg font-medium leading-8 text-slate-600 dark:text-white/60">Paddle checkout is prepared as a placeholder for the production billing flow.</p>
+          <p className="mx-auto inline-flex items-center gap-2 rounded-full surface-low px-4 py-2 text-sm font-semibold text-secondary-token">
+            <Radio size={16} /> Paddle-ready billing architecture
+          </p>
+          <h1 className="mt-6 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] md:text-7xl">
+            Choose your <span className="accent-gradient-text">training depth.</span>
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-lg font-medium leading-8 text-secondary-token">
+            Plans map directly to cognitive simulation limits, pressure modes, analytics depth, and long-term memory.
+          </p>
         </div>
-        <StaggeredGrid className="mt-10 grid gap-4 md:grid-cols-3">
-          {plans.map((plan) => (
-            <AnimatedCard key={plan.name} className="rounded-[1.75rem] bg-white p-7 shadow-[0_18px_55px_rgba(35,45,75,0.06)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
-              <div className="text-2xl font-semibold tracking-[-0.03em] text-slate-900 dark:text-white">{plan.name}</div>
-              <div className="mt-3 text-4xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white">{plan.price}</div>
-              <ul className="mt-6 space-y-3 font-medium text-slate-600 dark:text-white/60">
-                {plan.features.map((feature) => <li key={feature}>• {feature}</li>)}
-              </ul>
-              {plan.href ? (
-                <a href={plan.href} className="mt-8 block w-full rounded-2xl bg-[#6200a8] px-5 py-3 text-center font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.24)]">
-                  {plan.name === "Free" ? "Start free" : "Open Paddle checkout"}
-                </a>
-              ) : (
-                <button className="mt-8 w-full rounded-2xl bg-slate-50 px-5 py-3 font-semibold text-slate-500 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/50 dark:ring-white/10">Add Paddle sandbox URL</button>
-              )}
+
+        <StaggeredGrid className="mt-12 grid gap-4 md:grid-cols-3">
+          {plans.map((plan, index) => (
+            <AnimatedCard key={plan.name} className={`relative overflow-hidden rounded-[2rem] p-6 ${index === 1 ? "surface-high" : "surface-low"}`}>
+              <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-cyan-300/30 via-violet-400/30 to-blue-400/20 blur-3xl" />
+              <div className="relative">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-2xl font-semibold tracking-[-0.04em]">{plan.name}</div>
+                  <span className="rounded-full bg-[var(--surface-secondary)] px-3 py-1 text-xs font-semibold text-secondary-token ring-1 ring-[var(--border-soft)]">{plan.signal}</span>
+                </div>
+                <div className="mt-5 text-5xl font-semibold tracking-[-0.055em]">{plan.price}</div>
+                <ul className="mt-7 space-y-3 font-medium text-secondary-token">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 shrink-0 text-[var(--accent-secondary)]" size={18} />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                {plan.href ? (
+                  <a href={plan.href} className="mt-8 block w-full rounded-2xl bg-[var(--accent-primary)] px-5 py-3 text-center font-semibold text-white shadow-[0_18px_42px_rgba(109,40,217,0.24)]">
+                    {plan.name === "Free" ? "Start free" : "Open Paddle checkout"}
+                  </a>
+                ) : (
+                  <button className="mt-8 w-full rounded-2xl surface-medium px-5 py-3 font-semibold text-secondary-token">Add Paddle sandbox URL</button>
+                )}
+              </div>
             </AnimatedCard>
           ))}
         </StaggeredGrid>
+
+        <div className="mt-8 rounded-[2rem] surface-medium p-6">
+          <div className="flex items-center gap-2 font-semibold"><Sparkles size={18} /> Pricing controls are entitlement-driven.</div>
+          <p className="mt-2 font-medium leading-7 text-secondary-token">
+            Admin plan templates control sessions, brutal mode, voice mode, advanced analytics, shareable reports, decision trees, and historical memory.
+          </p>
+        </div>
       </AnimatedPage>
     </main>
   );

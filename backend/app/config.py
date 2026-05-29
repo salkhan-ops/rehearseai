@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     google_cloud_project: Optional[str] = None
     google_application_credentials: Optional[str] = None
     gemini_api_key: Optional[str] = None
+    deepgram_api_key: Optional[str] = None
+    cartesia_api_key: Optional[str] = None
+    cartesia_voice_id: str = "a0e99841-438c-4a64-b679-ae501e7d6091"
+    cartesia_model_id: str = "sonic-3"
+    cartesia_version: str = "2026-03-01"
     gemini_model: str = "gemini-2.5-flash"
     gemini_roleplay_model: str = "gemini-2.5-flash-lite"
     ai_history_messages: int = 8

@@ -14,7 +14,7 @@ export function DecisionTreeDiagram({ tree }: { tree: ReasoningTree }) {
       id: "root",
       position: { x: 320, y: 20 },
       data: { label: tree.rootNode },
-      style: { borderRadius: 18, border: "1px solid #cbd5e1", padding: 12, width: 280, fontSize: 12, fontWeight: 600 },
+      style: { borderRadius: 18, border: "1px solid rgba(167,139,250,0.34)", padding: 12, width: 280, fontSize: 12, fontWeight: 600, background: "rgba(15,23,42,0.86)", color: "#f8fbff" },
     };
 
     const branchNodes: Node[] = expanded
@@ -28,8 +28,9 @@ export function DecisionTreeDiagram({ tree }: { tree: ReasoningTree }) {
             padding: 12,
             width: 200,
             fontSize: 11,
-            background: "#fff",
-            boxShadow: "0 14px 38px rgba(35,45,75,0.08)",
+            background: "rgba(15,23,42,0.82)",
+            color: "#f8fbff",
+            boxShadow: "0 18px 48px rgba(99,102,241,0.14)",
           },
         }))
       : [];
@@ -53,12 +54,12 @@ export function DecisionTreeDiagram({ tree }: { tree: ReasoningTree }) {
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="rounded-full bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 ring-1 ring-violet-100 transition hover:bg-violet-100 dark:bg-white/10 dark:text-violet-100 dark:ring-white/10"
+          className="rounded-full surface-medium px-4 py-2 text-sm font-semibold text-primary-token transition hover:opacity-90"
         >
           {expanded ? "Collapse branches" : "Expand branches"}
         </button>
       </div>
-      <div className="h-[360px] overflow-hidden rounded-2xl bg-slate-50 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
+      <div className="h-[360px] overflow-hidden rounded-2xl surface-medium">
         <ReactFlow nodes={nodes} edges={edges} fitView minZoom={0.45} maxZoom={1.6} nodesDraggable={false}>
           <Background />
           <Controls />

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export const SHORT_PAUSE_MS = 800;
-export const LONG_PAUSE_MS = 1800;
+export const SHORT_PAUSE_MS = 1300;
+export const LONG_PAUSE_MS = 3200;
 export const MAX_TURN_MS = 60000;
 
 type VoiceState = "idle" | "listening" | "user_speaking" | "silence_detected" | "processing" | "ai_speaking";
@@ -44,7 +44,21 @@ declare global {
 function pickVoice() {
   if (typeof window === "undefined" || !window.speechSynthesis) return null;
   const voices = window.speechSynthesis.getVoices();
-  return voices.find((voice) => voice.lang.startsWith("en") && /Google|Samantha|Alex|Natural/i.test(voice.name)) || voices.find((voice) => voice.lang.startsWith("en")) || null;
+  const english = voices.filter((voice) => voice.lang.startsWith("en"));
+  return (
+    english.find((voice) => /Alex|Daniel|Google UK English Male|Microsoft Guy|Microsoft David|Natural/i.test(voice.name) && !/female|samantha|victoria|karen|zira/i.test(voice.name)) ||
+    english.find((voice) => /Google|Microsoft|Natural|Enhanced/i.test(voice.name)) ||
+    english[0] ||
+    null
+  );
+}
+
+function humanizeSpeech(text: string) {
+  return text
+    .replace(/\s+/g, " ")
+    .replace(/([.!?])\s+/g, "$1 ")
+    .replace(/, /g, ", ")
+    .trim();
 }
 
 export function useContinuousVoice() {
@@ -52,6 +66,8 @@ export function useContinuousVoice() {
   const callbackRef = useRef<FinalTranscriptCallback | null>(null);
   const shouldListenRef = useRef(false);
   const finalBufferRef = useRef("");
+  const interimBufferRef = useRef("");
+  const finalizingRef = useRef(false);
   const shortPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxTurnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -68,25 +84,33 @@ export function useContinuousVoice() {
 
   const resetTranscript = useCallback(() => {
     finalBufferRef.current = "";
+    interimBufferRef.current = "";
+    finalizingRef.current = false;
     setTranscript("");
     setInterimTranscript("");
   }, []);
 
   const finalizeTurn = useCallback(() => {
-    const finalText = `${finalBufferRef.current} ${interimTranscript}`.replace(/\s+/g, " ").trim();
-    if (!finalText) return;
+    if (finalizingRef.current) return;
+    const finalText = `${finalBufferRef.current} ${interimBufferRef.current}`.replace(/\s+/g, " ").trim();
+    if (!finalText) {
+      setVoiceState(shouldListenRef.current ? "listening" : "idle");
+      return;
+    }
+    finalizingRef.current = true;
     shouldListenRef.current = false;
     clearTimers();
     setVoiceState("processing");
     setTranscript(finalText);
     setInterimTranscript("");
+    interimBufferRef.current = "";
     try {
       recognitionRef.current?.stop();
     } catch {
       recognitionRef.current?.abort?.();
     }
     callbackRef.current?.(finalText);
-  }, [clearTimers, interimTranscript]);
+  }, [clearTimers]);
 
   const schedulePauseDetection = useCallback(() => {
     if (shortPauseTimerRef.current) clearTimeout(shortPauseTimerRef.current);
@@ -133,6 +157,22 @@ export function useContinuousVoice() {
     setVoiceState(shouldListenRef.current ? "listening" : "idle");
   }, []);
 
+  const waitForVoices = useCallback(() => new Promise<void>((resolve) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) {
+      resolve();
+      return;
+    }
+    if (window.speechSynthesis.getVoices().length > 0) {
+      resolve();
+      return;
+    }
+    const timeout = window.setTimeout(resolve, 450);
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.clearTimeout(timeout);
+      resolve();
+    };
+  }), []);
+
   const speak = useCallback((text: string): Promise<void> => {
     if (typeof window === "undefined" || !window.speechSynthesis) return Promise.resolve();
     shouldListenRef.current = false;
@@ -144,22 +184,35 @@ export function useContinuousVoice() {
     }
     window.speechSynthesis.cancel();
     return new Promise((resolve) => {
-      const utterance = new SpeechSynthesisUtterance(text);
+      waitForVoices().then(() => {
+      const utterance = new SpeechSynthesisUtterance(humanizeSpeech(text));
       utterance.voice = pickVoice();
-      utterance.rate = 0.98;
-      utterance.pitch = 1;
-      utterance.onstart = () => setVoiceState("ai_speaking");
-      utterance.onend = () => {
+      utterance.rate = 0.9;
+      utterance.pitch = 0.86;
+      utterance.volume = 1;
+      let resolved = false;
+      const finish = () => {
+        if (resolved) return;
+        resolved = true;
         setVoiceState("idle");
         resolve();
+      };
+      utterance.onstart = () => {
+        setVoiceState("ai_speaking");
+        window.speechSynthesis.resume();
+      };
+      utterance.onend = () => {
+        finish();
       };
       utterance.onerror = () => {
-        setVoiceState("idle");
-        resolve();
+        finish();
       };
       window.speechSynthesis.speak(utterance);
+      window.speechSynthesis.resume();
+      window.setTimeout(finish, Math.max(3000, text.length * 95));
+      });
     });
-  }, [clearTimers]);
+  }, [clearTimers, waitForVoices]);
 
   useEffect(() => {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -182,8 +235,10 @@ export function useContinuousVoice() {
         finalBufferRef.current = `${finalBufferRef.current} ${finalText}`.replace(/\s+/g, " ").trim();
         setTranscript(finalBufferRef.current);
       }
-      setInterimTranscript(interimText.trim());
+      interimBufferRef.current = interimText.trim();
+      setInterimTranscript(interimBufferRef.current);
       if (finalText || interimText) {
+        finalizingRef.current = false;
         setVoiceState("user_speaking");
         schedulePauseDetection();
       }

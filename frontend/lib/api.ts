@@ -6,17 +6,23 @@ type ApiOptions = RequestInit & { token?: string | null };
 
 async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const { token, headers, ...requestOptions } = options;
-  const response = await fetch(`${API_URL}${path}`, {
-    ...requestOptions,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(headers || {})
-    },
-    cache: "no-store"
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...requestOptions,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(headers || {})
+      },
+      cache: "no-store"
+    });
+  } catch {
+    throw new Error(`Could not reach the backend at ${API_URL}. Make sure FastAPI is running and CORS allows this frontend URL.`);
+  }
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
+    const detail = await response.text().catch(() => "");
+    throw new Error(`API request failed: ${response.status}${detail ? ` ${detail}` : ""}`);
   }
   return response.json() as Promise<T>;
 }
@@ -55,4 +61,18 @@ export function getReportAnalytics(reportId: string, token?: string | null) {
 
 export function getUserSessions(userId = "guest", token?: string | null) {
   return request<Session[]>(`/api/users/${userId}/sessions`, { token });
+}
+
+export async function synthesizeSpeech(text: string): Promise<Blob> {
+  const response = await fetch(`${API_URL}/api/voice/tts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`TTS request failed: ${response.status}${detail ? ` ${detail}` : ""}`);
+  }
+  return response.blob();
 }

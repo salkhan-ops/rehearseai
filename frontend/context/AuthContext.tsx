@@ -47,6 +47,19 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function fallbackProfile(user: User): AppUserProfile {
+  return {
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName,
+    photoURL: user.photoURL,
+    role: "user",
+    planId: "free",
+    planName: "Free",
+    status: "active",
+  };
+}
+
 function requireAuthClient() {
   const auth = getFirebaseAuth();
   if (!auth) {
@@ -58,34 +71,39 @@ function requireAuthClient() {
 async function upsertUserProfile(user: User) {
   if (user.isAnonymous) return null;
   const db = getFirebaseDb();
-  if (!db) return null;
-  const userRef = doc(db, "users", user.uid);
-  const existing = await getDoc(userRef);
-  const existingData = existing.exists() ? existing.data() : {};
-  const profile = {
-    uid: user.uid,
-    email: user.email,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
-    role: existingData.role || "user",
-    planId: existingData.planId || "free",
-    planName: existingData.planName || "Free",
-    status: existingData.status || "active",
-    createdAt: existingData.createdAt || serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    lastLoginAt: serverTimestamp(),
-  };
-  await setDoc(userRef, profile, { merge: true });
-  return {
-    uid: user.uid,
-    email: user.email,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
-    role: profile.role,
-    planId: profile.planId,
-    planName: profile.planName,
-    status: profile.status,
-  } as AppUserProfile;
+  if (!db) return fallbackProfile(user);
+  try {
+    const userRef = doc(db, "users", user.uid);
+    const existing = await getDoc(userRef);
+    const existingData = existing.exists() ? existing.data() : {};
+    const profile = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      role: existingData.role || "user",
+      planId: existingData.planId || "free",
+      planName: existingData.planName || "Free",
+      status: existingData.status || "active",
+      createdAt: existingData.createdAt || serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      lastLoginAt: serverTimestamp(),
+    };
+    await setDoc(userRef, profile, { merge: true });
+    return {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      role: profile.role,
+      planId: profile.planId,
+      planName: profile.planName,
+      status: profile.status,
+    } as AppUserProfile;
+  } catch (error) {
+    console.warn("Firebase Auth succeeded, but Firestore profile sync failed. Deploy firestore.rules to enable profile writes.", error);
+    return fallbackProfile(user);
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -171,6 +189,10 @@ export function useAuth() {
 export async function isAdmin(userId: string) {
   const db = getFirebaseDb();
   if (!db || !userId || userId === "guest") return false;
-  const snapshot = await getDoc(doc(db, "users", userId));
-  return snapshot.exists() && snapshot.data().role === "admin";
+  try {
+    const snapshot = await getDoc(doc(db, "users", userId));
+    return snapshot.exists() && snapshot.data().role === "admin";
+  } catch {
+    return false;
+  }
 }

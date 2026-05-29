@@ -23,7 +23,7 @@ export function BenchmarkComparisonChart({ metrics }: { metrics: Record<string, 
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <ul className="mt-4 space-y-2 text-sm font-medium text-slate-600 dark:text-white/60">
+      <ul className="mt-4 space-y-2 text-sm font-medium text-secondary-token">
         {Array.isArray(metrics.benchmarkNotes) && metrics.benchmarkNotes.map((note) => <li key={String(note)}>• {note}</li>)}
       </ul>
     </ChartShell>
