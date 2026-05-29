@@ -20,6 +20,7 @@ Backend services that use Firebase Admin SDK or Google service-account credentia
 - `billing_checkouts/{checkoutId}`
 - `adminLogs/{logId}`
 - `featureUsage/{usageId}`
+- `contact_submissions/{id}`
 
 ## users/{uid}
 
@@ -316,6 +317,23 @@ Rules:
 - Users can read their own usage.
 - Backend/admin writes usage.
 - Admins can read all usage.
+
+## contact_submissions/{id}
+
+Stores messages submitted through `/contact`.
+
+Fields:
+- `id: string`
+- `name: string`
+- `email: string`
+- `topic: string`
+- `message: string`
+- `createdAt: timestamp`
+
+Rules:
+- Users do not write this collection directly from the frontend.
+- FastAPI stores submissions through backend credentials.
+- Admins can read, update, or delete contact submissions.
 
 ## Standard Entitlement Map
 

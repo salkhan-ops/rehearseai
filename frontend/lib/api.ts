@@ -76,3 +76,10 @@ export async function synthesizeSpeech(text: string): Promise<Blob> {
   }
   return response.blob();
 }
+
+export function submitContact(payload: { name: string; email: string; topic: string; message: string }) {
+  return request<{ ok: boolean; id: string }>("/api/contact", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

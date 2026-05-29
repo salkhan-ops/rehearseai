@@ -88,6 +88,21 @@ Use short feature branches such as `feature/session-flow`, `feature/firebase-aut
 - Admin console at `/admin` for plan templates, users, entitlements, user plan assignment, and billing placeholders
 - Firestore user profile creation with role-based admin access
 - Deepgram live speech-to-text through the FastAPI WebSocket proxy with browser fallback
+- Immersive resources hub, blog, long-form articles, contact page, Terms of Service, and Privacy Policy
+- Contact form submissions saved through FastAPI to `contact_submissions`
+
+## Content and legal pages
+
+The content layer is local-file based for MVP speed:
+
+- `/resources`
+- `/blog` and `/blog/[slug]`
+- `/articles` and `/articles/[slug]`
+- `/contact`
+- `/legal/terms`
+- `/legal/privacy`
+
+Blog and article content lives under `frontend/content`. The UI uses abstract AI cognition hero visuals instead of stock-human imagery.
 
 ## Admin setup
 

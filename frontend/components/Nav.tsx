@@ -42,6 +42,8 @@ export function Nav() {
         </Link>
         <div className="hidden items-center gap-9 text-[15px] font-semibold text-slate-700 dark:text-white/70 md:flex">
           <Link href="/practice" className="inline-flex items-center gap-1">Practice <ChevronDown size={14} /></Link>
+          <Link href="/resources">Resources</Link>
+          <Link href="/blog">Blog</Link>
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/pricing">Pricing</Link>
         </div>

@@ -54,6 +54,7 @@ class FirestoreService:
         self.analytics: dict[str, PerformanceAnalytics] = {}
         self.admin_plans: dict[str, dict] = {plan["planId"]: plan for plan in DEFAULT_PLANS}
         self.admin_users: dict[str, dict] = {}
+        self.contact_submissions: dict[str, dict] = {}
 
     async def create_session(self, payload: SessionCreate) -> Session:
         session = Session(id=str(uuid4()), createdAt=utc_now_iso(), **payload.model_dump())
@@ -285,6 +286,21 @@ class FirestoreService:
                 payload["count"] = int(current_data.get("count", 0)) + count
                 payload["createdAt"] = current_data.get("createdAt", now)
             ref.set(payload, merge=True)
+        return payload
+
+    async def create_contact_submission(self, name: str, email: str, topic: str, message: str) -> dict:
+        submission_id = str(uuid4())
+        payload = {
+            "id": submission_id,
+            "name": name,
+            "email": email,
+            "topic": topic,
+            "message": message,
+            "createdAt": utc_now_iso(),
+        }
+        if self.client:
+            self.client.collection("contact_submissions").document(submission_id).set(payload)
+        self.contact_submissions[submission_id] = payload
         return payload
 
     async def admin_stats(self) -> dict:
