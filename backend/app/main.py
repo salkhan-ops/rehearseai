@@ -6,7 +6,7 @@ warnings.filterwarnings("ignore", message=r"urllib3 v2 only supports OpenSSL.*")
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
-from app.routes import admin, auth, contact, courses, health, payments, practice, reports, sessions, subscription, voice
+from app.routes import admin, auth, contact, conversation, courses, health, payments, practice, reports, sessions, subscription, voice
 from app.services.cartesia_service import CartesiaService
 from app.services.deepgram_service import DeepgramService
 from app.services.firestore_service import FirestoreService
@@ -17,6 +17,7 @@ from app.services.course_template_service import CourseTemplateService
 from app.services.course_schedule_service import CourseScheduleService
 from app.services.gamification_service import GamificationService
 from app.services.notification_service import NotificationService
+from app.services.conversation_coordination_service import ConversationCoordinationService
 
 settings = get_settings()
 
@@ -37,6 +38,7 @@ app.state.course_templates = CourseTemplateService()
 app.state.course_schedule = CourseScheduleService()
 app.state.gamification = GamificationService()
 app.state.notifications = NotificationService()
+app.state.conversation_coordination = ConversationCoordinationService(app.state.store)
 app.state.deepgram = DeepgramService()
 app.state.cartesia = CartesiaService()
 
@@ -50,4 +52,5 @@ app.include_router(practice.router)
 app.include_router(courses.router)
 app.include_router(subscription.router)
 app.include_router(admin.router)
+app.include_router(conversation.router)
 app.include_router(voice.router)

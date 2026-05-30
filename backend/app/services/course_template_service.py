@@ -1,3 +1,5 @@
+from typing import Optional
+
 from app.models.course import CourseTemplate
 
 
@@ -93,5 +95,5 @@ class CourseTemplateService:
     def get_course_templates(self) -> list[CourseTemplate]:
         return sorted([template for template in COURSE_TEMPLATES if template.isActive], key=lambda item: item.sortOrder)
 
-    def get_template(self, template_id: str) -> CourseTemplate | None:
+    def get_template(self, template_id: str) -> Optional[CourseTemplate]:
         return next((template for template in COURSE_TEMPLATES if template.id == template_id and template.isActive), None)

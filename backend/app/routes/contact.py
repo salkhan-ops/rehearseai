@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -13,7 +15,7 @@ class ContactSubmission(BaseModel):
     category: str = Field(min_length=2, max_length=120)
     subject: str = Field(min_length=2, max_length=180)
     message: str = Field(min_length=10, max_length=5000)
-    userId: str | None = Field(default=None, max_length=128)
+    userId: Optional[str] = Field(default=None, max_length=128)
 
 
 def get_store(request: Request) -> FirestoreService:
@@ -21,7 +23,7 @@ def get_store(request: Request) -> FirestoreService:
 
 
 @router.post("/api/contact")
-async def create_contact_submission(payload: ContactSubmission, request: Request, current_user_id: str | None = Depends(get_current_user_id)):
+async def create_contact_submission(payload: ContactSubmission, request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
     try:
         submission = await get_store(request).create_contact_message(
             name=payload.name.strip(),

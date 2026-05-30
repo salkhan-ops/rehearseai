@@ -6,7 +6,8 @@ import { useContinuousVoice } from "./useContinuousVoice";
 
 type VoiceState = "idle" | "connecting" | "listening" | "user_speaking" | "silence_detected" | "processing" | "ai_speaking" | "error";
 type Provider = "deepgram" | "mock";
-type FinalTranscriptCallback = (transcript: string) => void | Promise<void>;
+export type VoiceTurnMetrics = { speechDurationMs: number; silenceMs: number };
+type FinalTranscriptCallback = (transcript: string, metrics?: VoiceTurnMetrics) => void | Promise<void>;
 
 const DEEPGRAM_LONG_PAUSE_MS = 3400;
 const DEEPGRAM_MAX_TURN_MS = 60000;
@@ -42,7 +43,7 @@ function pickVoice(language = "en-US") {
   );
 }
 
-export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "en" } = {}) {
+export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "en", longPauseMs = DEEPGRAM_LONG_PAUSE_MS } = {}) {
   const fallback = useContinuousVoice(browserSpeechCode);
   const callbackRef = useRef<FinalTranscriptCallback | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -55,6 +56,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   const finalizingRef = useRef(false);
   const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechStartedAtRef = useRef<number | null>(null);
+  const lastSpeechAtRef = useRef<number | null>(null);
   const [provider, setProvider] = useState<Provider>("mock");
   const [providerReason, setProviderReason] = useState("");
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
@@ -93,6 +96,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     finalBufferRef.current = "";
     interimBufferRef.current = "";
     finalizingRef.current = false;
+    speechStartedAtRef.current = null;
+    lastSpeechAtRef.current = null;
     setTranscript("");
     setInterimTranscript("");
     fallback.resetTranscript();
@@ -106,8 +111,13 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     setVoiceState("processing");
     setTranscript(text);
     setInterimTranscript("");
+    const now = Date.now();
+    const metrics = {
+      speechDurationMs: speechStartedAtRef.current ? now - speechStartedAtRef.current : 0,
+      silenceMs: lastSpeechAtRef.current ? now - lastSpeechAtRef.current : 0,
+    };
     cleanupDeepgram();
-    callbackRef.current?.(text);
+    callbackRef.current?.(text, metrics);
   }, [cleanupDeepgram]);
 
   const schedulePause = useCallback(() => {
@@ -115,8 +125,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     pauseTimerRef.current = setTimeout(() => {
       setVoiceState("silence_detected");
       finalizeTurn();
-    }, DEEPGRAM_LONG_PAUSE_MS);
-  }, [finalizeTurn]);
+    }, longPauseMs);
+  }, [finalizeTurn, longPauseMs]);
 
   const startMock = useCallback((reason: string) => {
     setProvider("mock");
@@ -172,6 +182,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         const text = payload.channel?.alternatives?.[0]?.transcript?.trim();
         if (!text) return;
         finalizingRef.current = false;
+        if (!speechStartedAtRef.current) speechStartedAtRef.current = Date.now();
+        lastSpeechAtRef.current = Date.now();
         setVoiceState("user_speaking");
         if (payload.is_final) {
           finalBufferRef.current = `${finalBufferRef.current} ${text}`.replace(/\s+/g, " ").trim();

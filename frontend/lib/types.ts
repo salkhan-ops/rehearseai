@@ -335,6 +335,59 @@ export type Achievement = {
   unlockedAt: string;
 };
 
+export type VoiceProfile = {
+  userId: string;
+  averageWordsPerMinute: number;
+  averagePauseMs: number;
+  longPauseThresholdMs: number;
+  fillerWordRate: number;
+  hesitationMarkers: string[];
+  preferredAiWaitMs: number;
+  confidenceBaseline?: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CoordinationUserState = "calm" | "thinking" | "confused" | "rushing" | "hesitating" | "defensive" | "overexplaining" | "collapsing" | "improving";
+
+export type ConversationCoordinationState = {
+  userState: CoordinationUserState;
+  silenceMs: number;
+  speechDurationMs: number;
+  wordsPerMinute: number;
+  fillerCount: number;
+  shouldAiWait: boolean;
+  shouldAiRespond: boolean;
+  shouldAiInterrupt: boolean;
+  recommendedAiTone: string;
+  recommendedResponseLength: "micro" | "short" | "medium";
+  pressureAdjustment: "decrease" | "maintain" | "increase";
+  coachingSignal: string;
+  cartesia: {
+    voiceEmotion: string;
+    speakingRate: number;
+    intensity: number;
+    pauseStyle: string;
+  };
+};
+
+export type ConversationAnalyzePayload = {
+  transcript?: string;
+  interimTranscript?: string;
+  speechDurationMs?: number;
+  silenceMs?: number;
+  wordTimings?: Array<{ word: string; startMs?: number; endMs?: number }>;
+  sessionId?: string;
+  userId: string;
+};
+
+export type CalibrationStart = {
+  calibrationId: string;
+  userId: string;
+  paragraph: string;
+  startedAt: string;
+};
+
 export type SubscriptionStatus = "active" | "trialing" | "cancelled" | "past_due";
 
 export type CurrentSubscription = {

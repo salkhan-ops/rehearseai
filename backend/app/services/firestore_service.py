@@ -67,6 +67,8 @@ class FirestoreService:
         self.user_progress: dict[str, UserProgress] = {}
         self.achievements: dict[str, Achievement] = {}
         self.billing_subscriptions: dict[str, dict] = {}
+        self.voice_profiles: dict[str, dict] = {}
+        self.conversation_states: dict[str, dict] = {}
 
     async def create_session(self, payload: SessionCreate) -> Session:
         session = Session(id=str(uuid4()), createdAt=utc_now_iso(), **payload.model_dump())
@@ -304,6 +306,35 @@ class FirestoreService:
             "paddleCustomerId": None,
             "updatedAt": utc_now_iso(),
         }
+
+    async def save_voice_profile(self, profile: dict) -> dict:
+        user_id = profile["userId"]
+        if self.client:
+            self.client.collection("voiceProfiles").document(user_id).set(profile, merge=True)
+        self.voice_profiles[user_id] = profile
+        return profile
+
+    async def get_voice_profile(self, user_id: str) -> Optional[dict]:
+        if user_id in self.voice_profiles:
+            return self.voice_profiles[user_id]
+        if self.client:
+            doc = self.client.collection("voiceProfiles").document(user_id).get()
+            return doc.to_dict() if doc.exists else None
+        return None
+
+    async def save_conversation_state(self, session_id: str, user_id: str, state: dict) -> dict:
+        state_id = f"{session_id}_{user_id}"
+        payload = {
+            "id": state_id,
+            "sessionId": session_id,
+            "userId": user_id,
+            "conversationState": state,
+            "updatedAt": utc_now_iso(),
+        }
+        if self.client:
+            self.client.collection("conversationStates").document(state_id).set(payload, merge=True)
+        self.conversation_states[state_id] = payload
+        return payload
 
     async def assign_user_plan(self, uid: str, plan_id: str, status: str = "active", source: str = "admin", overrides: Optional[dict] = None) -> dict:
         return await self.admin_assign_plan(uid, {"planId": plan_id, "status": status, "source": source, "overrides": overrides or {}})

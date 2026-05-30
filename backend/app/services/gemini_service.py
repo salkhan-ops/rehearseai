@@ -1,5 +1,6 @@
 import json
 import re
+from typing import Optional
 import google.generativeai as genai
 from app.config import get_settings
 from app.models.analytics import PerformanceAnalytics
@@ -23,20 +24,20 @@ class GeminiService:
             self.roleplay_model = None
             self.report_model = None
 
-    async def generate_roleplay_response(self, session: Session, history: list[Message]) -> str:
+    async def generate_roleplay_response(self, session: Session, history: list[Message], coordination_context: Optional[dict] = None) -> str:
         if not self.enabled or self.roleplay_model is None:
-            return self._mock_roleplay(session, history)
+            return self._mock_roleplay(session, history, coordination_context)
         try:
             response = await self.roleplay_model.generate_content_async(
-                build_roleplay_prompt(session, history, self.settings.ai_history_messages),
+                build_roleplay_prompt(session, history, self.settings.ai_history_messages, coordination_context),
                 generation_config={
                     "max_output_tokens": self.settings.ai_roleplay_max_output_tokens,
                     "temperature": self.settings.ai_temperature,
                 },
             )
-            return (response.text or self._mock_roleplay(session, history)).strip()
+            return (response.text or self._mock_roleplay(session, history, coordination_context)).strip()
         except Exception:
-            return self._mock_roleplay(session, history)
+            return self._mock_roleplay(session, history, coordination_context)
 
     async def generate_feedback_report(self, report_id: str, session: Session, history: list[Message]) -> Report:
         if not self.enabled or self.report_model is None:
@@ -124,7 +125,17 @@ class GeminiService:
         cleaned = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
         return json.loads(cleaned)
 
-    def _mock_roleplay(self, session: Session, history: list[Message]) -> str:
+    def _mock_roleplay(self, session: Session, history: list[Message], coordination_context: Optional[dict] = None) -> str:
+        if coordination_context:
+            state = coordination_context.get("userState")
+            if state == "confused":
+                return "Let me narrow it down. What is the one part of the question you want me to clarify first?"
+            if state == "overexplaining":
+                return "I am going to pause you there. Give me the core answer in one concise sentence."
+            if state == "rushing":
+                return "Slow it down for a moment. What is your main claim, and what is the single strongest proof?"
+            if coordination_context.get("pressureAdjustment") == "increase":
+                return "Good. Now take it one level deeper: what assumption in your answer would a skeptical person challenge first?"
         pressure = {
             "Friendly": "That is a solid start. Can you make it a little more specific?",
             "Realistic": "I understand the point, but I need clearer evidence. What example proves that?",

@@ -4,6 +4,7 @@ from app.models.message import MessageCreate
 from app.models.session import SessionCreate
 from app.services.gemini_service import GeminiService
 from app.services.firestore_service import FirestoreService
+from app.services.conversation_coordination_service import ConversationCoordinationService, CoordinationAnalyzeRequest
 from app.utils.security import get_current_user_id
 from app.utils.timestamps import utc_now_iso
 
@@ -16,6 +17,10 @@ def get_store(request: Request) -> FirestoreService:
 
 def get_ai(request: Request) -> GeminiService:
     return request.app.state.ai
+
+
+def get_coordination(request: Request) -> ConversationCoordinationService:
+    return request.app.state.conversation_coordination
 
 
 @router.post("/api/sessions")
@@ -54,7 +59,19 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
         raise HTTPException(status_code=400, detail="Session already completed")
     user_message = await store.add_message(session_id, "user", payload.content)
     history = await store.get_messages(session_id)
-    ai_content = await get_ai(request).generate_roleplay_response(session, history)
+    coordination_state = await get_coordination(request).analyze(
+        CoordinationAnalyzeRequest(
+            transcript=payload.content,
+            interimTranscript=payload.interimTranscript,
+            speechDurationMs=payload.speechDurationMs,
+            silenceMs=payload.silenceMs,
+            wordTimings=payload.wordTimings or [],
+            sessionId=session_id,
+            userId=session.userId,
+        )
+    )
+    coordination_context = get_coordination(request).prompt_context(coordination_state)
+    ai_content = await get_ai(request).generate_roleplay_response(session, history, coordination_context)
     ai_message = await store.add_message(session_id, "ai", ai_content)
     session.turnCount += 1
     await store.update_session(session)

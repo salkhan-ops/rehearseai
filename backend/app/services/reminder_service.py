@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 
@@ -19,7 +20,7 @@ class ReminderService:
         target -= timedelta(minutes=int(schedule.get("reminderMinutesBefore", 15)))
         return target.isoformat()
 
-    def notification_copy(self, schedule: dict, challenge: dict | None = None) -> dict:
+    def notification_copy(self, schedule: dict, challenge: Optional[dict] = None) -> dict:
         categories = schedule.get("categories") or ["pressure training"]
         category = categories[0]
         return {

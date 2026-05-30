@@ -21,6 +21,7 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   if (!template) return null;
+  const selectedTemplate = template;
 
   function toggleDay(day: number) {
     setDays((current) => current.includes(day) ? current.filter((item) => item !== day) : [...current, day].sort());
@@ -36,7 +37,7 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
       const token = await getToken();
       const bundle = await enrollCourseTemplate({
         userId,
-        templateId: template.id,
+        templateId: selectedTemplate.id,
         preferredStartDate: startDate,
         preferredDays: days,
         preferredTime: time,

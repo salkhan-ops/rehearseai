@@ -1,4 +1,4 @@
-import type { Achievement, Course, CourseBundle, CourseGeneratePayload, CourseSession, CourseTemplate, CourseTemplateEnrollmentPayload, CurrentSubscription, DailyChallenge, Difficulty, Message, NotificationItem, PerformanceAnalytics, PracticeHistory, PracticeScenario, PracticeSchedule, PracticeType, Report, Session, SessionPayload, UserProgress } from "./types";
+import type { Achievement, CalibrationStart, ConversationAnalyzePayload, ConversationCoordinationState, Course, CourseBundle, CourseGeneratePayload, CourseSession, CourseTemplate, CourseTemplateEnrollmentPayload, CurrentSubscription, DailyChallenge, Difficulty, Message, NotificationItem, PerformanceAnalytics, PracticeHistory, PracticeScenario, PracticeSchedule, PracticeType, Report, Session, SessionPayload, UserProgress, VoiceProfile } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -35,10 +35,10 @@ export function getSession(id: string, token?: string | null) {
   return request<{ session: Session; messages: Message[] }>(`/api/sessions/${id}`, { token });
 }
 
-export function sendMessage(sessionId: string, content: string, userId = "guest", token?: string | null) {
+export function sendMessage(sessionId: string, content: string, userId = "guest", token?: string | null, coordination?: Partial<ConversationAnalyzePayload>) {
   return request<{ userMessage: Message; aiMessage: Message; turnCount: number }>(`/api/sessions/${sessionId}/message`, {
     method: "POST",
-    body: JSON.stringify({ userId, content }),
+    body: JSON.stringify({ userId, content, ...(coordination || {}) }),
     token
   });
 }
@@ -183,4 +183,20 @@ export function getSubscriptionPortalLink(token?: string | null) {
 
 export function requestAccountDeletion(reason = "", token?: string | null) {
   return request<Record<string, unknown>>("/api/account/delete-request", { method: "POST", body: JSON.stringify({ reason }), token });
+}
+
+export function startVoiceCalibration(userId = "guest", token?: string | null) {
+  return request<CalibrationStart>("/api/voice/calibration/start", { method: "POST", body: JSON.stringify({ userId }), token });
+}
+
+export function completeVoiceCalibration(payload: { userId: string; transcript: string; speechDurationMs: number; pausesMs?: number[]; wordTimings?: Array<{ word: string; startMs?: number; endMs?: number }> }, token?: string | null) {
+  return request<VoiceProfile>("/api/voice/calibration/complete", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export function getVoiceProfile(userId = "guest", token?: string | null) {
+  return request<VoiceProfile>(`/api/voice/profile/${userId}`, { token });
+}
+
+export function analyzeConversationCoordination(payload: ConversationAnalyzePayload, token?: string | null) {
+  return request<ConversationCoordinationState>("/api/conversation/coordination/analyze", { method: "POST", body: JSON.stringify(payload), token });
 }

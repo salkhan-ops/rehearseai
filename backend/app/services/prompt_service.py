@@ -2,6 +2,7 @@ from app.models.message import Message
 from app.models.session import Session
 from app.prompts.report_prompts import REPORT_SCHEMA
 from app.prompts.roleplay_prompts import DIFFICULTY_BEHAVIOR, PERSONAS
+from typing import Optional
 
 LANGUAGE_NAMES = {
     "en": "English",
@@ -13,7 +14,7 @@ LANGUAGE_NAMES = {
 }
 
 
-def build_roleplay_prompt(session: Session, history: list[Message], max_history_messages: int = 8) -> str:
+def build_roleplay_prompt(session: Session, history: list[Message], max_history_messages: int = 8, coordination_context: Optional[dict] = None) -> str:
     turns = "\n".join([f"{message.role.upper()}: {message.content}" for message in history[-max_history_messages:]])
     persona = PERSONAS[session.practiceType]
     difficulty = DIFFICULTY_BEHAVIOR[session.difficulty]
@@ -33,6 +34,17 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
         adaptation = "The user is performing strongly. Increase conceptual depth and ask a sharper second-order follow-up."
     if session.difficulty == "Brutal":
         adaptation += " In brutal mode, interruptions are allowed, but keep them professional and never abusive."
+    coordination_block = "No live conversation coordination context provided."
+    if coordination_context:
+        coordination_block = f"""
+- userState: {coordination_context.get("userState")}
+- pressureAdjustment: {coordination_context.get("pressureAdjustment")}
+- recommendedAiTone: {coordination_context.get("recommendedAiTone")}
+- recommendedResponseLength: {coordination_context.get("recommendedResponseLength")}
+- shouldAiInterrupt: {coordination_context.get("shouldAiInterrupt")}
+- instruction: {coordination_context.get("instruction")}
+- future Cartesia delivery: {coordination_context.get("cartesia")}
+"""
     return f"""
 Run a Cognitive Performance Training pressure simulation. Reply only as the counterpart, not as a coach.
 
@@ -57,6 +69,15 @@ Adaptive behavior signals:
 - Evidence markers: {evidence_count}
 - Average words per user turn: {avg_words}
 - Adaptation instruction: {adaptation}
+
+Conversation coordination instructions:
+{coordination_block}
+
+Apply coordination before writing the response:
+- If userState is confused, ask a shorter clarifying question.
+- If userState is overexplaining, interrupt politely and request a concise answer.
+- If pressureAdjustment is increase, ask a sharper follow-up.
+- If pressureAdjustment is decrease, soften pressure without dropping realism.
 
 Conversation so far:
 {turns}

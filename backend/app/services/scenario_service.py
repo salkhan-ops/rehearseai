@@ -1,6 +1,7 @@
 import json
 import random
 import re
+from typing import Optional
 
 from app.models.practice import PracticeScenario, ScenarioRequest
 
@@ -47,7 +48,7 @@ class ScenarioService:
     def __init__(self, ai=None) -> None:
         self.ai = ai
 
-    async def generate_random_scenario(self, request: ScenarioRequest, user_history: list[dict] | None = None) -> PracticeScenario:
+    async def generate_random_scenario(self, request: ScenarioRequest, user_history: Optional[list[dict]] = None) -> PracticeScenario:
         if self.ai and getattr(self.ai, "enabled", False) and getattr(self.ai, "report_model", None):
             try:
                 response = await self.ai.report_model.generate_content_async(
@@ -60,7 +61,7 @@ class ScenarioService:
                 pass
         return self._fallback(request)
 
-    async def generate_daily_challenge(self, user_id: str, category: str | None = None) -> dict:
+    async def generate_daily_challenge(self, user_id: str, category: Optional[str] = None) -> dict:
         title, objective = DAILY_CHALLENGES[hash(f"{user_id}") % len(DAILY_CHALLENGES)]
         selected_category = category or random.choice(list(FALLBACK_SCENARIOS.keys()))
         scenario = await self.generate_random_scenario(ScenarioRequest(userId=user_id, category=selected_category, difficulty="Realistic"))
@@ -70,7 +71,7 @@ class ScenarioService:
             "scenario": scenario.model_dump(),
         }
 
-    async def generate_progressive_difficulty_scenario(self, request: ScenarioRequest, user_history: list[dict] | None = None) -> PracticeScenario:
+    async def generate_progressive_difficulty_scenario(self, request: ScenarioRequest, user_history: Optional[list[dict]] = None) -> PracticeScenario:
         sessions = len(user_history or [])
         if sessions >= 8:
             request.difficulty = "Brutal"

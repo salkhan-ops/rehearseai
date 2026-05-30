@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from typing import Optional
 
 import websockets
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class TTSRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=4000)
-    voiceId: str | None = Field(default=None, max_length=120)
+    voiceId: Optional[str] = Field(default=None, max_length=120)
 
 SUPPORTED_DEEPGRAM_LANGUAGES = {"en", "ar", "ur", "hi", "es", "fr"}
 

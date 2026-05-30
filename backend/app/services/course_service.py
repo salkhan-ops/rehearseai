@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from math import ceil
+from typing import Optional
 from uuid import uuid4
 
 from app.models.course import Course, CourseBundle, CourseGenerateRequest, CourseModule, CourseProgress, CourseSession
@@ -24,7 +25,7 @@ class CourseService:
     def __init__(self, ai=None) -> None:
         self.ai = ai
 
-    async def generate_course(self, payload: CourseGenerateRequest, history: list[dict] | None = None) -> CourseBundle:
+    async def generate_course(self, payload: CourseGenerateRequest, history: Optional[list[dict]] = None) -> CourseBundle:
         now = utc_now_iso()
         duration_days = self._duration_days(payload)
         session_count = max(5, min(56, ceil(payload.availableHoursPerWeek * duration_days / 7 * 60 / payload.preferredSessionDuration)))
@@ -173,7 +174,7 @@ class CourseService:
             ))
         return sessions
 
-    def _setting(self, practice_type: str, target_role: str | None) -> str:
+    def _setting(self, practice_type: str, target_role: Optional[str]) -> str:
         role = target_role or "your target role"
         settings = {
             "Job Interview": f"You are in a final-round interview for {role}. The interviewer is testing whether your reasoning holds under scrutiny.",

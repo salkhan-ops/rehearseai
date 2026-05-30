@@ -1,3 +1,5 @@
+from typing import Optional
+
 from app.config import get_settings
 
 
@@ -37,7 +39,7 @@ class PaddleService:
             "portalConfigured": False,
         }
 
-    async def cancel_subscription(self, store, uid: str, reason: str | None = None) -> dict:
+    async def cancel_subscription(self, store, uid: str, reason: Optional[str] = None) -> dict:
         # TODO: Call Paddle API to set scheduled_change/cancel at period end.
         return await store.update_subscription_status(uid, True, reason)
 

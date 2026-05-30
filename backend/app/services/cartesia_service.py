@@ -1,3 +1,5 @@
+from typing import Optional
+
 import httpx
 from app.config import get_settings
 
@@ -7,7 +9,7 @@ class CartesiaService:
         self.settings = get_settings()
         self.enabled = bool(self.settings.cartesia_api_key)
 
-    async def synthesize(self, text: str, voice_id: str | None = None) -> tuple[bytes, str]:
+    async def synthesize(self, text: str, voice_id: Optional[str] = None) -> tuple[bytes, str]:
         if not self.enabled or not self.settings.cartesia_api_key:
             raise RuntimeError("CARTESIA_API_KEY is not configured.")
 

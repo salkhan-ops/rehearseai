@@ -1,10 +1,14 @@
-from typing import Literal
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
 class MessageCreate(BaseModel):
     userId: str = Field(default="guest")
     content: str = Field(min_length=1, max_length=4000)
+    interimTranscript: str = ""
+    speechDurationMs: int = 0
+    silenceMs: int = 0
+    wordTimings: Optional[list[dict]] = None
 
 
 class Message(BaseModel):

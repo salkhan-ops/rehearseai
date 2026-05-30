@@ -7,6 +7,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
 import { AnimatedMessage, AnimatedPage, TypingIndicator } from "@/components/animations";
+import { useConversationCoordination } from "@/hooks/useConversationCoordination";
 import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
 import { completeCourseSession, endSession, generateReport, getSession, sendMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -101,7 +102,9 @@ export default function SessionPage() {
   const autoEndingRef = useRef(false);
   const { getToken, userId } = useAuth();
   const practiceLanguage = getLanguage(session?.practiceLanguage);
-  const voice = useRealtimeVoice({ browserSpeechCode: practiceLanguage.browserSpeechCode, deepgramCode: practiceLanguage.deepgramCode });
+  const coordination = useConversationCoordination({ userId, sessionId: id, enabled: voiceMode });
+  const { analyze: analyzeCoordination } = coordination;
+  const voice = useRealtimeVoice({ browserSpeechCode: practiceLanguage.browserSpeechCode, deepgramCode: practiceLanguage.deepgramCode, longPauseMs: coordination.longPauseMs || 3400 });
 
   useEffect(() => {
     getToken()
@@ -135,13 +138,18 @@ export default function SessionPage() {
   useEffect(() => {
     if (voice.transcript || voice.interimTranscript) {
       setDraft(`${voice.transcript} ${voice.interimTranscript}`.trim());
+      analyzeCoordination({
+        transcript: voice.transcript,
+        interimTranscript: voice.interimTranscript,
+        silenceMs: 0,
+      });
     }
-  }, [voice.transcript, voice.interimTranscript]);
+  }, [analyzeCoordination, voice.transcript, voice.interimTranscript]);
 
   useEffect(() => {
-    return voice.onFinalTranscript((nextTranscript) => {
+    return voice.onFinalTranscript((nextTranscript, metrics) => {
       if (!voiceMode || loading) return;
-      submitContent(nextTranscript, true);
+      submitContent(nextTranscript, true, metrics);
     });
   }, [voice.onFinalTranscript, voiceMode, loading]);
 
@@ -161,7 +169,7 @@ export default function SessionPage() {
     finish();
   }, [durationMinutes, loading, seconds, session]);
 
-  async function submitContent(content: string, fromVoice = false) {
+  async function submitContent(content: string, fromVoice = false, voiceMetrics?: { speechDurationMs: number; silenceMs: number }) {
     if (!content.trim()) return;
     setError("");
     setAutoSubmitNotice(fromVoice ? "Auto-sending your turn..." : "");
@@ -177,7 +185,15 @@ export default function SessionPage() {
     setLoading(true);
     try {
       const token = await getToken();
-      const result = await sendMessage(id, content.trim(), userId, token);
+      const metrics = voiceMetrics || { speechDurationMs: 0, silenceMs: 0 };
+      const result = await sendMessage(id, content.trim(), userId, token, {
+        transcript: content.trim(),
+        interimTranscript: "",
+        speechDurationMs: metrics.speechDurationMs,
+        silenceMs: metrics.silenceMs,
+        sessionId: id,
+        userId,
+      });
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
       setSession((current) => current ? { ...current, turnCount: result.turnCount } : current);
       await voice.speak(result.aiMessage.content, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode);

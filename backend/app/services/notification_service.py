@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Optional
 from uuid import uuid4
 
 from app.models.course import Notification
@@ -6,7 +7,7 @@ from app.utils.timestamps import utc_now_iso
 
 
 class NotificationService:
-    def create_notification(self, user_id: str, notification_type: str, title: str, message: str, action_url: str | None = None) -> Notification:
+    def create_notification(self, user_id: str, notification_type: str, title: str, message: str, action_url: Optional[str] = None) -> Notification:
         return Notification(
             id=str(uuid4()),
             userId=user_id,

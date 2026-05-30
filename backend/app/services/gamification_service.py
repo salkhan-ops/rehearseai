@@ -1,3 +1,5 @@
+from typing import Optional
+
 from app.models.course import Achievement, UserProgress
 from app.utils.timestamps import utc_now_iso
 
@@ -52,7 +54,7 @@ class GamificationService:
                 return threshold
         return LEVELS[-1][2]
 
-    def unlock_achievement(self, user_id: str, key: str, existing: list[str]) -> Achievement | None:
+    def unlock_achievement(self, user_id: str, key: str, existing: list[str]) -> Optional[Achievement]:
         if key in existing or key not in ACHIEVEMENTS:
             return None
         title, description, category = ACHIEVEMENTS[key]
