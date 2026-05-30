@@ -51,7 +51,7 @@ class GeminiService:
                 },
             )
             payload = self._parse_json(response.text or "")
-            return Report(id=report_id, userId=session.userId, sessionId=session.id, createdAt=utc_now_iso(), **payload)
+            return Report(id=report_id, userId=session.userId, sessionId=session.id, practiceLanguage=session.practiceLanguage, feedbackLanguage=session.feedbackLanguage, createdAt=utc_now_iso(), **payload)
         except Exception:
             return self._mock_report(report_id, session)
 
@@ -93,6 +93,33 @@ class GeminiService:
         except Exception:
             return fallback
 
+    async def generate_course_outline(self, baseline: dict, user_history: list[dict]) -> dict:
+        if not self.enabled or self.report_model is None:
+            return baseline
+        try:
+            prompt = (
+                "You are RehearseAI's cognitive performance curriculum engine. "
+                "Return valid JSON only. Improve the provided baseline course without changing the schema. "
+                "Make the program feel like elite cognitive fitness, not school. "
+                "Keep pressure challenging but never abusive. Do not make guaranteed outcome claims.\n\n"
+                "Baseline JSON:\n"
+                + json.dumps(baseline)
+                + "\n\nUser history summary:\n"
+                + json.dumps(user_history[-20:])
+            )
+            response = await self.report_model.generate_content_async(
+                prompt,
+                generation_config={
+                    "max_output_tokens": 4200,
+                    "temperature": 0.35,
+                    "response_mime_type": "application/json",
+                },
+            )
+            payload = self._parse_json(response.text or "")
+            return payload if isinstance(payload, dict) else baseline
+        except Exception:
+            return baseline
+
     def _parse_json(self, text: str) -> dict:
         cleaned = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
         return json.loads(cleaned)
@@ -110,6 +137,8 @@ class GeminiService:
             id=report_id,
             userId=session.userId,
             sessionId=session.id,
+            practiceLanguage=session.practiceLanguage,
+            feedbackLanguage=session.feedbackLanguage,
             confidenceScore=74,
             clarityScore=78,
             persuasivenessScore=70,

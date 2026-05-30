@@ -1,4 +1,4 @@
-import type { Message, PerformanceAnalytics, Report, Session, SessionPayload } from "./types";
+import type { Achievement, Course, CourseBundle, CourseGeneratePayload, CourseSession, CourseTemplate, CourseTemplateEnrollmentPayload, CurrentSubscription, DailyChallenge, Difficulty, Message, NotificationItem, PerformanceAnalytics, PracticeHistory, PracticeScenario, PracticeSchedule, PracticeType, Report, Session, SessionPayload, UserProgress } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -63,11 +63,11 @@ export function getUserSessions(userId = "guest", token?: string | null) {
   return request<Session[]>(`/api/users/${userId}/sessions`, { token });
 }
 
-export async function synthesizeSpeech(text: string): Promise<Blob> {
+export async function synthesizeSpeech(text: string, voiceId?: string): Promise<Blob> {
   const response = await fetch(`${API_URL}/api/voice/tts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, voiceId }),
     cache: "no-store",
   });
   if (!response.ok) {
@@ -77,9 +77,110 @@ export async function synthesizeSpeech(text: string): Promise<Blob> {
   return response.blob();
 }
 
-export function submitContact(payload: { name: string; email: string; topic: string; message: string }) {
+export function submitContact(payload: { name: string; email: string; category: string; subject: string; message: string; userId?: string }) {
   return request<{ ok: boolean; id: string }>("/api/contact", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function createPracticeSchedule(payload: Partial<PracticeSchedule> & { userId: string }, token?: string | null) {
+  return request<PracticeSchedule>("/api/practice-schedules", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export function getPracticeSchedules(userId = "guest", token?: string | null) {
+  return request<PracticeSchedule[]>(`/api/users/${userId}/practice-schedules`, { token });
+}
+
+export function updatePracticeSchedule(scheduleId: string, payload: Partial<PracticeSchedule>, token?: string | null) {
+  return request<PracticeSchedule>(`/api/practice-schedules/${scheduleId}`, { method: "PATCH", body: JSON.stringify(payload), token });
+}
+
+export function getPracticeHistory(userId = "guest", token?: string | null) {
+  return request<PracticeHistory[]>(`/api/users/${userId}/practice-history`, { token });
+}
+
+export function trackPracticeHistory(payload: Partial<PracticeHistory> & { userId: string }, token?: string | null) {
+  return request<PracticeHistory>("/api/practice-history", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export function generateRandomScenario(payload: { userId: string; category: PracticeType; difficulty: Difficulty; practiceLanguage?: string; feedbackLanguage?: string; targetRole?: string; experienceLevel?: string }, token?: string | null) {
+  return request<PracticeScenario>("/api/scenarios/random", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export function getDailyChallenge(userId = "guest", token?: string | null) {
+  return request<DailyChallenge>(`/api/users/${userId}/daily-challenge`, { token });
+}
+
+export function quickStartChallenge(payload: { userId: string; category: PracticeType; difficulty: Difficulty; practiceLanguage?: string; feedbackLanguage?: string; durationPreference?: number }, token?: string | null) {
+  return request<{ scenario: PracticeScenario; session: Session }>("/api/scenarios/quick-start", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export function generateCourse(payload: CourseGeneratePayload, token?: string | null) {
+  return request<CourseBundle>("/api/courses/generate", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export function getCourseTemplates(token?: string | null) {
+  return request<CourseTemplate[]>("/api/courses/templates", { token });
+}
+
+export function enrollCourseTemplate(payload: CourseTemplateEnrollmentPayload, token?: string | null) {
+  return request<CourseBundle>("/api/courses/enroll-template", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export function getUserCourses(userId = "guest", token?: string | null) {
+  return request<Course[]>(`/api/users/${userId}/courses`, { token });
+}
+
+export function getCourse(courseId: string, token?: string | null) {
+  return request<CourseBundle>(`/api/courses/${courseId}`, { token });
+}
+
+export function startCourseSession(courseSessionId: string, token?: string | null) {
+  return request<{ sessionId: string; courseSessionId: string }>(`/api/course-sessions/${courseSessionId}/start`, { method: "POST", token });
+}
+
+export function completeCourseSession(courseSessionId: string, sessionId?: string, token?: string | null) {
+  const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : "";
+  return request(`/api/course-sessions/${courseSessionId}/complete${query}`, { method: "POST", token });
+}
+
+export function rescheduleCourseSession(courseSessionId: string, payload: { scheduledDate?: string; scheduledTime?: string; status?: CourseSession["status"] }, token?: string | null) {
+  return request<CourseSession>(`/api/course-sessions/${courseSessionId}/reschedule`, { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export function getNotifications(token?: string | null) {
+  return request<NotificationItem[]>("/api/notifications", { token });
+}
+
+export function markNotificationRead(notificationId: string, token?: string | null) {
+  return request<NotificationItem>(`/api/notifications/${notificationId}/read`, { method: "POST", token });
+}
+
+export function getProgress(token?: string | null) {
+  return request<UserProgress>("/api/progress", { token });
+}
+
+export function getAchievements(token?: string | null) {
+  return request<Achievement[]>("/api/achievements", { token });
+}
+
+export function getCurrentSubscription(token?: string | null) {
+  return request<CurrentSubscription>("/api/subscription/current", { token });
+}
+
+export function cancelSubscription(reason = "", token?: string | null) {
+  return request<CurrentSubscription>("/api/subscription/cancel", { method: "POST", body: JSON.stringify({ reason }), token });
+}
+
+export function reactivateSubscription(token?: string | null) {
+  return request<CurrentSubscription>("/api/subscription/reactivate", { method: "POST", token });
+}
+
+export function getSubscriptionPortalLink(token?: string | null) {
+  return request<{ url: string | null; provider: "paddle"; message: string; uid: string }>("/api/subscription/portal-link", { token });
+}
+
+export function requestAccountDeletion(reason = "", token?: string | null) {
+  return request<Record<string, unknown>>("/api/account/delete-request", { method: "POST", body: JSON.stringify({ reason }), token });
 }

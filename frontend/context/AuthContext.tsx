@@ -14,6 +14,7 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase";
+import type { LanguageCode } from "@/lib/languages";
 
 export type AppUserProfile = {
   uid: string;
@@ -24,6 +25,8 @@ export type AppUserProfile = {
   planId: string;
   planName: string;
   status: "active" | "trialing" | "past_due" | "cancelled";
+  preferredPracticeLanguage: LanguageCode;
+  preferredFeedbackLanguage: LanguageCode;
 };
 
 type AuthContextValue = {
@@ -34,15 +37,16 @@ type AuthContextValue = {
   isAdmin: boolean;
   getToken: () => Promise<string | null>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signUpWithEmail: (email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) => Promise<void>;
+  signInWithGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) => Promise<void>;
   signOut: () => Promise<void>;
   signInEmail: (email: string, password: string) => Promise<void>;
-  signUpEmail: (email: string, password: string) => Promise<void>;
-  signInGoogle: () => Promise<void>;
+  signUpEmail: (email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) => Promise<void>;
+  signInGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   continueAsGuest: () => Promise<void>;
+  updateLanguagePreferences: (practiceLanguage: LanguageCode, feedbackLanguage: LanguageCode) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -57,6 +61,8 @@ function fallbackProfile(user: User): AppUserProfile {
     planId: "free",
     planName: "Free",
     status: "active",
+    preferredPracticeLanguage: "en",
+    preferredFeedbackLanguage: "en",
   };
 }
 
@@ -68,7 +74,7 @@ function requireAuthClient() {
   return auth;
 }
 
-async function upsertUserProfile(user: User) {
+async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) {
   if (user.isAnonymous) return null;
   const db = getFirebaseDb();
   if (!db) return fallbackProfile(user);
@@ -88,6 +94,8 @@ async function upsertUserProfile(user: User) {
       createdAt: existingData.createdAt || serverTimestamp(),
       updatedAt: serverTimestamp(),
       lastLoginAt: serverTimestamp(),
+      preferredPracticeLanguage: practiceLanguage || existingData.preferredPracticeLanguage || "en",
+      preferredFeedbackLanguage: feedbackLanguage || existingData.preferredFeedbackLanguage || "en",
     };
     await setDoc(userRef, profile, { merge: true });
     return {
@@ -99,6 +107,8 @@ async function upsertUserProfile(user: User) {
       planId: profile.planId,
       planName: profile.planName,
       status: profile.status,
+      preferredPracticeLanguage: profile.preferredPracticeLanguage,
+      preferredFeedbackLanguage: profile.preferredFeedbackLanguage,
     } as AppUserProfile;
   } catch (error) {
     console.warn("Firebase Auth succeeded, but Firestore profile sync failed. Deploy firestore.rules to enable profile writes.", error);
@@ -131,22 +141,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(await upsertUserProfile(result.user));
     }
 
-    async function signUpWithEmailAction(email: string, password: string) {
+    async function signUpWithEmailAction(email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) {
       const auth = requireAuthClient();
       const result = await createUserWithEmailAndPassword(auth, email, password);
-      setProfile(await upsertUserProfile(result.user));
+      setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage));
     }
 
-    async function signInWithGoogleAction() {
+    async function signInWithGoogleAction(practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) {
       const auth = requireAuthClient();
       const result = await signInWithPopup(auth, new GoogleAuthProvider());
-      setProfile(await upsertUserProfile(result.user));
+      setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage));
     }
 
     async function signOutAction() {
       const auth = requireAuthClient();
       await firebaseSignOut(auth);
       setProfile(null);
+    }
+
+    async function updateLanguagePreferences(practiceLanguage: LanguageCode, feedbackLanguage: LanguageCode) {
+      if (!user || user.isAnonymous) return;
+      const db = getFirebaseDb();
+      const nextProfile = {
+        ...(profile || fallbackProfile(user)),
+        preferredPracticeLanguage: practiceLanguage,
+        preferredFeedbackLanguage: feedbackLanguage,
+      };
+      setProfile(nextProfile);
+      if (db) {
+        await setDoc(doc(db, "users", user.uid), {
+          preferredPracticeLanguage: practiceLanguage,
+          preferredFeedbackLanguage: feedbackLanguage,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
     }
 
     return {
@@ -172,6 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const auth = requireAuthClient();
       await signInAnonymously(auth);
     },
+    updateLanguagePreferences,
     };
   }, [user, profile, loading]);
 

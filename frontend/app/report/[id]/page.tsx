@@ -20,8 +20,11 @@ import { WeaknessHeatmap } from "@/components/analytics/WeaknessHeatmap";
 import { AnimatedCard, AnimatedPage, AnimatedSection, StaggeredGrid } from "@/components/animations";
 import { Nav } from "@/components/Nav";
 import { ScoreCard } from "@/components/ScoreCard";
+import { PracticeRoutinePanel } from "@/components/scheduling/PracticeRoutinePanel";
+import { AIDisclaimer } from "@/components/legal/AIDisclaimer";
 import { getReport, getReportAnalytics } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { isRtlLanguage } from "@/lib/languages";
 import type { PerformanceAnalytics, Report } from "@/lib/types";
 
 function ListSection({ title, items }: { title: string; items: string[] }) {
@@ -62,7 +65,7 @@ export default function ReportPage() {
   if (!report || !analytics) return <main className="cog-bg min-h-screen text-primary-token"><ReportAmbient /><div className="relative px-4 py-12 text-center font-semibold text-secondary-token">Loading performance intelligence...</div></main>;
 
   return (
-    <main className="cog-bg relative min-h-screen overflow-hidden text-primary-token">
+    <main className="cog-bg relative min-h-screen overflow-hidden text-primary-token" dir={isRtlLanguage(report.feedbackLanguage) ? "rtl" : "ltr"}>
       <ReportAmbient />
       <Nav />
       <AnimatedPage className="relative z-10 mx-auto max-w-6xl px-4 py-12">
@@ -88,6 +91,10 @@ export default function ReportPage() {
               ))}
             </div>
           </div>
+        </div>
+
+        <div className="mt-6">
+          <AIDisclaimer compact />
         </div>
 
         <StaggeredGrid className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -195,6 +202,10 @@ export default function ReportPage() {
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-primary-token">Next session recommendation</h2>
             <p className="mt-4 font-medium text-secondary-token">{report.nextRecommendation}</p>
           </div>
+        </div>
+
+        <div className="mt-8">
+          <PracticeRoutinePanel />
         </div>
       </AnimatedPage>
     </main>

@@ -70,6 +70,22 @@ export type AdminUser = {
   lastLoginAt?: unknown;
 };
 
+export type ContactMessageStatus = "new" | "in_review" | "resolved";
+
+export type ContactMessage = {
+  id: string;
+  messageId: string;
+  name: string;
+  email: string;
+  userId?: string;
+  category: string;
+  subject: string;
+  message: string;
+  status: ContactMessageStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const baseEntitlements: Entitlements = {
   maxSessionsPerMonth: 3,
   maxMessagesPerSession: 16,
@@ -245,4 +261,23 @@ export async function getAdminStats() {
     activeSubscribers: users.filter((user) => user.planId && user.planId !== "free").length,
     pendingSubscriptions: 0,
   };
+}
+
+export async function getContactMessages(category = "", status = "") {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (status) params.set("status", status);
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/admin/contact-messages${params.toString() ? `?${params}` : ""}`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Could not load contact messages.");
+  return response.json() as Promise<ContactMessage[]>;
+}
+
+export async function updateContactMessageStatus(messageId: string, status: ContactMessageStatus) {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/admin/contact-messages/${messageId}/status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!response.ok) throw new Error("Could not update contact message.");
+  return response.json() as Promise<ContactMessage>;
 }

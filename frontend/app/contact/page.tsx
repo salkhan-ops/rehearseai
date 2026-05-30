@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Mail, MessageCircle, ShieldCheck, type LucideIcon } from "lucide-react";
+import { BriefcaseBusiness, CreditCard, Mail, ShieldCheck, type LucideIcon } from "lucide-react";
 import { Nav } from "@/components/Nav";
 import { ContactForm } from "@/components/content/ContactForm";
 import { Footer } from "@/components/content/Footer";
@@ -12,9 +12,10 @@ export const metadata: Metadata = {
 };
 
 const contactChannels: Array<[LucideIcon, string, string]> = [
-  [Mail, "Support", "support@rehearseai.app"],
-  [MessageCircle, "Sales", "sales@rehearseai.app"],
-  [ShieldCheck, "Privacy", "privacy@rehearseai.app"],
+  [Mail, "General Support", "support@rehearseai.app"],
+  [CreditCard, "Billing Support", "billing@rehearseai.app"],
+  [ShieldCheck, "Privacy Requests", "privacy@rehearseai.app"],
+  [BriefcaseBusiness, "Business / Partnerships", "partners@rehearseai.app"],
 ];
 
 export default function ContactPage() {
@@ -27,6 +28,9 @@ export default function ContactPage() {
           <h1 className="mt-4 text-6xl font-semibold leading-[0.9] tracking-[-0.065em] md:text-8xl">Talk to the people building the room.</h1>
           <p className="mt-6 max-w-xl text-lg font-medium leading-8 text-secondary-token">
             RehearseAI is built for real pressure, real conversations, and real cognitive growth. Send support questions, partnership ideas, or product feedback.
+          </p>
+          <p className="mt-4 max-w-xl text-sm font-semibold leading-6 text-tertiary-token">
+            Typical response time: 1-2 business days. Billing and account access issues are prioritized.
           </p>
           <div className="mt-8 grid gap-3">
             {contactChannels.map(([Icon, label, value]) => (

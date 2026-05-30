@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CreditCard, FileText, Gem, KeyRound, Layers, ShieldCheck, UserCog, Users } from "lucide-react";
+import { CreditCard, FileText, Gem, Inbox, KeyRound, Layers, ShieldCheck, UserCog, Users } from "lucide-react";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { AdminSection } from "@/components/admin/AdminSection";
@@ -29,6 +29,7 @@ export default function AdminPage() {
       <AdminSection title="User Management">
         <AdminCard href="/admin/assign-plan" icon={UserCog} title="Assign Plan to User" subtitle="Search by UID/email, set entitlements and overrides" />
         <AdminCard href="/admin/users" icon={Users} title="Users List" subtitle="View all users with their current plan assignment" />
+        <AdminCard href="/admin/contact" icon={Inbox} title="Contact Messages" subtitle="Review support, billing, privacy, and partnership requests" />
       </AdminSection>
       <AdminSection title="Billing">
         <AdminCard href="/admin/billing" icon={CreditCard} title="Pending Subscriptions" subtitle="Review Paddle checkout attempts, subscription states, and provider mapping" />

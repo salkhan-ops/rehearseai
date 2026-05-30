@@ -7,14 +7,14 @@ class CartesiaService:
         self.settings = get_settings()
         self.enabled = bool(self.settings.cartesia_api_key)
 
-    async def synthesize(self, text: str) -> tuple[bytes, str]:
+    async def synthesize(self, text: str, voice_id: str | None = None) -> tuple[bytes, str]:
         if not self.enabled or not self.settings.cartesia_api_key:
             raise RuntimeError("CARTESIA_API_KEY is not configured.")
 
         payload = {
             "model_id": self.settings.cartesia_model_id,
             "transcript": text.strip()[:4000],
-            "voice": {"id": self.settings.cartesia_voice_id},
+            "voice": {"mode": "id", "id": voice_id or self.settings.cartesia_voice_id},
             "language": "en",
             "output_format": {
                 "container": "mp3",

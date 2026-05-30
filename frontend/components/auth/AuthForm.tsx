@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { isAdmin, useAuth } from "@/lib/auth";
 import { getFirebaseAuth } from "@/lib/firebase";
+import type { LanguageCode } from "@/lib/languages";
+import { LanguageSelector } from "@/components/settings/LanguageSelector";
+import { AIDisclaimer } from "@/components/legal/AIDisclaimer";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 
 export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
@@ -13,6 +16,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>("en");
+  const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>("en");
   const title = mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Reset password";
 
   async function routeAfterLogin() {
@@ -36,7 +41,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
         await auth.signInWithEmail(email, password);
         await routeAfterLogin();
       } else {
-        await auth.signUpWithEmail(email, password);
+        await auth.signUpWithEmail(email, password, practiceLanguage, feedbackLanguage);
         await routeAfterLogin();
       }
     } catch (err) {
@@ -50,7 +55,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
     setError("");
     setLoading(true);
     try {
-      await auth.signInWithGoogle();
+      await auth.signInWithGoogle(mode === "signup" ? practiceLanguage : undefined, mode === "signup" ? feedbackLanguage : undefined);
       await routeAfterLogin();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed");
@@ -63,6 +68,18 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
     <div className="rounded-[1.75rem] bg-white p-7 shadow-[0_18px_55px_rgba(35,45,75,0.06)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
       <h1 className="text-4xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white">{title}</h1>
       <p className="mt-3 font-medium leading-7 text-slate-600 dark:text-white/60">Save your cognitive performance history and protected reports with Firebase Authentication.</p>
+      {mode === "signup" && (
+        <div className="mt-5 space-y-3">
+          <AIDisclaimer compact />
+          <LanguageSelector
+            compact
+            practiceLanguage={practiceLanguage}
+            feedbackLanguage={feedbackLanguage}
+            onPracticeLanguageChange={setPracticeLanguage}
+            onFeedbackLanguageChange={setFeedbackLanguage}
+          />
+        </div>
+      )}
       <form onSubmit={handleEmail} className="mt-6 space-y-3">
         <input name="email" type="email" required placeholder="Email" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-800 outline-none focus:border-[#8b00ff] dark:border-white/10 dark:bg-white/10 dark:text-white" />
         {mode !== "forgot" && <input name="password" type="password" required minLength={6} placeholder="Password" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-800 outline-none focus:border-[#8b00ff] dark:border-white/10 dark:bg-white/10 dark:text-white" />}

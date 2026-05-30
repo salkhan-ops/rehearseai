@@ -46,7 +46,7 @@ function pickVoice() {
   const voices = window.speechSynthesis.getVoices();
   const english = voices.filter((voice) => voice.lang.startsWith("en"));
   return (
-    english.find((voice) => /Alex|Daniel|Google UK English Male|Microsoft Guy|Microsoft David|Natural/i.test(voice.name) && !/female|samantha|victoria|karen|zira/i.test(voice.name)) ||
+    english.find((voice) => /Samantha|Victoria|Karen|Zira|Jenny|Aria|Sonia|Female|Google UK English Female/i.test(voice.name)) ||
     english.find((voice) => /Google|Microsoft|Natural|Enhanced/i.test(voice.name)) ||
     english[0] ||
     null
@@ -61,7 +61,7 @@ function humanizeSpeech(text: string) {
     .trim();
 }
 
-export function useContinuousVoice() {
+export function useContinuousVoice(language = "en-US") {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const callbackRef = useRef<FinalTranscriptCallback | null>(null);
   const shouldListenRef = useRef(false);
@@ -187,8 +187,8 @@ export function useContinuousVoice() {
       waitForVoices().then(() => {
       const utterance = new SpeechSynthesisUtterance(humanizeSpeech(text));
       utterance.voice = pickVoice();
-      utterance.rate = 0.9;
-      utterance.pitch = 0.86;
+      utterance.rate = 0.92;
+      utterance.pitch = 1.08;
       utterance.volume = 1;
       let resolved = false;
       const finish = () => {
@@ -222,7 +222,7 @@ export function useContinuousVoice() {
     const recognition = new Recognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "en-US";
+    recognition.lang = language;
     recognition.onresult = (event) => {
       let finalText = "";
       let interimText = "";
@@ -266,7 +266,7 @@ export function useContinuousVoice() {
       recognition.stop();
       window.speechSynthesis?.cancel();
     };
-  }, [clearTimers, schedulePauseDetection]);
+  }, [clearTimers, language, schedulePauseDetection]);
 
   return {
     supported,

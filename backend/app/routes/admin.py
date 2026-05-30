@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Request
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Request
 
 router = APIRouter()
 
@@ -74,3 +75,21 @@ async def admin_entitlements(request: Request):
     await require_admin_mvp()
     plans = await request.app.state.store.admin_list_plans()
     return {"plans": plans}
+
+
+@router.get("/api/admin/contact-messages")
+async def admin_contact_messages(request: Request, category: Optional[str] = None, status: Optional[str] = None):
+    await require_admin_mvp()
+    return await request.app.state.store.list_contact_messages(category=category, status=status)
+
+
+@router.post("/api/admin/contact-messages/{message_id}/status")
+async def admin_update_contact_message_status(message_id: str, payload: dict, request: Request):
+    await require_admin_mvp()
+    status = payload.get("status")
+    if status not in {"new", "in_review", "resolved"}:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    message = await request.app.state.store.update_contact_message_status(message_id, status)
+    if not message:
+        raise HTTPException(status_code=404, detail="Contact message not found")
+    return message

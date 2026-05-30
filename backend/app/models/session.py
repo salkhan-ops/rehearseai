@@ -23,6 +23,9 @@ class SessionCreate(BaseModel):
     context: str = Field(min_length=2, max_length=1500)
     goal: str = Field(min_length=2, max_length=500)
     optionalNotes: Optional[str] = Field(default=None, max_length=1000)
+    practiceLanguage: str = Field(default="en", max_length=8)
+    feedbackLanguage: str = Field(default="en", max_length=8)
+    durationPreference: int = Field(default=10, ge=1, le=120)
 
 
 class Session(BaseModel):
@@ -34,6 +37,9 @@ class Session(BaseModel):
     context: str
     goal: str
     optionalNotes: Optional[str] = None
+    practiceLanguage: str = "en"
+    feedbackLanguage: str = "en"
+    durationPreference: int = 10
     status: Literal["active", "completed"] = "active"
     turnCount: int = 0
     createdAt: str

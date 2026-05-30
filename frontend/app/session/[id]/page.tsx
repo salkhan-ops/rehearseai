@@ -1,18 +1,35 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, BrainCircuit, Mic, MicOff, Send, Square, Volume2, Zap } from "lucide-react";
+import { ArrowLeft, BrainCircuit, Clock3, Mic, MicOff, Send, Square, Volume2 } from "lucide-react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
 import { AnimatedMessage, AnimatedPage, TypingIndicator } from "@/components/animations";
 import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
-import { endSession, generateReport, getSession, sendMessage } from "@/lib/api";
+import { completeCourseSession, endSession, generateReport, getSession, sendMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { getLanguage, isRtlLanguage } from "@/lib/languages";
 import type { Message, Session } from "@/lib/types";
 
 type OrbMode = "idle" | "listening" | "thinking" | "speaking" | "pressure" | "error";
+
+const voiceOptions = [
+  { label: "Skylar", id: "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4", note: "warm female" },
+  { label: "Backend default", id: "", note: "from .env" },
+];
+
+const durationOptions = [5, 10, 15, 30, 45, 60];
+
+const listeningPrompts: Record<string, string> = {
+  en: "I am listening. Start your answer when you are ready.",
+  ar: "أنا أستمع. ابدأ إجابتك عندما تكون جاهزًا.",
+  ur: "میں سن رہی ہوں۔ جب آپ تیار ہوں تو اپنا جواب شروع کریں۔",
+  hi: "मैं सुन रही हूँ। जब आप तैयार हों तो अपना जवाब शुरू करें।",
+  es: "Estoy escuchando. Empieza tu respuesta cuando estés listo.",
+  fr: "Je vous écoute. Commencez votre réponse quand vous êtes prêt.",
+};
 
 function stateCopy(mode: OrbMode, voiceMode: boolean, autoSubmitNotice: string) {
   if (autoSubmitNotice) return autoSubmitNotice;
@@ -69,22 +86,29 @@ function AmbientField({ mode }: { mode: OrbMode }) {
 export default function SessionPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [session, setSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [seconds, setSeconds] = useState(0);
+  const [durationMinutes, setDurationMinutes] = useState(10);
+  const [customDuration, setCustomDuration] = useState(false);
+  const [selectedVoiceId, setSelectedVoiceId] = useState(voiceOptions[0].id);
   const [voiceMode, setVoiceMode] = useState(false);
   const [autoSubmitNotice, setAutoSubmitNotice] = useState("");
+  const autoEndingRef = useRef(false);
   const { getToken, userId } = useAuth();
-  const voice = useRealtimeVoice();
+  const practiceLanguage = getLanguage(session?.practiceLanguage);
+  const voice = useRealtimeVoice({ browserSpeechCode: practiceLanguage.browserSpeechCode, deepgramCode: practiceLanguage.deepgramCode });
 
   useEffect(() => {
     getToken()
       .then((token: string | null) => getSession(id, token))
       .then((data: { session: Session; messages: Message[] }) => {
         setSession(data.session);
+        if (data.session.durationPreference) setDurationMinutes(data.session.durationPreference);
         setMessages(data.messages);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load this session."));
@@ -96,6 +120,8 @@ export default function SessionPage() {
   }, []);
 
   const time = useMemo(() => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`, [seconds]);
+  const remainingSeconds = Math.max(durationMinutes * 60 - seconds, 0);
+  const remainingTime = useMemo(() => `${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, "0")}`, [remainingSeconds]);
 
   const orbMode: OrbMode = useMemo(() => {
     if (voice.voiceState === "error" || error) return "error";
@@ -127,6 +153,14 @@ export default function SessionPage() {
     };
   }, [voiceMode, loading, voice.isSpeaking, voice.supported, voice.voiceState, voice.startListening, voice.stopListening]);
 
+  useEffect(() => {
+    if (!session || session.status === "completed" || loading || autoEndingRef.current) return;
+    if (seconds < durationMinutes * 60) return;
+    autoEndingRef.current = true;
+    setAutoSubmitNotice("Time is up. Generating your report...");
+    finish();
+  }, [durationMinutes, loading, seconds, session]);
+
   async function submitContent(content: string, fromVoice = false) {
     if (!content.trim()) return;
     setError("");
@@ -146,7 +180,7 @@ export default function SessionPage() {
       const result = await sendMessage(id, content.trim(), userId, token);
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
       setSession((current) => current ? { ...current, turnCount: result.turnCount } : current);
-      await voice.speak(result.aiMessage.content);
+      await voice.speak(result.aiMessage.content, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode);
       if (fromVoice && voiceMode) voice.startListening();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not send your response.";
@@ -177,6 +211,8 @@ export default function SessionPage() {
     try {
       const token = await getToken();
       await endSession(id, token);
+      const courseSessionId = searchParams.get("courseSessionId");
+      if (courseSessionId) await completeCourseSession(courseSessionId, id, token).catch(() => undefined);
       const report = await generateReport(id, token);
       router.push(`/report/${report.id}`);
     } catch (err) {
@@ -187,15 +223,66 @@ export default function SessionPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#07111f] text-white">
+    <main className="relative min-h-screen overflow-hidden bg-[#07111f] text-white" dir={isRtlLanguage(session?.practiceLanguage) ? "rtl" : "ltr"}>
       <AmbientField mode={orbMode} />
       <AnimatedPage className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-4 sm:px-6">
         <header className="flex items-center justify-between">
           <Link href="/practice" className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12]">
             <ArrowLeft size={16} /> Exit chamber
           </Link>
-          <div className="flex items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl">
-            <BrainCircuit size={16} /> {session?.practiceType || "Loading"} · {time}
+          <div className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl sm:flex">
+            <BrainCircuit size={16} /> {session?.practiceType || "Loading"} · elapsed {time}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl md:flex">
+              <Volume2 size={14} />
+              <select
+                value={selectedVoiceId}
+                onChange={(event) => setSelectedVoiceId(event.target.value)}
+                className="bg-transparent text-white outline-none [color-scheme:dark]"
+                aria-label="AI voice"
+              >
+                {voiceOptions.map((option) => <option key={option.label} value={option.id}>{option.label} · {option.note}</option>)}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl">
+              <Clock3 size={14} />
+              {customDuration ? (
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={durationMinutes}
+                  onChange={(event) => {
+                    autoEndingRef.current = false;
+                    setDurationMinutes(Math.min(120, Math.max(1, Number(event.target.value) || 1)));
+                  }}
+                  className="w-16 bg-transparent text-white outline-none [color-scheme:dark]"
+                  aria-label="Custom session duration"
+                />
+              ) : (
+                <select
+                  value={durationOptions.includes(durationMinutes) ? durationMinutes : "custom"}
+                  onChange={(event) => {
+                    autoEndingRef.current = false;
+                    if (event.target.value === "custom") {
+                      setCustomDuration(true);
+                      return;
+                    }
+                    setDurationMinutes(Number(event.target.value));
+                  }}
+                  className="bg-transparent text-white outline-none [color-scheme:dark]"
+                  aria-label="Session duration"
+                >
+                  {durationOptions.map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
+                  <option value="custom">Custom</option>
+                </select>
+              )}
+              <button type="button" onClick={() => setCustomDuration((value) => !value)} className="rounded-full bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-white/50">
+                {customDuration ? "Presets" : "Custom"}
+              </button>
+              <span className="hidden text-white/36 sm:inline">left {remainingTime}</span>
+            </label>
           </div>
         </header>
 
@@ -211,7 +298,7 @@ export default function SessionPage() {
 
           <div className="w-full max-w-4xl text-center">
             <div className="mx-auto mb-3 w-fit rounded-full bg-white/[0.08] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/76 ring-1 ring-white/12 backdrop-blur-2xl">
-              {voice.provider === "deepgram" ? "Deepgram live" : "Browser fallback"} · {session?.difficulty || "Realistic"}
+              {voice.provider === "deepgram" ? "Deepgram live" : "Browser fallback"} · {practiceLanguage.nativeName} · {session?.difficulty || "Realistic"}
             </div>
             <AIPresenceOrb state={orbMode} intensity={(session?.turnCount || 0) / 8} />
             <h1 className="mx-auto -mt-3 max-w-3xl text-4xl font-semibold leading-[0.98] tracking-[-0.055em] text-white sm:text-6xl">
@@ -252,6 +339,18 @@ export default function SessionPage() {
             </div>
           )}
 
+          <div className="mb-3 grid gap-2 text-xs font-semibold text-white/70 md:hidden">
+            <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/12 backdrop-blur-2xl">
+              <span className="inline-flex items-center gap-2"><Volume2 size={14} /> AI voice</span>
+              <select value={selectedVoiceId} onChange={(event) => setSelectedVoiceId(event.target.value)} className="bg-transparent text-white outline-none [color-scheme:dark]">
+                {voiceOptions.map((option) => <option key={option.label} value={option.id}>{option.label}</option>)}
+              </select>
+            </label>
+            <div className="rounded-full bg-white/[0.08] px-4 py-3 text-center ring-1 ring-white/12 backdrop-blur-2xl">
+              Session ends in {remainingTime}
+            </div>
+          </div>
+
           <div className="rounded-[2rem] bg-white/[0.08] p-3 ring-1 ring-white/12 backdrop-blur-2xl">
             <form onSubmit={onSubmit} className="flex items-end gap-2">
               <button
@@ -265,7 +364,7 @@ export default function SessionPage() {
                     setError("");
                     setVoiceMode(true);
                     if (session?.status !== "completed") {
-                      voice.speak("I am listening. Start your answer when you are ready.").then(() => voice.startListening());
+                      voice.speak(listeningPrompts[practiceLanguage.code] || listeningPrompts.en, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode).then(() => voice.startListening());
                       return;
                     }
                     voice.startListening();

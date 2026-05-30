@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     gemini_api_key: Optional[str] = None
     deepgram_api_key: Optional[str] = None
     cartesia_api_key: Optional[str] = None
-    cartesia_voice_id: str = "a0e99841-438c-4a64-b679-ae501e7d6091"
+    cartesia_voice_id: str = "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4"
     cartesia_model_id: str = "sonic-3"
     cartesia_version: str = "2026-03-01"
     gemini_model: str = "gemini-2.5-flash"

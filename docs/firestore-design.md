@@ -20,7 +20,9 @@ Backend services that use Firebase Admin SDK or Google service-account credentia
 - `billing_checkouts/{checkoutId}`
 - `adminLogs/{logId}`
 - `featureUsage/{usageId}`
-- `contact_submissions/{id}`
+- `contactMessages/{messageId}`
+- `practiceSchedules/{scheduleId}`
+- `practiceHistory/{historyId}`
 
 ## users/{uid}
 
@@ -38,6 +40,10 @@ Fields:
 - `createdAt: timestamp`
 - `updatedAt: timestamp`
 - `lastLoginAt: timestamp`
+- `preferredPracticeLanguage: string`
+- `preferredFeedbackLanguage: string`
+- `deletionRequestedAt: timestamp optional`
+- `deletedAt: timestamp optional`
 
 Rules:
 - Users can read their own profile.
@@ -63,6 +69,8 @@ Fields:
 - `createdAt: timestamp`
 - `completedAt: timestamp | null`
 - `updatedAt: timestamp`
+- `practiceLanguage: string`
+- `feedbackLanguage: string`
 
 Rules:
 - Users can create sessions where `userId == request.auth.uid`.
@@ -98,6 +106,8 @@ Fields:
 - `reportId: string`
 - `userId: string`
 - `sessionId: string`
+- `practiceLanguage: string`
+- `feedbackLanguage: string`
 - `confidenceScore: number`
 - `clarityScore: number`
 - `persuasivenessScore: number`
@@ -254,6 +264,8 @@ Fields:
 - `currentPeriodStart: timestamp`
 - `currentPeriodEnd: timestamp`
 - `cancelAtPeriodEnd: boolean`
+- `cancelledAt: timestamp | null`
+- `cancellationReason: string optional`
 - `createdAt: timestamp`
 - `updatedAt: timestamp`
 
@@ -318,22 +330,140 @@ Rules:
 - Backend/admin writes usage.
 - Admins can read all usage.
 
-## contact_submissions/{id}
+## contactMessages/{messageId}
 
 Stores messages submitted through `/contact`.
 
 Fields:
-- `id: string`
+- `messageId: string`
 - `name: string`
 - `email: string`
-- `topic: string`
+- `userId: string | null`
+- `category: string`
+- `subject: string`
 - `message: string`
+- `status: "new" | "in_review" | "resolved"`
 - `createdAt: timestamp`
+- `updatedAt: timestamp`
 
 Rules:
 - Users do not write this collection directly from the frontend.
 - FastAPI stores submissions through backend credentials.
-- Admins can read, update, or delete contact submissions.
+- Admins can read, filter, update status, or delete contact messages.
+
+## practiceSchedules/{scheduleId}
+
+Stores recurring practice routines.
+
+Fields:
+- `userId: string`
+- `frequencyType: "daily" | "twice_weekly" | "three_times_weekly" | "weekdays" | "custom"`
+- `daysOfWeek: number[]`
+- `preferredTime: string`
+- `timezone: string`
+- `enabled: boolean`
+- `categories: string[]`
+- `durationPreference: number`
+- `reminderMinutesBefore: number`
+- `createdAt: timestamp`
+- `updatedAt: timestamp`
+
+Rules:
+- Users can create/read/update/delete their own schedules.
+- Admins can read/manage schedules.
+
+## practiceHistory/{historyId}
+
+Tracks adherence, streaks, skips, and session completion.
+
+Fields:
+- `userId: string`
+- `sessionId: string | null`
+- `scheduleId: string | null`
+- `completed: boolean`
+- `skipped: boolean`
+- `completedAt: timestamp | null`
+- `streakDay: number`
+- `createdAt: timestamp`
+
+Rules:
+- Users can create and read their own practice history.
+- Backend/admin may update history for completion, streaks, and reminder actions.
+
+## Reasoning Courses
+
+Structured cognitive training programs are stored as four linked collections. Course generation happens in the FastAPI backend so the frontend never writes curriculum, progress, or generated missions directly.
+
+### `courses/{courseId}`
+
+Fields:
+- `courseId`
+- `userId`
+- `title`
+- `goal`
+- `durationDays`
+- `difficulty`
+- `targetSkills`
+- `weeklyHours`
+- `practiceLanguage`
+- `feedbackLanguage`
+- `createdAt`
+- `updatedAt`
+
+Rules:
+- Users can read their own courses.
+- Backend/admin creates, updates, and deletes courses.
+
+### `courseModules/{moduleId}`
+
+Fields:
+- `moduleId`
+- `courseId`
+- `title`
+- `objective`
+- `order`
+- `createdAt`
+
+Rules:
+- Users can read modules for their own courses.
+- Backend/admin writes modules.
+
+### `courseSessions/{sessionId}`
+
+Fields:
+- `courseSessionId`
+- `courseId`
+- `userId`
+- `scheduledDate`
+- `completed`
+- `practiceType`
+- `reasoningFocus`
+- `pressureLevel`
+- `durationMinutes`
+- `generatedScenario`
+- `createdAt`
+- `completedAt`
+
+Rules:
+- Users can read their own course sessions.
+- Backend/admin creates and updates course sessions.
+
+### `courseProgress/{progressId}`
+
+Fields:
+- `progressId`
+- `userId`
+- `courseId`
+- `completedSessions`
+- `totalSessions`
+- `streak`
+- `growthMetrics`
+- `lastCompletedAt`
+- `updatedAt`
+
+Rules:
+- Users can read their own progress.
+- Backend/admin updates progress after mission completion.
 
 ## Standard Entitlement Map
 

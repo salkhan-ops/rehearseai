@@ -11,11 +11,12 @@ type FinalTranscriptCallback = (transcript: string) => void | Promise<void>;
 const DEEPGRAM_LONG_PAUSE_MS = 3400;
 const DEEPGRAM_MAX_TURN_MS = 60000;
 
-function getVoiceWebSocketUrl() {
+function getVoiceWebSocketUrl(language = "en") {
+  const suffix = `/ws/voice/deepgram?language=${encodeURIComponent(language)}`;
   const explicitUrl = process.env.NEXT_PUBLIC_API_WS_URL;
-  if (explicitUrl) return `${explicitUrl.replace(/\/$/, "")}/ws/voice/deepgram`;
+  if (explicitUrl) return `${explicitUrl.replace(/\/$/, "")}${suffix}`;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  return `${apiUrl.replace(/^http/, "ws").replace(/\/$/, "")}/ws/voice/deepgram`;
+  return `${apiUrl.replace(/^http/, "ws").replace(/\/$/, "")}${suffix}`;
 }
 
 function getMimeType() {
@@ -26,10 +27,14 @@ function getMimeType() {
   return "";
 }
 
-function pickVoice() {
+function pickVoice(language = "en-US") {
   if (typeof window === "undefined" || !window.speechSynthesis) return null;
+  const prefix = language.split("-")[0].toLowerCase();
+  const localized = window.speechSynthesis.getVoices().filter((voice) => voice.lang.toLowerCase().startsWith(prefix));
   const english = window.speechSynthesis.getVoices().filter((voice) => voice.lang.startsWith("en"));
   return (
+    localized.find((voice) => /Samantha|Victoria|Karen|Zira|Jenny|Aria|Sonia|Female|Google|Microsoft|Natural|Enhanced/i.test(voice.name)) ||
+    localized[0] ||
     english.find((voice) => /Samantha|Victoria|Karen|Zira|Jenny|Aria|Sonia|Female|Google UK English Female/i.test(voice.name)) ||
     english.find((voice) => /Google|Microsoft|Natural|Enhanced/i.test(voice.name)) ||
     english[0] ||
@@ -37,8 +42,8 @@ function pickVoice() {
   );
 }
 
-export function useRealtimeVoice() {
-  const fallback = useContinuousVoice();
+export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "en" } = {}) {
+  const fallback = useContinuousVoice(browserSpeechCode);
   const callbackRef = useRef<FinalTranscriptCallback | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -129,7 +134,7 @@ export function useRealtimeVoice() {
     setVoiceState("connecting");
     setProviderReason("");
     try {
-      const socket = new WebSocket(getVoiceWebSocketUrl());
+      const socket = new WebSocket(getVoiceWebSocketUrl(deepgramCode));
       wsRef.current = socket;
       setProvider("deepgram");
 
@@ -196,7 +201,7 @@ export function useRealtimeVoice() {
       setVoiceState("error");
       startMock(error instanceof Error ? error.message : "Could not start Deepgram proxy. Using browser speech fallback.");
     }
-  }, [cleanupDeepgram, fallback, finalizeTurn, resetTranscript, schedulePause, startMock, voiceState]);
+  }, [cleanupDeepgram, deepgramCode, fallback, finalizeTurn, resetTranscript, schedulePause, startMock, voiceState]);
 
   const stopListening = useCallback(() => {
     cleanupDeepgram();
@@ -204,7 +209,7 @@ export function useRealtimeVoice() {
     setVoiceState("idle");
   }, [cleanupDeepgram, fallback]);
 
-  const speak = useCallback((text: string): Promise<void> => {
+  const speak = useCallback((text: string, voiceId?: string, speechCode = browserSpeechCode): Promise<void> => {
     cleanupDeepgram();
     fallback.stopListening();
     setVoiceState("ai_speaking");
@@ -218,7 +223,8 @@ export function useRealtimeVoice() {
         }
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.voice = pickVoice();
+        utterance.lang = speechCode;
+        utterance.voice = pickVoice(speechCode);
         utterance.rate = 0.92;
         utterance.pitch = 1.08;
         utterance.volume = 1;
@@ -236,7 +242,7 @@ export function useRealtimeVoice() {
       try {
         audioRef.current?.pause();
         if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
-        const blob = await synthesizeSpeech(cleanText);
+        const blob = await synthesizeSpeech(cleanText, voiceId);
         const audioUrl = URL.createObjectURL(blob);
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
@@ -260,7 +266,7 @@ export function useRealtimeVoice() {
         playBrowserFallback();
       }
     });
-  }, [cleanupDeepgram, fallback]);
+  }, [browserSpeechCode, cleanupDeepgram, fallback]);
 
   const stopSpeaking = useCallback(() => {
     audioRef.current?.pause();

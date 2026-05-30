@@ -3,12 +3,24 @@
 import { FormEvent, useState } from "react";
 import { Send } from "lucide-react";
 import { submitContact } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
-const topics = ["Support", "Sales", "Partnership", "Press", "Product feedback"];
+const categories = [
+  "General question",
+  "Billing / Paddle payment",
+  "Cancel subscription",
+  "Technical issue",
+  "Account access",
+  "Feature request",
+  "Report a bug",
+  "Privacy / data request",
+  "Partnership / business inquiry",
+];
 
 export function ContactForm() {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState("");
+  const { userId } = useAuth();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -19,8 +31,10 @@ export function ContactForm() {
       await submitContact({
         name: String(data.get("name") || ""),
         email: String(data.get("email") || ""),
-        topic: String(data.get("topic") || ""),
+        category: String(data.get("category") || ""),
+        subject: String(data.get("subject") || ""),
         message: String(data.get("message") || ""),
+        userId: userId === "guest" ? undefined : userId,
       });
       event.currentTarget.reset();
       setStatus("sent");
@@ -43,10 +57,14 @@ export function ContactForm() {
         </label>
       </div>
       <label className="mt-4 block space-y-2 text-sm font-semibold text-secondary-token">
-        Topic
-        <select name="topic" className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-primary)] px-4 py-3 text-primary-token outline-none transition focus:border-[var(--accent-primary)]">
-          {topics.map((topic) => <option key={topic}>{topic}</option>)}
+        Category
+        <select name="category" required className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-primary)] px-4 py-3 text-primary-token outline-none transition focus:border-[var(--accent-primary)]">
+          {categories.map((category) => <option key={category}>{category}</option>)}
         </select>
+      </label>
+      <label className="mt-4 block space-y-2 text-sm font-semibold text-secondary-token">
+        Subject
+        <input name="subject" required minLength={2} className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-primary)] px-4 py-3 text-primary-token outline-none transition focus:border-[var(--accent-primary)]" />
       </label>
       <label className="mt-4 block space-y-2 text-sm font-semibold text-secondary-token">
         Message

@@ -4,7 +4,7 @@ import { LegalLayout } from "@/components/content/LegalLayout";
 export const metadata: Metadata = {
   title: "Privacy Policy | RehearseAI",
   description: "Privacy Policy for RehearseAI, including voice transcripts, AI processing, Firestore storage, analytics, and Paddle payments.",
-  alternates: { canonical: "/legal/privacy" },
+  alternates: { canonical: "/privacy" },
 };
 
 const sections = [
@@ -19,6 +19,8 @@ const sections = [
   ["Cookies and Local Storage", "We may use cookies, local storage, and similar technologies for authentication state, theme preference, product functionality, analytics, and security."],
   ["How We Use Data", "We use data to provide sessions, generate AI responses, create reports, track entitlements, operate billing, improve the product, respond to support requests, prevent abuse, and develop anonymized performance insights."],
   ["Data Sharing", "We share data with service providers needed to operate RehearseAI, including cloud hosting, authentication, AI, speech, analytics, and payments. We do not sell personal rehearsal transcripts."],
+  ["Third-Party Providers", "Core providers may include Firebase Authentication, Google Firestore, Gemini AI, Deepgram speech-to-text, Cartesia text-to-speech, Paddle payments, and Google Cloud hosting. Provider availability may change as the service evolves."],
+  ["No Selling Personal Data", "RehearseAI does not sell personal data. If this policy changes, we will update this page and provide required choices under applicable law."],
   ["User Rights", "Depending on your location, you may request access, correction, deletion, or export of your personal data. Some data may be retained where required for security, billing, legal, or operational reasons."],
   ["Deletion Requests", "To request account or data deletion, contact privacy@rehearseai.app. We will take reasonable steps to delete or anonymize eligible data while preserving records we are required or permitted to keep."],
   ["Security", "We use technical and organizational safeguards appropriate for an MVP-stage cloud product, including environment variable separation, backend-only AI keys, Firestore rules, and restricted administrative workflows. No system is completely secure."],

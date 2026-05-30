@@ -89,7 +89,9 @@ Use short feature branches such as `feature/session-flow`, `feature/firebase-aut
 - Firestore user profile creation with role-based admin access
 - Deepgram live speech-to-text through the FastAPI WebSocket proxy with browser fallback
 - Immersive resources hub, blog, long-form articles, contact page, Terms of Service, and Privacy Policy
-- Contact form submissions saved through FastAPI to `contact_submissions`
+- Contact form submissions saved through FastAPI to `contactMessages`
+- Recurring practice routines, daily cognitive challenges, browser reminder architecture, quick-start AI scenario generation, and practice adherence history
+- Multilingual practice and feedback preferences for English, Arabic, Urdu, Hindi, Spanish, and French
 
 ## Content and legal pages
 
@@ -99,6 +101,12 @@ The content layer is local-file based for MVP speed:
 - `/blog` and `/blog/[slug]`
 - `/articles` and `/articles/[slug]`
 - `/contact`
+
+Contact/support system:
+
+- `POST /api/contact` stores messages in `contactMessages/{messageId}`.
+- `/admin/contact` lets admins review messages, filter by category/status, and mark requests as `new`, `in_review`, or `resolved`.
+- Future TODOs: Mailtrap/SendGrid sending, auto-reply email, support ticket IDs, and file attachments.
 - `/legal/terms`
 - `/legal/privacy`
 
@@ -194,9 +202,91 @@ Set this only in backend `.env`:
 
 ```env
 CARTESIA_API_KEY=your_cartesia_key
-CARTESIA_VOICE_ID=a0e99841-438c-4a64-b679-ae501e7d6091
+CARTESIA_VOICE_ID=db6b0ed5-d5d3-463d-ae85-518a07d3c2b4
 CARTESIA_MODEL_ID=sonic-3
 CARTESIA_VERSION=2026-03-01
 ```
 
-The frontend sends AI response text to FastAPI at `/api/voice/tts`. FastAPI calls Cartesia and returns browser-playable MP3 audio. The Cartesia key is never exposed to frontend code. If Cartesia fails or is missing, the app falls back to browser `speechSynthesis`, preferring a natural female voice when available.
+The frontend sends AI response text and the selected voice ID to FastAPI at `/api/voice/tts`. FastAPI calls Cartesia and returns browser-playable MP3 audio. The Cartesia key is never exposed to frontend code. If Cartesia fails or is missing, the app falls back to browser `speechSynthesis`, preferring a natural female voice when available.
+
+The session page includes:
+- AI voice selector, defaulting to Skylar, a feminine Cartesia voice.
+- Session duration selector for 5, 10, 15, or 30 minutes.
+- Automatic report generation when the selected time limit expires.
+
+## Scheduling and daily practice
+
+RehearseAI includes a daily cognitive training loop:
+
+- Dashboard routine creator for Daily, Twice Weekly, Three Times Weekly, Weekdays, and Custom schedules.
+- Browser reminder permission request and tab-based reminder scheduling for MVP.
+- Backend-ready reminder service for future Google Cloud Scheduler, email, and push workers.
+- Daily Cognitive Challenge on the dashboard.
+- `Start Random Challenge` quick start from `/practice`.
+- `Generate Random Practice Scenario` from `/practice/setup`.
+- Post-report routine creation to turn one session into a recurring habit.
+
+Firestore collections:
+
+- `practiceSchedules/{scheduleId}`
+- `practiceHistory/{historyId}`
+
+Backend endpoints:
+
+- `POST /api/practice-schedules`
+- `GET /api/users/{user_id}/practice-schedules`
+- `PATCH /api/practice-schedules/{schedule_id}`
+- `POST /api/scenarios/random`
+- `POST /api/scenarios/quick-start`
+- `GET /api/users/{user_id}/daily-challenge`
+
+## Legal, compliance, and subscriptions
+
+Starter compliance pages exist at:
+
+- `/terms`
+- `/privacy`
+- `/refund-policy`
+- `/cookies`
+- `/subscription`
+- `/settings`
+- `/contact`
+
+Subscription management is Paddle-ready:
+
+- `GET /api/subscription/current`
+- `POST /api/subscription/cancel`
+- `POST /api/subscription/reactivate`
+- `GET /api/subscription/portal-link`
+- `POST /api/account/delete-request`
+
+For MVP, Paddle customer portal links are placeholders until Paddle portal/customer sessions are configured. Cancellation writes `cancelAtPeriodEnd`, `cancelledAt`, and optional `cancellationReason` into `billing_subscriptions`. Account deletion is a soft-delete request that marks `users/{uid}.deletionRequestedAt`, `deletedAt`, and `status=disabled`.
+
+## Multilingual practice
+
+Users can choose separate languages for roleplay and feedback:
+
+- English
+- Arabic
+- Urdu
+- Hindi
+- Spanish
+- French
+
+Examples:
+
+- Practice in English and receive feedback in Urdu.
+- Practice in Arabic and receive feedback in English.
+- Practice in Spanish and receive feedback in Spanish.
+
+Language preferences are stored on `users/{uid}` as:
+
+- `preferredPracticeLanguage`
+- `preferredFeedbackLanguage`
+
+Sessions and reports also store:
+
+- `practiceLanguage`
+- `feedbackLanguage`
+
+Gemini is instructed to conduct roleplay in the practice language and generate reports in the feedback language. Deepgram receives the selected language code through the backend WebSocket proxy and falls back to English when an unsupported language is requested. Browser speech fallback attempts to use the selected language voice. Arabic and Urdu sessions/reports use RTL direction.

@@ -3,6 +3,7 @@ import type React from "react";
 import { ArrowUpRight, BriefcaseBusiness, GraduationCap, Handshake, MessageSquareWarning, Mic2, Presentation, Scale, ShoppingBag, Sparkles } from "lucide-react";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { Nav } from "@/components/Nav";
+import { RandomChallengeButton } from "@/components/scheduling/RandomChallengeButton";
 import { PracticeType, practiceTypes } from "@/lib/types";
 
 const arenaMeta: Record<PracticeType, { icon: React.ReactNode; line: string; pressure: string; color: string; tag: string }> = {
@@ -33,6 +34,9 @@ export default function PracticePage() {
             <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-slate-600 dark:text-white/60">
               Choose a real-life pressure arena. Rehearse with an adaptive persona, get challenged, then see how your reasoning holds up.
             </p>
+            <div className="mt-6">
+              <RandomChallengeButton />
+            </div>
           </div>
           <div className="relative overflow-hidden rounded-[2rem] bg-slate-950 p-5 text-white shadow-[0_30px_90px_rgba(60,20,120,0.22)]">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(139,92,246,0.5),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(56,189,248,0.35),transparent_28%)]" />

@@ -126,9 +126,42 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    match /contact_submissions/{submissionId} {
+    match /contactMessages/{messageId} {
       allow read, update, delete: if isAdmin();
       allow create: if false;
+    }
+
+    match /practiceSchedules/{scheduleId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+
+    match /practiceHistory/{historyId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /courses/{courseId} {
+      allow read: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /courseModules/{moduleId} {
+      allow read: if signedIn()
+        && exists(/databases/$(database)/documents/courses/$(resource.data.courseId))
+        && get(/databases/$(database)/documents/courses/$(resource.data.courseId)).data.userId == request.auth.uid || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /courseSessions/{sessionId} {
+      allow read: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /courseProgress/{progressId} {
+      allow read: if (signedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
     }
   }
 }

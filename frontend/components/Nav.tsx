@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BrainCircuit, ChevronDown, LogOut, Moon, Sparkles, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export function Nav() {
   const [dark, setDark] = useState(false);
@@ -42,15 +43,18 @@ export function Nav() {
         </Link>
         <div className="hidden items-center gap-9 text-[15px] font-semibold text-slate-700 dark:text-white/70 md:flex">
           <Link href="/practice" className="inline-flex items-center gap-1">Practice <ChevronDown size={14} /></Link>
+          <Link href="/courses">Courses</Link>
           <Link href="/resources">Resources</Link>
           <Link href="/blog">Blog</Link>
           <Link href="/dashboard">Dashboard</Link>
+          <Link href="/settings">Settings</Link>
           <Link href="/pricing">Pricing</Link>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={toggleTheme} className="grid size-12 place-items-center rounded-2xl bg-white/80 text-[#6200a8] ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-violet-100 dark:ring-white/15" aria-label="Toggle dark mode">
             {dark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
+          {user && <NotificationBell />}
           {user ? (
             <button onClick={logout} className="inline-flex items-center gap-2 rounded-2xl bg-white/80 px-5 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
               <LogOut size={16} /> Sign out
