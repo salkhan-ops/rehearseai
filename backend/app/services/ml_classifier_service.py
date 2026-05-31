@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -8,12 +8,18 @@ USER_STATE_MODEL_PATH = BASE_DIR / "ml" / "models" / "user_state_classifier.jobl
 MIN_MODEL_CONFIDENCE = 0.58
 
 
-def _load_joblib_model(path: Path) -> Any | None:
+def _load_joblib_model(path: Path) -> Optional[Any]:
     if not path.exists():
+        return None
+    try:
+        import joblib
+
+        return joblib.load(path)
+    except Exception:
         return None
 
 
-def _approved_model_bundle(path: Path) -> Any | None:
+def _approved_model_bundle(path: Path) -> Optional[Any]:
     model = _load_joblib_model(path)
     if not model:
         return None
@@ -24,7 +30,7 @@ def _approved_model_bundle(path: Path) -> Any | None:
     return model
 
 
-def _predict_from_bundle(bundle: Any, features: dict) -> tuple[Optional[str], float]:
+def _predict_from_bundle(bundle: Any, features: dict) -> Tuple[Optional[str], float]:
     model = bundle.get("pipeline") if isinstance(bundle, dict) and "pipeline" in bundle else bundle
     ordered_input = [features]
     if isinstance(bundle, dict) and bundle.get("features"):
@@ -40,12 +46,6 @@ def _predict_from_bundle(bundle: Any, features: dict) -> tuple[Optional[str], fl
         return prediction, confidence
     except Exception:
         return None, 0.0
-    try:
-        import joblib
-
-        return joblib.load(path)
-    except Exception:
-        return None
 
 
 def predict_pause_type(features: dict) -> str:

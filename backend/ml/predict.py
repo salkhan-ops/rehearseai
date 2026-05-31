@@ -8,12 +8,18 @@ USER_STATE_MODEL_PATH = ROOT / "models" / "user_state_classifier.joblib"
 MIN_CONFIDENCE = 0.58
 
 
-def _load_model(path: Path) -> Any | None:
+def _load_model(path: Path) -> Optional[Any]:
     if not path.exists():
+        return None
+    try:
+        import joblib
+
+        return joblib.load(path)
+    except Exception:
         return None
 
 
-def _approved(path: Path) -> Any | None:
+def _approved(path: Path) -> Optional[Any]:
     model = _load_model(path)
     if isinstance(model, dict) and not (model.get("metadata") or {}).get("passedMinimumThreshold", False):
         return None
@@ -31,12 +37,6 @@ def _predict_bundle(bundle: Any, features: dict) -> Optional[str]:
         if confidence < MIN_CONFIDENCE:
             return None
     return prediction
-    try:
-        import joblib
-
-        return joblib.load(path)
-    except Exception:
-        return None
 
 
 def predict_pause(features: dict) -> str:

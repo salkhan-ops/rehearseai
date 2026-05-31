@@ -78,27 +78,42 @@ async def admin_entitlements(request: Request):
 
 
 @router.get("/api/admin/contact-messages")
-async def admin_contact_messages(request: Request, category: Optional[str] = None, status: Optional[str] = None):
+async def admin_contact_messages(
+    request: Request, category: Optional[str] = None, status: Optional[str] = None
+):
     await require_admin_mvp()
-    return await request.app.state.store.list_contact_messages(category=category, status=status)
+    return await request.app.state.store.list_contact_messages(
+        category=category, status=status
+    )
 
 
 @router.post("/api/admin/contact-messages/{message_id}/status")
-async def admin_update_contact_message_status(message_id: str, payload: dict, request: Request):
+async def admin_update_contact_message_status(
+    message_id: str, payload: dict, request: Request
+):
     await require_admin_mvp()
     status = payload.get("status")
     if status not in {"new", "in_review", "resolved"}:
         raise HTTPException(status_code=400, detail="Invalid status")
-    message = await request.app.state.store.update_contact_message_status(message_id, status)
+    message = await request.app.state.store.update_contact_message_status(
+        message_id, status
+    )
     if not message:
         raise HTTPException(status_code=404, detail="Contact message not found")
     return message
 
 
 @router.get("/api/admin/safety-events")
-async def admin_safety_events(request: Request, category: Optional[str] = None, risk_level: Optional[str] = None, limit: int = 100):
+async def admin_safety_events(
+    request: Request,
+    category: Optional[str] = None,
+    risk_level: Optional[str] = None,
+    limit: int = 100,
+):
     await require_admin_mvp()
-    return await request.app.state.store.list_safety_events(category=category, risk_level=risk_level, limit_count=limit)
+    return await request.app.state.store.list_safety_events(
+        category=category, risk_level=risk_level, limit_count=limit
+    )
 
 
 @router.get("/api/admin/safety-events/stats")
