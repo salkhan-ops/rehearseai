@@ -12,7 +12,7 @@ PracticeType = Literal[
     "Sales Pitch",
 ]
 
-Difficulty = Literal["Friendly", "Realistic", "Brutal"]
+Difficulty = Literal["Beginner", "Intermediate", "Advanced", "Brutal", "Friendly", "Realistic"]
 
 
 class SessionCreate(BaseModel):

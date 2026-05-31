@@ -1,4 +1,4 @@
-import type { Achievement, CalibrationStart, ConversationAnalyzePayload, ConversationCoordinationState, Course, CourseBundle, CourseGeneratePayload, CourseSession, CourseTemplate, CourseTemplateEnrollmentPayload, CurrentSubscription, DailyChallenge, Difficulty, Message, NotificationItem, PerformanceAnalytics, PracticeHistory, PracticeScenario, PracticeSchedule, PracticeType, Report, Session, SessionPayload, UserProgress, VoiceProfile } from "./types";
+import type { Achievement, CalibrationStart, ConversationAnalyzePayload, ConversationCoordinationState, Course, CourseBundle, CourseGeneratePayload, CourseSession, CourseTemplate, CourseTemplateEnrollmentPayload, CurrentSubscription, DailyChallenge, Difficulty, HintSummary, Message, NotificationItem, PerformanceAnalytics, PracticeHistory, PracticeScenario, PracticeSchedule, PracticeType, Report, Session, SessionHint, SessionPayload, UserProgress, VoiceProfile } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -36,11 +36,19 @@ export function getSession(id: string, token?: string | null) {
 }
 
 export function sendMessage(sessionId: string, content: string, userId = "guest", token?: string | null, coordination?: Partial<ConversationAnalyzePayload>) {
-  return request<{ userMessage: Message; aiMessage: Message; turnCount: number }>(`/api/sessions/${sessionId}/message`, {
+  return request<{ userMessage: Message; aiMessage: Message; turnCount: number; hint?: SessionHint }>(`/api/sessions/${sessionId}/message`, {
     method: "POST",
     body: JSON.stringify({ userId, content, ...(coordination || {}) }),
     token
   });
+}
+
+export function getSessionHints(sessionId: string, token?: string | null) {
+  return request<SessionHint[]>(`/api/sessions/${sessionId}/hints`, { token });
+}
+
+export function updateSessionHint(hintId: string, payload: { wasViewed?: boolean; wasExpanded?: boolean }, token?: string | null) {
+  return request<SessionHint>(`/api/session-hints/${hintId}`, { method: "POST", body: JSON.stringify(payload), token });
 }
 
 export function endSession(sessionId: string, token?: string | null) {
@@ -61,6 +69,10 @@ export function getReportAnalytics(reportId: string, token?: string | null) {
 
 export function getUserSessions(userId = "guest", token?: string | null) {
   return request<Session[]>(`/api/users/${userId}/sessions`, { token });
+}
+
+export function getUserHintSummary(userId = "guest", token?: string | null) {
+  return request<HintSummary>(`/api/users/${userId}/hint-summary`, { token });
 }
 
 export async function synthesizeSpeech(text: string, voiceId?: string): Promise<Blob> {

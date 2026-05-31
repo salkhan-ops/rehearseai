@@ -3,17 +3,17 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { Bell, BookOpenCheck, CalendarClock, Flame, Target, TrendingUp, type LucideIcon } from "lucide-react";
+import { Bell, BookOpenCheck, BrainCircuit, CalendarClock, Flame, Target, TrendingUp, type LucideIcon } from "lucide-react";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Nav } from "@/components/Nav";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { DailyChallengeCard } from "@/components/scheduling/DailyChallengeCard";
 import { PracticeRoutinePanel } from "@/components/scheduling/PracticeRoutinePanel";
-import { generateReport, getDailyChallenge, getPracticeHistory, getPracticeSchedules, getUserCourses, getUserSessions, updatePracticeSchedule } from "@/lib/api";
+import { generateReport, getDailyChallenge, getPracticeHistory, getPracticeSchedules, getUserCourses, getUserHintSummary, getUserSessions, updatePracticeSchedule } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { LanguageCode } from "@/lib/languages";
-import type { Course, DailyChallenge, PracticeHistory, PracticeSchedule, Session } from "@/lib/types";
+import type { Course, DailyChallenge, HintSummary, PracticeHistory, PracticeSchedule, Session } from "@/lib/types";
 
 function DashboardContent() {
   const router = useRouter();
@@ -22,6 +22,7 @@ function DashboardContent() {
   const [schedules, setSchedules] = useState<PracticeSchedule[]>([]);
   const [history, setHistory] = useState<PracticeHistory[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [hintSummary, setHintSummary] = useState<HintSummary | null>(null);
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const { getToken, profile, updateLanguagePreferences, userId } = useAuth();
@@ -40,12 +41,14 @@ function DashboardContent() {
       getPracticeHistory(userId, token),
       getDailyChallenge(userId, token),
       getUserCourses(userId, token),
-    ])).then(([nextSessions, nextSchedules, nextHistory, nextChallenge, nextCourses]) => {
+      getUserHintSummary(userId, token),
+    ])).then(([nextSessions, nextSchedules, nextHistory, nextChallenge, nextCourses, nextHintSummary]) => {
       setSessions(nextSessions);
       setSchedules(nextSchedules);
       setHistory(nextHistory);
       setChallenge(nextChallenge);
       setCourses(nextCourses);
+      setHintSummary(nextHintSummary);
     }).catch(() => {
       setSessions([]);
       setSchedules([]);
@@ -77,6 +80,7 @@ function DashboardContent() {
     { icon: CalendarClock, label: "Routines", value: String(schedules.length) },
     { icon: BookOpenCheck, label: "Courses", value: String(courses.length) },
     { icon: Target, label: "Sessions", value: String(sessions.length) },
+    { icon: BrainCircuit, label: "Hints used", value: `${hintSummary?.hintsViewed || 0}/${hintSummary?.hintsReceived || 0}` },
   ];
 
   async function openReport(session: Session) {
@@ -102,7 +106,7 @@ function DashboardContent() {
           <Link href="/pricing" className="rounded-2xl bg-[#6200a8] px-5 py-3 text-center font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.24)]">Upgrade</Link>
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-5">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
           {statCards.map(({ icon: Icon, label, value }) => (
             <AnimatedCard key={label} className="rounded-[1.5rem] surface-low p-5">
               <Icon className="text-[var(--accent-primary)]" size={22} />
@@ -110,6 +114,30 @@ function DashboardContent() {
               <div className="mt-1 text-sm font-semibold text-tertiary-token">{label}</div>
             </AnimatedCard>
           ))}
+        </div>
+
+        <div className="mt-6 rounded-[1.75rem] surface-low p-5">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">Guided reasoning</p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-primary-token">Beginner coaching dependency</h2>
+              <p className="mt-2 max-w-2xl font-medium leading-7 text-secondary-token">Hints are tracked so the product can reduce support as independent reasoning improves.</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-2xl surface-medium p-4">
+                <div className="text-2xl font-semibold text-primary-token">{hintSummary?.hintsFollowedRate || 0}%</div>
+                <div className="mt-1 text-xs font-semibold text-tertiary-token">viewed</div>
+              </div>
+              <div className="rounded-2xl surface-medium p-4">
+                <div className="text-2xl font-semibold capitalize text-primary-token">{hintSummary?.coachingDependency || "low"}</div>
+                <div className="mt-1 text-xs font-semibold text-tertiary-token">dependency</div>
+              </div>
+              <div className="rounded-2xl surface-medium p-4">
+                <div className="text-2xl font-semibold text-primary-token">{hintSummary?.highUrgencyHints || 0}</div>
+                <div className="mt-1 text-xs font-semibold text-tertiary-token">urgent</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr]">

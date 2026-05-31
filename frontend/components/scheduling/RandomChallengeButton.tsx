@@ -9,7 +9,7 @@ import type { Difficulty, PracticeType } from "@/lib/types";
 
 const randomCategories: PracticeType[] = ["Job Interview", "Panel Discussion", "Difficult Conversation", "Salary Negotiation", "Sales Pitch"];
 
-export function RandomChallengeButton({ category, difficulty = "Realistic" }: { category?: PracticeType; difficulty?: Difficulty }) {
+export function RandomChallengeButton({ category, difficulty = "Intermediate" }: { category?: PracticeType; difficulty?: Difficulty }) {
   const router = useRouter();
   const { getToken, profile, userId } = useAuth();
   const [loading, setLoading] = useState(false);

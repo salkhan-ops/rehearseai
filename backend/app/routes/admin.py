@@ -93,3 +93,15 @@ async def admin_update_contact_message_status(message_id: str, payload: dict, re
     if not message:
         raise HTTPException(status_code=404, detail="Contact message not found")
     return message
+
+
+@router.get("/api/admin/safety-events")
+async def admin_safety_events(request: Request, category: Optional[str] = None, risk_level: Optional[str] = None, limit: int = 100):
+    await require_admin_mvp()
+    return await request.app.state.store.list_safety_events(category=category, risk_level=risk_level, limit_count=limit)
+
+
+@router.get("/api/admin/safety-events/stats")
+async def admin_safety_event_stats(request: Request):
+    await require_admin_mvp()
+    return await request.app.state.store.safety_event_stats()

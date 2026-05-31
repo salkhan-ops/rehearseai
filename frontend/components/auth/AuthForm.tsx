@@ -18,6 +18,10 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
   const [loading, setLoading] = useState(false);
   const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>("en");
   const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>("en");
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [minorConsentAcknowledged, setMinorConsentAcknowledged] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const title = mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Reset password";
 
   async function routeAfterLogin() {
@@ -41,7 +45,12 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
         await auth.signInWithEmail(email, password);
         await routeAfterLogin();
       } else {
-        await auth.signUpWithEmail(email, password, practiceLanguage, feedbackLanguage);
+        await auth.signUpWithEmail(email, password, practiceLanguage, feedbackLanguage, {
+          ageConfirmed,
+          minorConsentAcknowledged,
+          termsAccepted,
+          privacyAccepted,
+        });
         await routeAfterLogin();
       }
     } catch (err) {
@@ -55,7 +64,11 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
     setError("");
     setLoading(true);
     try {
-      await auth.signInWithGoogle(mode === "signup" ? practiceLanguage : undefined, mode === "signup" ? feedbackLanguage : undefined);
+      await auth.signInWithGoogle(
+        mode === "signup" ? practiceLanguage : undefined,
+        mode === "signup" ? feedbackLanguage : undefined,
+        mode === "signup" ? { ageConfirmed, minorConsentAcknowledged, termsAccepted, privacyAccepted } : undefined,
+      );
       await routeAfterLogin();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed");
@@ -78,16 +91,34 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
             onPracticeLanguageChange={setPracticeLanguage}
             onFeedbackLanguageChange={setFeedbackLanguage}
           />
+          <div className="space-y-3 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 dark:bg-white/[0.06] dark:text-white/72 dark:ring-white/10">
+            <label className="flex items-start gap-3">
+              <input type="checkbox" checked={ageConfirmed} onChange={(event) => setAgeConfirmed(event.target.checked)} className="mt-1 size-4 accent-[#6200a8]" />
+              <span>I confirm I am at least 16 years old.</span>
+            </label>
+            <label className="flex items-start gap-3">
+              <input type="checkbox" checked={minorConsentAcknowledged} onChange={(event) => setMinorConsentAcknowledged(event.target.checked)} className="mt-1 size-4 accent-[#6200a8]" />
+              <span>If I am under 18, I should use RehearseAI with permission from a parent or guardian.</span>
+            </label>
+            <label className="flex items-start gap-3">
+              <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} className="mt-1 size-4 accent-[#6200a8]" />
+              <span>I agree to the <Link href="/terms" className="text-[#6200a8] dark:text-violet-200">Terms</Link>.</span>
+            </label>
+            <label className="flex items-start gap-3">
+              <input type="checkbox" checked={privacyAccepted} onChange={(event) => setPrivacyAccepted(event.target.checked)} className="mt-1 size-4 accent-[#6200a8]" />
+              <span>I agree to the <Link href="/privacy" className="text-[#6200a8] dark:text-violet-200">Privacy Policy</Link>.</span>
+            </label>
+          </div>
         </div>
       )}
       <form onSubmit={handleEmail} className="mt-6 space-y-3">
         <input name="email" type="email" required placeholder="Email" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-800 outline-none focus:border-[#8b00ff] dark:border-white/10 dark:bg-white/10 dark:text-white" />
         {mode !== "forgot" && <input name="password" type="password" required minLength={6} placeholder="Password" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-800 outline-none focus:border-[#8b00ff] dark:border-white/10 dark:bg-white/10 dark:text-white" />}
-        <button disabled={loading} className="w-full rounded-2xl bg-[#6200a8] px-5 py-3 font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.24)] disabled:opacity-60">
+        <button disabled={loading || (mode === "signup" && (!ageConfirmed || !termsAccepted || !privacyAccepted))} className="w-full rounded-2xl bg-[#6200a8] px-5 py-3 font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.24)] disabled:opacity-60">
           {loading ? "Working..." : title}
         </button>
       </form>
-      {mode !== "forgot" && <div className="mt-3"><GoogleSignInButton onClick={google} disabled={loading} /></div>}
+      {mode !== "forgot" && <div className="mt-3"><GoogleSignInButton onClick={google} disabled={loading || (mode === "signup" && (!ageConfirmed || !termsAccepted || !privacyAccepted))} /></div>}
       <div className="mt-5 flex flex-wrap justify-center gap-3 text-sm font-semibold text-slate-600 dark:text-white/60">
         {mode !== "signin" && <Link href="/signin">Sign in</Link>}
         {mode !== "signup" && <Link href="/signup">Create account</Link>}

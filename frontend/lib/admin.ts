@@ -86,6 +86,61 @@ export type ContactMessage = {
   updatedAt: string;
 };
 
+export type TelemetrySample = {
+  telemetryId: string;
+  anonymousUserId: string;
+  sessionId: string;
+  turnId: string;
+  practiceType: string;
+  difficulty: string;
+  language: string;
+  wordsPerMinute: number;
+  wordCount: number;
+  fillerWordRate: number;
+  detectedUserState: string;
+  detectedPauseType: string;
+  detectedConfusion: boolean;
+  detectedOverexplaining: boolean;
+  detectedDefensiveness: boolean;
+  detectedRushing: boolean;
+  createdAt: string;
+};
+
+export type TelemetryLabelPayload = {
+  telemetryId: string;
+  labeledBy: string;
+  labels: {
+    pauseType: string;
+    userState: string;
+    aiActionQuality: string;
+  };
+  notes: string;
+};
+
+export type SafetyEvent = {
+  eventId: string;
+  userId: string;
+  sessionId: string;
+  practiceType?: string;
+  difficulty?: string;
+  domain: string;
+  riskLevel: string;
+  safetyAction: string;
+  allowResponse: boolean;
+  redirectMessage?: string;
+  reasons: string[];
+  messageExcerpt: string;
+  createdAt: string;
+};
+
+export type SafetyStats = {
+  total: number;
+  crisis: number;
+  scopeViolations: number;
+  dependencyIndicators: number;
+  blocked: number;
+};
+
 const baseEntitlements: Entitlements = {
   maxSessionsPerMonth: 3,
   maxMessagesPerSession: 16,
@@ -280,4 +335,45 @@ export async function updateContactMessageStatus(messageId: string, status: Cont
   });
   if (!response.ok) throw new Error("Could not update contact message.");
   return response.json() as Promise<ContactMessage>;
+}
+
+export async function getTelemetrySamples(limit = 50) {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/admin/telemetry-samples?limit=${limit}`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Could not load telemetry samples.");
+  return response.json() as Promise<TelemetrySample[]>;
+}
+
+export async function saveTelemetryLabel(payload: TelemetryLabelPayload) {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/admin/telemetry-labels`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("Could not save telemetry label.");
+  return response.json();
+}
+
+export async function exportTrainingData(format: "jsonl" | "csv") {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/telemetry/export-training-data`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ format }),
+  });
+  if (!response.ok) throw new Error("Could not export training data.");
+  return response.text();
+}
+
+export async function getSafetyStats() {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/admin/safety-events/stats`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Could not load safety stats.");
+  return response.json() as Promise<SafetyStats>;
+}
+
+export async function getSafetyEvents(category = "", riskLevel = "") {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (riskLevel) params.set("risk_level", riskLevel);
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/admin/safety-events${params.toString() ? `?${params}` : ""}`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Could not load safety events.");
+  return response.json() as Promise<SafetyEvent[]>;
 }

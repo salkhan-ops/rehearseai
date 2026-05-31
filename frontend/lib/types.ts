@@ -9,10 +9,35 @@ export const practiceTypes = [
   "Sales Pitch"
 ] as const;
 
-export const difficulties = ["Friendly", "Realistic", "Brutal"] as const;
+export const difficulties = ["Beginner", "Intermediate", "Advanced", "Brutal"] as const;
 
 export type PracticeType = (typeof practiceTypes)[number];
-export type Difficulty = (typeof difficulties)[number];
+export type Difficulty = (typeof difficulties)[number] | "Friendly" | "Realistic";
+
+export type SessionHint = {
+  hintId: string;
+  userId: string;
+  sessionId: string;
+  timestamp: string;
+  hintText: string;
+  hintType: "reasoning" | "evidence" | "conciseness" | "stakeholder" | "confidence" | "structure";
+  triggerReason: string;
+  urgency: "low" | "medium" | "high";
+  confidence: number;
+  wasViewed: boolean;
+  wasExpanded: boolean;
+  createdAt: string;
+};
+
+export type HintSummary = {
+  hintsReceived: number;
+  hintsViewed: number;
+  hintsExpanded: number;
+  hintsFollowedRate: number;
+  reasoningImprovement: string;
+  coachingDependency: "low" | "watch" | "high" | string;
+  highUrgencyHints: number;
+};
 
 export type Session = {
   id: string;
@@ -337,13 +362,25 @@ export type Achievement = {
 
 export type VoiceProfile = {
   userId: string;
+  sampleCount?: number;
   averageWordsPerMinute: number;
   averagePauseMs: number;
   longPauseThresholdMs: number;
+  shortPauseThresholdMs?: number;
   fillerWordRate: number;
+  averageSilenceAfterMs?: number;
+  averageSpeechDurationMs?: number;
+  averageTurnWordCount?: number;
+  confusionMarkerRate?: number;
+  defensivenessMarkerRate?: number;
+  rushingWordsPerMinuteThreshold?: number;
+  thinkingPauseMs?: number;
+  overexplainingWordCountThreshold?: number;
   hesitationMarkers: string[];
   preferredAiWaitMs: number;
   confidenceBaseline?: number | null;
+  lastPracticeType?: string;
+  lastLanguage?: string;
   createdAt: string;
   updatedAt: string;
 };

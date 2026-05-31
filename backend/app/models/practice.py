@@ -43,7 +43,7 @@ class PracticeHistory(PracticeHistoryCreate):
 class ScenarioRequest(BaseModel):
     userId: str = "guest"
     category: PracticeType = "Job Interview"
-    difficulty: Difficulty = "Realistic"
+    difficulty: Difficulty = "Intermediate"
     practiceLanguage: str = Field(default="en", max_length=8)
     feedbackLanguage: str = Field(default="en", max_length=8)
     targetRole: Optional[str] = Field(default=None, max_length=120)

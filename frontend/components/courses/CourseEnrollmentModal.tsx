@@ -17,7 +17,7 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
   const [days, setDays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [time, setTime] = useState("20:00");
   const [reminder, setReminder] = useState(15);
-  const [difficulty, setDifficulty] = useState<Difficulty>("Realistic");
+  const [difficulty, setDifficulty] = useState<Difficulty>("Intermediate");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   if (!template) return null;

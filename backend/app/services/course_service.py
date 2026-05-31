@@ -170,6 +170,7 @@ class CourseService:
                 pressureLevel=pressure,
                 durationMinutes=payload.preferredSessionDuration,
                 generatedScenario=scenario,
+                difficulty=payload.difficulty,
                 createdAt=now,
             ))
         return sessions

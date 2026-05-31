@@ -64,7 +64,7 @@ class ScenarioService:
     async def generate_daily_challenge(self, user_id: str, category: Optional[str] = None) -> dict:
         title, objective = DAILY_CHALLENGES[hash(f"{user_id}") % len(DAILY_CHALLENGES)]
         selected_category = category or random.choice(list(FALLBACK_SCENARIOS.keys()))
-        scenario = await self.generate_random_scenario(ScenarioRequest(userId=user_id, category=selected_category, difficulty="Realistic"))
+        scenario = await self.generate_random_scenario(ScenarioRequest(userId=user_id, category=selected_category, difficulty="Intermediate"))
         return {
             "title": f"Today's Cognitive Challenge: {title}",
             "objective": objective,
@@ -76,9 +76,9 @@ class ScenarioService:
         if sessions >= 8:
             request.difficulty = "Brutal"
         elif sessions >= 3:
-            request.difficulty = "Realistic"
+            request.difficulty = "Advanced"
         else:
-            request.difficulty = "Friendly"
+            request.difficulty = "Beginner"
         return await self.generate_random_scenario(request, user_history)
 
     def _fallback(self, request: ScenarioRequest) -> PracticeScenario:

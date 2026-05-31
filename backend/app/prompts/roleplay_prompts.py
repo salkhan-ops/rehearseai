@@ -10,6 +10,9 @@ PERSONAS = {
 }
 
 DIFFICULTY_BEHAVIOR = {
+    "Beginner": "Be realistic but clear and patient. Keep pressure low enough for learning while still asking meaningful follow-ups.",
+    "Intermediate": "Be balanced, professional, and meaningfully challenging.",
+    "Advanced": "Be sharper, more skeptical, and require concise evidence and stronger reasoning.",
     "Friendly": "Be supportive, patient, gentle, and encouraging.",
     "Realistic": "Be balanced, professional, and meaningfully challenging.",
     "Brutal": "Be skeptical, interruptive, high-pressure, and direct, but never insulting, abusive, discriminatory, or emotionally harmful.",

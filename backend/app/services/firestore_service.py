@@ -69,6 +69,11 @@ class FirestoreService:
         self.billing_subscriptions: dict[str, dict] = {}
         self.voice_profiles: dict[str, dict] = {}
         self.conversation_states: dict[str, dict] = {}
+        self.conversation_telemetry: dict[str, dict] = {}
+        self.session_outcomes: dict[str, dict] = {}
+        self.telemetry_labels: dict[str, dict] = {}
+        self.safety_events: dict[str, dict] = {}
+        self.session_hints: dict[str, dict] = {}
 
     async def create_session(self, payload: SessionCreate) -> Session:
         session = Session(id=str(uuid4()), createdAt=utc_now_iso(), **payload.model_dump())
@@ -196,6 +201,16 @@ class FirestoreService:
             "createdAt": (existing or {}).get("createdAt", now),
             "updatedAt": now,
             "lastLoginAt": now,
+            "privacySettings": (existing or {}).get("privacySettings", {
+                "allowTelemetry": True,
+                "allowModelImprovement": True,
+                "allowRawAudioStorage": False,
+            }),
+            "ageConfirmed": (existing or {}).get("ageConfirmed", False),
+            "minorConsentAcknowledged": (existing or {}).get("minorConsentAcknowledged", False),
+            "termsAcceptedAt": (existing or {}).get("termsAcceptedAt"),
+            "privacyAcceptedAt": (existing or {}).get("privacyAcceptedAt"),
+            "ageConfirmedAt": (existing or {}).get("ageConfirmedAt"),
         }
         if self.client:
             self.client.collection("users").document(uid).set(payload, merge=True)
@@ -207,6 +222,28 @@ class FirestoreService:
             doc = self.client.collection("users").document(uid).get()
             return doc.to_dict() if doc.exists else None
         return self.admin_users.get(uid)
+
+    async def get_user_privacy_settings(self, uid: str) -> dict:
+        defaults = {
+            "allowTelemetry": True,
+            "allowModelImprovement": True,
+            "allowRawAudioStorage": False,
+        }
+        profile = await self.get_user_profile(uid) or {}
+        return {**defaults, **(profile.get("privacySettings") or {})}
+
+    async def update_user_privacy_settings(self, uid: str, settings: dict) -> dict:
+        current = await self.get_user_privacy_settings(uid)
+        next_settings = {
+            "allowTelemetry": bool(settings["allowTelemetry"]) if "allowTelemetry" in settings else current["allowTelemetry"],
+            "allowModelImprovement": bool(settings["allowModelImprovement"]) if "allowModelImprovement" in settings else current["allowModelImprovement"],
+            "allowRawAudioStorage": bool(settings["allowRawAudioStorage"]) if "allowRawAudioStorage" in settings else current["allowRawAudioStorage"],
+        }
+        payload = {"privacySettings": next_settings, "updatedAt": utc_now_iso()}
+        if self.client:
+            self.client.collection("users").document(uid).set(payload, merge=True)
+        self.admin_users.setdefault(uid, {"uid": uid}).update(payload)
+        return next_settings
 
     async def update_last_login(self, uid: str) -> None:
         payload = {"lastLoginAt": utc_now_iso(), "updatedAt": utc_now_iso()}
@@ -309,10 +346,12 @@ class FirestoreService:
 
     async def save_voice_profile(self, profile: dict) -> dict:
         user_id = profile["userId"]
+        existing = await self.get_voice_profile(user_id) or {}
+        merged = {**existing, **profile}
         if self.client:
-            self.client.collection("voiceProfiles").document(user_id).set(profile, merge=True)
-        self.voice_profiles[user_id] = profile
-        return profile
+            self.client.collection("voiceProfiles").document(user_id).set(merged, merge=True)
+        self.voice_profiles[user_id] = merged
+        return merged
 
     async def get_voice_profile(self, user_id: str) -> Optional[dict]:
         if user_id in self.voice_profiles:
@@ -335,6 +374,180 @@ class FirestoreService:
             self.client.collection("conversationStates").document(state_id).set(payload, merge=True)
         self.conversation_states[state_id] = payload
         return payload
+
+    async def save_conversation_telemetry(self, record: dict) -> dict:
+        telemetry_id = record["telemetryId"]
+        if self.client:
+            self.client.collection("conversationTelemetry").document(telemetry_id).set(record, merge=True)
+        self.conversation_telemetry[telemetry_id] = record
+        return record
+
+    async def list_conversation_telemetry(self, user_id: Optional[str] = None, session_id: Optional[str] = None, limit_count: int = 100) -> list[dict]:
+        if self.client:
+            query = self.client.collection("conversationTelemetry")
+            if user_id:
+                query = query.where("userId", "==", user_id)
+            if session_id:
+                query = query.where("sessionId", "==", session_id)
+            docs = query.order_by("createdAt", direction=firestore.Query.DESCENDING).limit(limit_count).stream()
+            return [doc.to_dict() for doc in docs]
+        records = list(self.conversation_telemetry.values())
+        if user_id:
+            records = [record for record in records if record.get("userId") == user_id]
+        if session_id:
+            records = [record for record in records if record.get("sessionId") == session_id]
+        return sorted(records, key=lambda item: item.get("createdAt", ""), reverse=True)[:limit_count]
+
+    async def cleanup_expired_conversation_telemetry(self, now_iso: Optional[str] = None, limit_count: int = 500) -> int:
+        cutoff = now_iso or utc_now_iso()
+        deleted = 0
+        if self.client:
+            docs = self.client.collection("conversationTelemetry").where("expiresAt", "<=", cutoff).limit(limit_count).stream()
+            for doc in docs:
+                doc.reference.delete()
+                deleted += 1
+            return deleted
+        expired_ids = [
+            telemetry_id
+            for telemetry_id, record in self.conversation_telemetry.items()
+            if record.get("expiresAt") and str(record.get("expiresAt")) <= cutoff
+        ][:limit_count]
+        for telemetry_id in expired_ids:
+            self.conversation_telemetry.pop(telemetry_id, None)
+            deleted += 1
+        return deleted
+
+    async def save_session_outcome(self, outcome: dict) -> dict:
+        outcome_id = outcome["outcomeId"]
+        if self.client:
+            self.client.collection("sessionOutcomes").document(outcome_id).set(outcome, merge=True)
+        self.session_outcomes[outcome_id] = outcome
+        return outcome
+
+    async def save_telemetry_label(self, label: dict) -> dict:
+        label_id = label["labelId"]
+        if self.client:
+            self.client.collection("telemetryLabels").document(label_id).set(label, merge=True)
+        self.telemetry_labels[label_id] = label
+        return label
+
+    async def list_telemetry_labels(self, telemetry_id: Optional[str] = None, limit_count: int = 100) -> list[dict]:
+        if self.client:
+            query = self.client.collection("telemetryLabels")
+            if telemetry_id:
+                query = query.where("telemetryId", "==", telemetry_id)
+            docs = query.order_by("createdAt", direction=firestore.Query.DESCENDING).limit(limit_count).stream()
+            return [doc.to_dict() for doc in docs]
+        labels = list(self.telemetry_labels.values())
+        if telemetry_id:
+            labels = [label for label in labels if label.get("telemetryId") == telemetry_id]
+        return sorted(labels, key=lambda item: item.get("createdAt", ""), reverse=True)[:limit_count]
+
+    async def save_safety_event(self, event: dict) -> dict:
+        event_id = event["eventId"]
+        if self.client:
+            self.client.collection("safetyEvents").document(event_id).set(event, merge=True)
+        self.safety_events[event_id] = event
+        return event
+
+    async def list_safety_events(self, category: Optional[str] = None, risk_level: Optional[str] = None, limit_count: int = 100) -> list[dict]:
+        if self.client:
+            query = self.client.collection("safetyEvents")
+            if category:
+                if category == "crisis":
+                    query = query.where("safetyAction", "==", "CRISIS_RESPONSE")
+                elif category == "scope":
+                    query = query.where("safetyAction", "in", ["REDIRECT", "LIMITED_RESPONSE"])
+                elif category == "dependency":
+                    query = query.where("domain", "==", "dependency")
+                else:
+                    query = query.where("domain", "==", category)
+            if risk_level:
+                query = query.where("riskLevel", "==", risk_level)
+            docs = query.order_by("createdAt", direction=firestore.Query.DESCENDING).limit(limit_count).stream()
+            return [doc.to_dict() for doc in docs]
+        events = list(self.safety_events.values())
+        if category:
+            if category == "crisis":
+                events = [event for event in events if event.get("safetyAction") == "CRISIS_RESPONSE"]
+            elif category == "scope":
+                events = [event for event in events if event.get("safetyAction") in {"REDIRECT", "LIMITED_RESPONSE"}]
+            elif category == "dependency":
+                events = [event for event in events if event.get("domain") == "dependency"]
+            else:
+                events = [event for event in events if event.get("domain") == category]
+        if risk_level:
+            events = [event for event in events if event.get("riskLevel") == risk_level]
+        return sorted(events, key=lambda item: item.get("createdAt", ""), reverse=True)[:limit_count]
+
+    async def safety_event_stats(self) -> dict:
+        events = await self.list_safety_events(limit_count=500)
+        return {
+            "total": len(events),
+            "crisis": sum(1 for event in events if event.get("safetyAction") == "CRISIS_RESPONSE"),
+            "scopeViolations": sum(1 for event in events if event.get("safetyAction") in {"REDIRECT", "LIMITED_RESPONSE"}),
+            "dependencyIndicators": sum(1 for event in events if event.get("domain") == "dependency"),
+            "blocked": sum(1 for event in events if event.get("safetyAction") == "BLOCK"),
+        }
+
+    async def save_session_hint(self, hint: dict) -> dict:
+        hint_id = hint["hintId"]
+        if self.client:
+            self.client.collection("sessionHints").document(hint_id).set(hint, merge=True)
+        self.session_hints[hint_id] = hint
+        return hint
+
+    async def list_session_hints(self, session_id: str, user_id: Optional[str] = None) -> list[dict]:
+        if self.client:
+            query = self.client.collection("sessionHints").where("sessionId", "==", session_id)
+            if user_id:
+                query = query.where("userId", "==", user_id)
+            docs = query.order_by("createdAt", direction=firestore.Query.ASCENDING).stream()
+            return [doc.to_dict() for doc in docs]
+        hints = [hint for hint in self.session_hints.values() if hint.get("sessionId") == session_id]
+        if user_id:
+            hints = [hint for hint in hints if hint.get("userId") == user_id]
+        return sorted(hints, key=lambda item: item.get("createdAt", ""))
+
+    async def user_hint_summary(self, user_id: str) -> dict:
+        if self.client:
+            docs = self.client.collection("sessionHints").where("userId", "==", user_id).stream()
+            hints = [doc.to_dict() for doc in docs]
+        else:
+            hints = [hint for hint in self.session_hints.values() if hint.get("userId") == user_id]
+        total = len(hints)
+        viewed = sum(1 for hint in hints if hint.get("wasViewed"))
+        expanded = sum(1 for hint in hints if hint.get("wasExpanded"))
+        high_urgency = sum(1 for hint in hints if hint.get("urgency") == "high")
+        followed_rate = round((viewed / total) * 100) if total else 0
+        dependency = "low"
+        if total >= 18 and expanded / max(total, 1) > 0.45:
+            dependency = "watch"
+        if total >= 30 and expanded / max(total, 1) > 0.6:
+            dependency = "high"
+        return {
+            "hintsReceived": total,
+            "hintsViewed": viewed,
+            "hintsExpanded": expanded,
+            "hintsFollowedRate": followed_rate,
+            "reasoningImprovement": "building" if total else "not_started",
+            "coachingDependency": dependency,
+            "highUrgencyHints": high_urgency,
+        }
+
+    async def update_session_hint(self, hint_id: str, updates: dict) -> Optional[dict]:
+        payload = {**updates, "updatedAt": utc_now_iso()}
+        if self.client:
+            ref = self.client.collection("sessionHints").document(hint_id)
+            current = ref.get()
+            if not current.exists:
+                return None
+            ref.set(payload, merge=True)
+            return {**current.to_dict(), **payload}
+        if hint_id not in self.session_hints:
+            return None
+        self.session_hints[hint_id].update(payload)
+        return self.session_hints[hint_id]
 
     async def assign_user_plan(self, uid: str, plan_id: str, status: str = "active", source: str = "admin", overrides: Optional[dict] = None) -> dict:
         return await self.admin_assign_plan(uid, {"planId": plan_id, "status": status, "source": source, "overrides": overrides or {}})

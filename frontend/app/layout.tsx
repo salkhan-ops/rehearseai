@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/context/AuthContext";
 import { CookieConsent } from "@/components/CookieConsent";
+import "reactflow/dist/style.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

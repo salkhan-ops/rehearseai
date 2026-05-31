@@ -27,6 +27,23 @@ export type AppUserProfile = {
   status: "active" | "trialing" | "past_due" | "cancelled";
   preferredPracticeLanguage: LanguageCode;
   preferredFeedbackLanguage: LanguageCode;
+  privacySettings: {
+    allowTelemetry: boolean;
+    allowModelImprovement: boolean;
+    allowRawAudioStorage: boolean;
+  };
+  ageConfirmed: boolean;
+  minorConsentAcknowledged: boolean;
+  termsAcceptedAt?: unknown;
+  privacyAcceptedAt?: unknown;
+  ageConfirmedAt?: unknown;
+};
+
+export type SignupCompliance = {
+  ageConfirmed: boolean;
+  minorConsentAcknowledged: boolean;
+  termsAccepted: boolean;
+  privacyAccepted: boolean;
 };
 
 type AuthContextValue = {
@@ -37,16 +54,17 @@ type AuthContextValue = {
   isAdmin: boolean;
   getToken: () => Promise<string | null>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) => Promise<void>;
-  signInWithGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<void>;
+  signInWithGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<void>;
   signOut: () => Promise<void>;
   signInEmail: (email: string, password: string) => Promise<void>;
-  signUpEmail: (email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) => Promise<void>;
-  signInGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) => Promise<void>;
+  signUpEmail: (email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<void>;
+  signInGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   continueAsGuest: () => Promise<void>;
   updateLanguagePreferences: (practiceLanguage: LanguageCode, feedbackLanguage: LanguageCode) => Promise<void>;
+  confirmAgeEligibility: (minorConsentAcknowledged?: boolean) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -63,6 +81,13 @@ function fallbackProfile(user: User): AppUserProfile {
     status: "active",
     preferredPracticeLanguage: "en",
     preferredFeedbackLanguage: "en",
+    privacySettings: {
+      allowTelemetry: true,
+      allowModelImprovement: true,
+      allowRawAudioStorage: false,
+    },
+    ageConfirmed: false,
+    minorConsentAcknowledged: false,
   };
 }
 
@@ -74,7 +99,18 @@ function requireAuthClient() {
   return auth;
 }
 
-async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) {
+function compliancePayload(compliance?: SignupCompliance) {
+  const accepted = Boolean(compliance?.ageConfirmed && compliance.termsAccepted && compliance.privacyAccepted);
+  return accepted ? {
+    ageConfirmed: true,
+    minorConsentAcknowledged: Boolean(compliance?.minorConsentAcknowledged),
+    termsAcceptedAt: serverTimestamp(),
+    privacyAcceptedAt: serverTimestamp(),
+    ageConfirmedAt: serverTimestamp(),
+  } : {};
+}
+
+async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) {
   if (user.isAnonymous) return null;
   const db = getFirebaseDb();
   if (!db) return fallbackProfile(user);
@@ -96,6 +132,17 @@ async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, fe
       lastLoginAt: serverTimestamp(),
       preferredPracticeLanguage: practiceLanguage || existingData.preferredPracticeLanguage || "en",
       preferredFeedbackLanguage: feedbackLanguage || existingData.preferredFeedbackLanguage || "en",
+      privacySettings: existingData.privacySettings || {
+        allowTelemetry: true,
+        allowModelImprovement: true,
+        allowRawAudioStorage: false,
+      },
+      ageConfirmed: existingData.ageConfirmed || Boolean(compliance?.ageConfirmed),
+      minorConsentAcknowledged: existingData.minorConsentAcknowledged || Boolean(compliance?.minorConsentAcknowledged),
+      termsAcceptedAt: existingData.termsAcceptedAt,
+      privacyAcceptedAt: existingData.privacyAcceptedAt,
+      ageConfirmedAt: existingData.ageConfirmedAt,
+      ...compliancePayload(compliance),
     };
     await setDoc(userRef, profile, { merge: true });
     return {
@@ -109,6 +156,12 @@ async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, fe
       status: profile.status,
       preferredPracticeLanguage: profile.preferredPracticeLanguage,
       preferredFeedbackLanguage: profile.preferredFeedbackLanguage,
+      privacySettings: profile.privacySettings,
+      ageConfirmed: Boolean(profile.ageConfirmed),
+      minorConsentAcknowledged: Boolean(profile.minorConsentAcknowledged),
+      termsAcceptedAt: profile.termsAcceptedAt,
+      privacyAcceptedAt: profile.privacyAcceptedAt,
+      ageConfirmedAt: profile.ageConfirmedAt,
     } as AppUserProfile;
   } catch (error) {
     console.warn("Firebase Auth succeeded, but Firestore profile sync failed. Deploy firestore.rules to enable profile writes.", error);
@@ -141,16 +194,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(await upsertUserProfile(result.user));
     }
 
-    async function signUpWithEmailAction(email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) {
+    async function signUpWithEmailAction(email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) {
+      if (!compliance?.ageConfirmed || !compliance.termsAccepted || !compliance.privacyAccepted) {
+        throw new Error("You must confirm age eligibility and accept the Terms and Privacy Policy.");
+      }
       const auth = requireAuthClient();
       const result = await createUserWithEmailAndPassword(auth, email, password);
-      setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage));
+      setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance));
     }
 
-    async function signInWithGoogleAction(practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode) {
+    async function signInWithGoogleAction(practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) {
+      if ((practiceLanguage || feedbackLanguage) && (!compliance?.ageConfirmed || !compliance.termsAccepted || !compliance.privacyAccepted)) {
+        throw new Error("You must confirm age eligibility and accept the Terms and Privacy Policy.");
+      }
       const auth = requireAuthClient();
       const result = await signInWithPopup(auth, new GoogleAuthProvider());
-      setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage));
+      setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance));
     }
 
     async function signOutAction() {
@@ -172,6 +231,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await setDoc(doc(db, "users", user.uid), {
           preferredPracticeLanguage: practiceLanguage,
           preferredFeedbackLanguage: feedbackLanguage,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
+    }
+
+    async function confirmAgeEligibility(nextMinorConsentAcknowledged = false) {
+      if (!user) return;
+      const db = getFirebaseDb();
+      const nextProfile = {
+        ...(profile || fallbackProfile(user)),
+        ageConfirmed: true,
+        minorConsentAcknowledged: nextMinorConsentAcknowledged,
+        termsAcceptedAt: profile?.termsAcceptedAt || new Date().toISOString(),
+        privacyAcceptedAt: profile?.privacyAcceptedAt || new Date().toISOString(),
+        ageConfirmedAt: new Date().toISOString(),
+      };
+      setProfile(nextProfile);
+      if (db) {
+        await setDoc(doc(db, "users", user.uid), {
+          ageConfirmed: true,
+          minorConsentAcknowledged: nextMinorConsentAcknowledged,
+          termsAcceptedAt: serverTimestamp(),
+          privacyAcceptedAt: serverTimestamp(),
+          ageConfirmedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         }, { merge: true });
       }
@@ -201,6 +284,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await signInAnonymously(auth);
     },
     updateLanguagePreferences,
+    confirmAgeEligibility,
     };
   }, [user, profile, loading]);
 

@@ -21,7 +21,7 @@ export function DailyChallengeCard({ challenge }: { challenge: DailyChallenge | 
       const result = await quickStartChallenge({
         userId,
         category: category || challenge?.scenario.category || "Job Interview",
-        difficulty: difficulty || challenge?.scenario.difficulty || "Realistic",
+        difficulty: difficulty || challenge?.scenario.difficulty || "Intermediate",
         practiceLanguage: profile?.preferredPracticeLanguage || "en",
         feedbackLanguage: profile?.preferredFeedbackLanguage || "en",
         durationPreference: 10,
@@ -51,7 +51,7 @@ export function DailyChallengeCard({ challenge }: { challenge: DailyChallenge | 
           <button onClick={() => start()} disabled={loading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-4 font-semibold text-white shadow-[0_18px_42px_rgba(98,0,168,0.24)] disabled:opacity-60">
             {loading ? "Building challenge..." : "Start today"} <ArrowRight size={18} />
           </button>
-          <button onClick={() => start("Difficult Conversation", "Realistic")} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-2xl surface-low px-5 py-4 font-semibold text-secondary-token ring-1 ring-[var(--border-soft)]">
+          <button onClick={() => start("Difficult Conversation", "Intermediate")} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-2xl surface-low px-5 py-4 font-semibold text-secondary-token ring-1 ring-[var(--border-soft)]">
             <Shuffle size={18} /> Random
           </button>
         </div>

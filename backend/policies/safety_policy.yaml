@@ -1,0 +1,53 @@
+allowed_domains:
+  - communication_practice
+  - reasoning_practice
+  - conversation_simulation
+
+disallowed_domains:
+  - therapy
+  - medical
+  - legal
+  - financial
+  - crisis
+  - harmful_persuasion
+  - dependency
+  - manipulation
+  - major_life_decision
+
+actions:
+  allow: ALLOW
+  redirect: REDIRECT
+  limited_response: LIMITED_RESPONSE
+  crisis_response: CRISIS_RESPONSE
+  block: BLOCK
+
+risk_levels:
+  low: LOW
+  medium: MEDIUM
+  high: HIGH
+  crisis: CRISIS
+
+scope:
+  must:
+    - practice communication
+    - practice reasoning
+    - simulate conversations
+  must_not:
+    - provide therapy
+    - provide medical advice
+    - provide legal advice
+    - provide financial advice
+    - persuade users toward harmful actions
+    - encourage dependency
+    - make major life decisions for users
+
+retention:
+  store_safety_events: true
+  store_message_excerpt: true
+  message_excerpt_chars: 280
+
+messages:
+  redirect: "I can help you practice how to communicate about this, but I cannot provide professional advice or make the decision for you. Let’s turn it into a safe rehearsal: who are you speaking with, and what do you want to communicate?"
+  limited_response: "I can support this as communication practice, not as professional advice. I can help you frame questions, rehearse a conversation, or organize your reasoning before you speak with a qualified professional."
+  crisis: "I’m sorry you’re dealing with this. I can’t provide crisis support, but if you might hurt yourself or someone else, call emergency services now. In the U.S. or Canada, call or text 988 for the Suicide & Crisis Lifeline. If you’re elsewhere, contact your local emergency number or a trusted person nearby right now."
+  block: "I can’t help with requests to manipulate, deceive, coerce, or harm someone. I can help rewrite this into an ethical conversation or boundary-setting practice."

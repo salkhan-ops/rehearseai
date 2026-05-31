@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, Settings, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { AnimatedPage } from "@/components/animations";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -11,17 +11,55 @@ import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection
 import { SubscriptionManager } from "@/components/subscription/SubscriptionManager";
 import { useAuth } from "@/lib/auth";
 import type { LanguageCode } from "@/lib/languages";
+import { getPersonalSpeechProfile, getTelemetryConsent, type PrivacySettings, updateTelemetryConsent } from "@/lib/telemetry";
+import type { VoiceProfile } from "@/lib/types";
 import { useEffect, useState } from "react";
+
+const defaultPrivacySettings: PrivacySettings = {
+  allowTelemetry: true,
+  allowModelImprovement: true,
+  allowRawAudioStorage: false,
+};
 
 export default function SettingsPage() {
   const { logout, profile, updateLanguagePreferences, user } = useAuth();
   const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>(profile?.preferredPracticeLanguage || "en");
   const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>(profile?.preferredFeedbackLanguage || "en");
+  const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(profile?.privacySettings || defaultPrivacySettings);
+  const [speechProfile, setSpeechProfile] = useState<VoiceProfile | null>(null);
+  const [privacySaving, setPrivacySaving] = useState(false);
 
   useEffect(() => {
     if (profile?.preferredPracticeLanguage) setPracticeLanguage(profile.preferredPracticeLanguage);
     if (profile?.preferredFeedbackLanguage) setFeedbackLanguage(profile.preferredFeedbackLanguage);
-  }, [profile?.preferredFeedbackLanguage, profile?.preferredPracticeLanguage]);
+    if (profile?.privacySettings) setPrivacySettings(profile.privacySettings);
+  }, [profile?.preferredFeedbackLanguage, profile?.preferredPracticeLanguage, profile?.privacySettings]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    user.getIdToken()
+      .then(async (token) => {
+        const [settings, personalProfile] = await Promise.all([
+          getTelemetryConsent(user.uid, token),
+          getPersonalSpeechProfile(user.uid, token).catch(() => null),
+        ]);
+        setPrivacySettings(settings);
+        setSpeechProfile(personalProfile);
+      })
+      .catch(() => undefined);
+  }, [user]);
+
+  async function updatePrivacy(nextSettings: PrivacySettings) {
+    setPrivacySettings(nextSettings);
+    if (!user?.uid) return;
+    setPrivacySaving(true);
+    try {
+      const token = await user.getIdToken();
+      setPrivacySettings(await updateTelemetryConsent(user.uid, nextSettings, token));
+    } finally {
+      setPrivacySaving(false);
+    }
+  }
 
   return (
     <main className="cog-bg min-h-screen text-primary-token">
@@ -50,6 +88,48 @@ export default function SettingsPage() {
           <section className="rounded-[2rem] surface-high p-6">
             <h2 className="text-3xl font-semibold tracking-[-0.045em]">Voice and notifications</h2>
             <p className="mt-2 font-medium leading-7 text-secondary-token">Voice preferences, email reminders, and push notifications are structured for future expansion. Browser reminders are currently managed from the dashboard routine creator.</p>
+          </section>
+
+          <section className="rounded-[2rem] surface-high p-6">
+            <p className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]"><ShieldCheck size={16} /> Privacy</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.045em]">Conversation improvement data</h2>
+            <p className="mt-2 font-medium leading-7 text-secondary-token">Voice timing and transcript features may be used to improve personalization and conversation timing. Raw audio stays off by default.</p>
+            {speechProfile && (
+              <div className="mt-5 grid gap-3 sm:grid-cols-4">
+                {[
+                  ["Samples", speechProfile.sampleCount || 0],
+                  ["Pace", `${Math.round(speechProfile.averageWordsPerMinute || 0)} wpm`],
+                  ["Thinking pause", `${speechProfile.thinkingPauseMs || speechProfile.averagePauseMs || 0} ms`],
+                  ["AI wait", `${speechProfile.preferredAiWaitMs || 0} ms`],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl bg-white/60 p-4 ring-1 ring-[var(--border-soft)] dark:bg-white/[0.04]">
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-tertiary-token">{label}</div>
+                    <div className="mt-1 text-lg font-semibold">{value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-5 space-y-3">
+              {[
+                ["allowTelemetry", "Improve conversation timing using anonymized practice signals"],
+                ["allowModelImprovement", "Allow my data to improve personalization"],
+                ["allowRawAudioStorage", "Store raw audio"],
+              ].map(([key, label]) => (
+                <label key={key} className={`${key === "allowRawAudioStorage" ? "opacity-70" : ""} flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-white/60 p-4 ring-1 ring-[var(--border-soft)] dark:bg-white/[0.04]`}>
+                  <span>
+                    <span className="block font-semibold">{label}</span>
+                    {key === "allowRawAudioStorage" && <span className="mt-1 block text-sm font-medium text-secondary-token">Advanced option. Leave off unless explicitly requested for a future feature.</span>}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={privacySettings[key as keyof PrivacySettings]}
+                    onChange={(event) => updatePrivacy({ ...privacySettings, [key]: event.target.checked })}
+                    className="size-5 accent-[#6200a8]"
+                  />
+                </label>
+              ))}
+            </div>
+            {privacySaving && <p className="mt-3 text-sm font-semibold text-secondary-token">Saving privacy settings...</p>}
           </section>
 
           <section className="rounded-[2rem] surface-high p-6">

@@ -20,7 +20,7 @@ class CourseGenerateRequest(BaseModel):
     preferredSessionDuration: int = Field(default=20, ge=5, le=120)
     targetCompletionDate: Optional[str] = None
     practiceCategories: list[PracticeType] = Field(default_factory=lambda: ["Job Interview", "Difficult Conversation"])
-    difficulty: Difficulty = "Realistic"
+    difficulty: Difficulty = "Intermediate"
     practiceLanguage: str = Field(default="en", max_length=8)
     feedbackLanguage: str = Field(default="en", max_length=8)
 
@@ -49,7 +49,7 @@ class CourseTemplateEnrollmentRequest(BaseModel):
     preferredTime: str = Field(default="20:00", pattern=r"^\d{2}:\d{2}$")
     timezone: str = Field(default="UTC", max_length=80)
     reminderMinutesBefore: int = Field(default=15, ge=0, le=1440)
-    difficulty: Difficulty = "Realistic"
+    difficulty: Difficulty = "Intermediate"
     practiceLanguage: str = Field(default="en", max_length=8)
     feedbackLanguage: str = Field(default="en", max_length=8)
 

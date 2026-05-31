@@ -35,7 +35,16 @@ class VoiceProfile(BaseModel):
     averageWordsPerMinute: float = 125
     averagePauseMs: int = 900
     longPauseThresholdMs: int = 3200
+    averageSpeechDurationMs: int = 20000
+    averageSilenceAfterMs: int = 900
+    averageTurnWordCount: int = 45
+    overExplainWordThreshold: int = 140
+    overexplainingWordCountThreshold: int = 140
     fillerWordRate: float = 0
+    hesitationMarkerRate: float = 0
+    confusionMarkerRate: float = 0
+    defensiveMarkerRate: float = 0
+    defensivenessMarkerRate: float = 0
     hesitationMarkers: list[str] = Field(default_factory=list)
     preferredAiWaitMs: int = 900
     confidenceBaseline: Optional[float] = None
@@ -94,6 +103,7 @@ class CoordinationState(BaseModel):
 class ConversationCoordinationService:
     def __init__(self, store: FirestoreService) -> None:
         self.store = store
+        self.live_baselines: dict[str, dict] = {}
 
     async def start_calibration(self, user_id: str) -> CalibrationStartResponse:
         return CalibrationStartResponse(
@@ -131,11 +141,12 @@ class ConversationCoordinationService:
     async def analyze(self, payload: CoordinationAnalyzeRequest) -> CoordinationState:
         profile_data = await self.store.get_voice_profile(payload.userId)
         profile = VoiceProfile(**profile_data) if profile_data else self._default_profile(payload.userId)
+        profile = self._profile_with_live_baseline(payload, profile)
         state = self._analyze(payload, profile)
         await self.store.save_conversation_state(
             payload.sessionId or f"coordination_{payload.userId}",
             payload.userId,
-            state.model_dump(),
+            {**state.model_dump(), "liveBaseline": self.live_baselines.get(self._baseline_key(payload), {})},
         )
         return state
 
@@ -150,10 +161,12 @@ class ConversationCoordinationService:
         confused = any(phrase in lower for phrase in CONFUSION_PHRASES)
         defensive = any(phrase in lower for phrase in DEFENSIVE_PHRASES)
         silence_threshold = profile.longPauseThresholdMs + (1800 if wait_requested else 0)
-        overlong_ms = max(70000, round((profile.averageWordsPerMinute / 125) * 80000))
-        overexplaining = payload.speechDurationMs > overlong_ms or len(words) > 190
+        overlong_ms = max(70000, round(max(1, profile.averageSpeechDurationMs) * 2.4))
+        overexplain_words = max(120, profile.overExplainWordThreshold or profile.overexplainingWordCountThreshold or 140)
+        overexplaining = payload.speechDurationMs > overlong_ms or len(words) > overexplain_words
         rushing = wpm > max(165, profile.averageWordsPerMinute * 1.35)
-        hesitating = bool(markers) or filler_count >= max(3, round(len(words) * 0.08))
+        filler_threshold = max(3, round(len(words) * max(0.08, profile.fillerWordRate * 2.1)))
+        hesitating = bool(markers) or filler_count >= filler_threshold or payload.silenceMs > max(2400, profile.averagePauseMs * 2.2)
         collapsing = payload.silenceMs > silence_threshold * 1.8 and len(words) < 8
 
         user_state: UserState = "calm"
@@ -295,5 +308,77 @@ class ConversationCoordinationService:
                 pauses.append(gap)
         return pauses
 
+    def _baseline_key(self, payload: CoordinationAnalyzeRequest) -> str:
+        return f"{payload.sessionId or 'global'}:{payload.userId}"
 
-# TODO: Add a lightweight local classifier once enough consented timing data exists.
+    def _profile_with_live_baseline(self, payload: CoordinationAnalyzeRequest, profile: VoiceProfile) -> VoiceProfile:
+        key = self._baseline_key(payload)
+        words = self._words(f"{payload.transcript} {payload.interimTranscript}".strip())
+        word_count = len(words)
+        if key not in self.live_baselines:
+            self.live_baselines[key] = {
+                "sampleCount": 0,
+                "averagePauseMs": profile.averagePauseMs,
+                "longPauseThresholdMs": profile.longPauseThresholdMs,
+                "averageWordsPerMinute": profile.averageWordsPerMinute,
+                "fillerWordRate": profile.fillerWordRate,
+                "averageSpeechDurationMs": profile.averageSpeechDurationMs,
+                "averageSilenceAfterMs": profile.averageSilenceAfterMs,
+                "averageTurnWordCount": profile.averageTurnWordCount,
+                "overExplainWordThreshold": profile.overExplainWordThreshold or profile.overexplainingWordCountThreshold,
+                "hesitationMarkerRate": profile.hesitationMarkerRate,
+                "confusionMarkerRate": profile.confusionMarkerRate,
+                "defensiveMarkerRate": profile.defensiveMarkerRate or profile.defensivenessMarkerRate,
+            }
+        baseline = self.live_baselines[key]
+        if word_count >= 3 or payload.silenceMs > 0:
+            sample_count = int(baseline.get("sampleCount") or 0)
+            alpha = 1 if sample_count == 0 else 0.24
+            text = f"{payload.transcript} {payload.interimTranscript}".strip().lower()
+            wpm = self._words_per_minute(word_count, payload.speechDurationMs)
+            filler_rate = self._filler_count(text) / max(1, word_count)
+            hesitation = 1.0 if self._markers(text, HESITATION_MARKERS) else 0.0
+            confusion = 1.0 if any(phrase in text for phrase in CONFUSION_PHRASES) else 0.0
+            defensive = 1.0 if any(phrase in text for phrase in DEFENSIVE_PHRASES) else 0.0
+
+            def ema(key_name: str, value: float) -> float:
+                previous = float(baseline.get(key_name) or 0)
+                return round(previous * (1 - alpha) + value * alpha, 4)
+
+            baseline["sampleCount"] = sample_count + 1
+            if wpm:
+                baseline["averageWordsPerMinute"] = ema("averageWordsPerMinute", wpm)
+            if payload.silenceMs:
+                baseline["averagePauseMs"] = ema("averagePauseMs", payload.silenceMs)
+                baseline["averageSilenceAfterMs"] = ema("averageSilenceAfterMs", payload.silenceMs)
+            if payload.speechDurationMs:
+                baseline["averageSpeechDurationMs"] = ema("averageSpeechDurationMs", payload.speechDurationMs)
+            if word_count:
+                baseline["averageTurnWordCount"] = ema("averageTurnWordCount", word_count)
+            baseline["fillerWordRate"] = ema("fillerWordRate", filler_rate)
+            baseline["hesitationMarkerRate"] = ema("hesitationMarkerRate", hesitation)
+            baseline["confusionMarkerRate"] = ema("confusionMarkerRate", confusion)
+            baseline["defensiveMarkerRate"] = ema("defensiveMarkerRate", defensive)
+            baseline["longPauseThresholdMs"] = max(1800, min(8000, round(float(baseline["averagePauseMs"]) * 2.4)))
+            baseline["overExplainWordThreshold"] = max(120, round(float(baseline["averageTurnWordCount"]) * 2.25))
+
+        return VoiceProfile(
+            **{
+                **profile.model_dump(),
+                "averageWordsPerMinute": baseline["averageWordsPerMinute"],
+                "averagePauseMs": int(baseline["averagePauseMs"]),
+                "longPauseThresholdMs": int(baseline["longPauseThresholdMs"]),
+                "averageSpeechDurationMs": int(baseline["averageSpeechDurationMs"]),
+                "averageSilenceAfterMs": int(baseline["averageSilenceAfterMs"]),
+                "averageTurnWordCount": int(baseline["averageTurnWordCount"]),
+                "overExplainWordThreshold": int(baseline["overExplainWordThreshold"]),
+                "fillerWordRate": float(baseline["fillerWordRate"]),
+                "hesitationMarkerRate": float(baseline["hesitationMarkerRate"]),
+                "confusionMarkerRate": float(baseline["confusionMarkerRate"]),
+                "defensiveMarkerRate": float(baseline["defensiveMarkerRate"]),
+            }
+        )
+
+
+# TODO: Do not add deep learning until there is a large, diverse, balanced labeled dataset
+# and a full evaluation pipeline showing improvement over classical ML and rules.

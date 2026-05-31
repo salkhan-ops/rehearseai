@@ -7,12 +7,17 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
 import { AnimatedMessage, AnimatedPage, TypingIndicator } from "@/components/animations";
+import { BeginnerBriefing } from "@/components/learning/BeginnerBriefing";
+import { CoachPanel } from "@/components/learning/CoachPanel";
+import { ConversationMap } from "@/components/learning/ConversationMap";
+import { FloatingHint } from "@/components/learning/FloatingHint";
 import { useConversationCoordination } from "@/hooks/useConversationCoordination";
 import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
-import { completeCourseSession, endSession, generateReport, getSession, sendMessage } from "@/lib/api";
+import { completeCourseSession, endSession, generateReport, getSession, sendMessage, updateSessionHint } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { getLanguage, isRtlLanguage } from "@/lib/languages";
-import type { Message, Session } from "@/lib/types";
+import { outcomeFromReport, sendSessionOutcome, sendTurnTelemetry } from "@/lib/telemetry";
+import type { Message, Session, SessionHint } from "@/lib/types";
 
 type OrbMode = "idle" | "listening" | "thinking" | "speaking" | "pressure" | "error";
 
@@ -98,10 +103,13 @@ export default function SessionPage() {
   const [customDuration, setCustomDuration] = useState(false);
   const [selectedVoiceId, setSelectedVoiceId] = useState(voiceOptions[0].id);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [latestHint, setLatestHint] = useState<SessionHint | null>(null);
+  const [hintVisible, setHintVisible] = useState(false);
   const [autoSubmitNotice, setAutoSubmitNotice] = useState("");
   const autoEndingRef = useRef(false);
   const { getToken, userId } = useAuth();
   const practiceLanguage = getLanguage(session?.practiceLanguage);
+  const beginnerMode = session?.difficulty === "Beginner" || session?.difficulty === "Friendly";
   const coordination = useConversationCoordination({ userId, sessionId: id, enabled: voiceMode });
   const { analyze: analyzeCoordination } = coordination;
   const voice = useRealtimeVoice({ browserSpeechCode: practiceLanguage.browserSpeechCode, deepgramCode: practiceLanguage.deepgramCode, longPauseMs: coordination.longPauseMs || 3400 });
@@ -186,6 +194,7 @@ export default function SessionPage() {
     try {
       const token = await getToken();
       const metrics = voiceMetrics || { speechDurationMs: 0, silenceMs: 0 };
+      const requestStartedAt = Date.now();
       const result = await sendMessage(id, content.trim(), userId, token, {
         transcript: content.trim(),
         interimTranscript: "",
@@ -194,8 +203,40 @@ export default function SessionPage() {
         sessionId: id,
         userId,
       });
+      const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
       setSession((current) => current ? { ...current, turnCount: result.turnCount } : current);
+      if (beginnerMode && result.hint) {
+        setLatestHint(result.hint);
+        setHintVisible(true);
+        updateSessionHint(result.hint.hintId, { wasViewed: true }, token).catch(() => undefined);
+        window.setTimeout(() => setHintVisible(false), 6500);
+      }
+      if (session) {
+        sendTurnTelemetry({
+          userId,
+          sessionId: id,
+          turnId: result.userMessage.id,
+          practiceType: session.practiceType,
+          difficulty: session.difficulty,
+          language: session.practiceLanguage || "en",
+          transcript: content.trim(),
+          speechDurationMs: metrics.speechDurationMs,
+          silenceBeforeMs: metrics.silenceMs,
+          silenceAfterMs: metrics.silenceMs,
+          userTurnIndex: result.turnCount,
+          aiTurnIndex: result.turnCount,
+          responseLatencyMs,
+          aiWaitedMs: metrics.silenceMs,
+          aiResponseText: result.aiMessage.content,
+          recommendedAiTone: coordination.state?.recommendedAiTone,
+          recommendedResponseLength: coordination.state?.recommendedResponseLength,
+          detectedUserState: coordination.state?.userState,
+          detectedPressureState: coordination.state?.pressureAdjustment,
+          userInterruptedAi: false,
+          aiInterruptedUser: Boolean(coordination.state?.shouldAiInterrupt),
+        }, token).catch(() => undefined);
+      }
       await voice.speak(result.aiMessage.content, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode);
       if (fromVoice && voiceMode) voice.startListening();
     } catch (err) {
@@ -230,6 +271,9 @@ export default function SessionPage() {
       const courseSessionId = searchParams.get("courseSessionId");
       if (courseSessionId) await completeCourseSession(courseSessionId, id, token).catch(() => undefined);
       const report = await generateReport(id, token);
+      if (session) {
+        await sendSessionOutcome(outcomeFromReport({ ...session, status: "completed" }, report, seconds), token).catch(() => undefined);
+      }
       router.push(`/report/${report.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not generate report. Check that the backend is running.");
@@ -239,8 +283,15 @@ export default function SessionPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#07111f] text-white" dir={isRtlLanguage(session?.practiceLanguage) ? "rtl" : "ltr"}>
+    <main className={`relative min-h-screen overflow-hidden bg-[#07111f] text-white transition-colors ${hintVisible && latestHint ? "bg-[#0b182b]" : ""}`} dir={isRtlLanguage(session?.practiceLanguage) ? "rtl" : "ltr"}>
       <AmbientField mode={orbMode} />
+      {beginnerMode && <FloatingHint hint={hintVisible ? latestHint : null} onExpand={() => {
+        if (latestHint) {
+          setHintVisible(true);
+          getToken().then((token) => updateSessionHint(latestHint.hintId, { wasViewed: true, wasExpanded: true }, token)).catch(() => undefined);
+        }
+      }} />}
+      {beginnerMode && session && <CoachPanel session={session} latestHint={latestHint} progress={Math.min(100, Math.round(((session.turnCount || 0) / 6) * 100))} />}
       <AnimatedPage className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-4 sm:px-6">
         <header className="flex items-center justify-between">
           <Link href="/practice" className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12]">
@@ -323,6 +374,12 @@ export default function SessionPage() {
             <p className="mx-auto mt-4 max-w-2xl text-base font-medium leading-7 text-white/56 sm:text-lg">
               {stateCopy(orbMode, voiceMode, autoSubmitNotice)}
             </p>
+            {beginnerMode && session && messages.length === 0 && (
+              <div className="mt-8 grid gap-4 text-left">
+                <BeginnerBriefing session={session} />
+                <ConversationMap session={session} />
+              </div>
+            )}
           </div>
         </section>
 

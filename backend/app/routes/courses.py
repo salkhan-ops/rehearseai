@@ -150,7 +150,7 @@ async def start_course_session(course_session_id: str, request: Request, current
     session = await store.create_session(SessionCreate(
         userId=course_session.userId,
         practiceType=course_session.practiceType,
-        difficulty=course.difficulty if course else "Realistic",
+        difficulty=course.difficulty if course else "Intermediate",
         practiceLanguage=course.practiceLanguage if course else "en",
         feedbackLanguage=course.feedbackLanguage if course else "en",
         durationPreference=course_session.durationMinutes,

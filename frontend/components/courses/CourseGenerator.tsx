@@ -17,7 +17,7 @@ export function CourseGenerator() {
   const [weeklyHours, setWeeklyHours] = useState(3);
   const [duration, setDuration] = useState(20);
   const [targetDate, setTargetDate] = useState("");
-  const [difficulty, setDifficulty] = useState<Difficulty>("Realistic");
+  const [difficulty, setDifficulty] = useState<Difficulty>("Intermediate");
   const [categories, setCategories] = useState<PracticeType[]>(["Job Interview", "Difficult Conversation"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -101,7 +101,7 @@ export function CourseGenerator() {
           </div>
           <div className="grid gap-2">
             <span className="text-sm font-semibold text-slate-700 dark:text-white/70">Difficulty</span>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-4">
               {difficulties.map((item) => (
                 <button key={item} type="button" onClick={() => setDifficulty(item)} className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${difficulty === item ? "bg-[#6200a8] text-white shadow-[0_16px_34px_rgba(98,0,168,0.2)]" : "bg-white/70 text-slate-700 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}>{item}</button>
               ))}

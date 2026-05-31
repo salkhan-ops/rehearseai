@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CreditCard, FileText, Gem, Inbox, KeyRound, Layers, ShieldCheck, UserCog, Users } from "lucide-react";
+import { CreditCard, Database, FileText, Gem, Inbox, KeyRound, Layers, ShieldAlert, ShieldCheck, UserCog, Users } from "lucide-react";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { AdminSection } from "@/components/admin/AdminSection";
@@ -37,6 +37,10 @@ export default function AdminPage() {
       <AdminSection title="Entitlements">
         <AdminCard href="/admin/entitlements" icon={ShieldCheck} title="Global Entitlement Rules" subtitle="Control feature limits used by pricing packages" />
         <AdminCard href="/admin/overrides" icon={KeyRound} title="User Overrides" subtitle="Grant custom access, trials, and manual limits" />
+      </AdminSection>
+      <AdminSection title="Telemetry">
+        <AdminCard href="/admin/telemetry-labels" icon={Database} title="Telemetry Labels" subtitle="Review anonymized turns, add labels, and export training data" />
+        <AdminCard href="/admin/safety" icon={ShieldAlert} title="Safety & Scope" subtitle="Review crisis triggers, scope redirects, dependency indicators, and blocked requests" />
       </AdminSection>
     </AdminLayout>
   );

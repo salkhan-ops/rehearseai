@@ -56,7 +56,7 @@ function SetupForm() {
   const params = useSearchParams();
   const router = useRouter();
   const [practiceType, setPracticeType] = useState<PracticeType>((params.get("type") as PracticeType) || "Job Interview");
-  const [difficulty, setDifficulty] = useState<Difficulty>((params.get("difficulty") as Difficulty) || "Realistic");
+  const [difficulty, setDifficulty] = useState<Difficulty>((params.get("difficulty") as Difficulty) || "Intermediate");
   const [loading, setLoading] = useState(false);
   const [entitlements, setEntitlements] = useState<Entitlements | null>(null);
   const [error, setError] = useState("");
@@ -158,16 +158,16 @@ function SetupForm() {
       <Nav />
       <AnimatedPage className="relative mx-auto max-w-7xl px-4 py-10 md:py-14">
         <div className="pointer-events-none absolute right-10 top-20 h-72 w-72 rounded-full bg-violet-300/20 blur-3xl" />
-        <div className="relative grid gap-6 lg:grid-cols-[0.82fr_1.18fr]">
-          <aside className="rounded-[2rem] bg-slate-950 p-6 text-white shadow-[0_30px_90px_rgba(20,30,60,0.18)]">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-violet-100">
+        <div className="relative grid gap-6 lg:grid-cols-[0.78fr_1.22fr]">
+          <aside className="rounded-[2rem] bg-white/82 p-6 text-slate-950 shadow-[0_24px_70px_rgba(35,45,75,0.08)] ring-1 ring-slate-200/75 backdrop-blur-xl dark:bg-slate-950 dark:text-white dark:shadow-[0_30px_90px_rgba(0,0,0,0.26)] dark:ring-white/10">
+            <div className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 ring-1 ring-violet-100 dark:bg-white/10 dark:text-violet-100 dark:ring-white/10">
               <Zap size={14} /> Setup studio
             </div>
-            <h1 className="mt-5 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] md:text-6xl">Skip the blank page.</h1>
-            <p className="mt-5 text-base font-medium leading-7 text-white/60">Start from a real scenario, tune the pressure, and let RehearseAI build the room around you.</p>
+            <h1 className="mt-5 text-4xl font-semibold leading-[0.98] tracking-[-0.045em] text-slate-950 md:text-5xl dark:text-white">Skip the blank page.</h1>
+            <p className="mt-5 text-base font-medium leading-7 text-slate-600 dark:text-white/60">Start from a real scenario, tune the pressure, and let RehearseAI build the room around you.</p>
             <div className="mt-8 grid gap-3">
               {["Pick a pressure template", "Edit only what matters", "Start talking in under a minute"].map((item) => (
-                <div key={item} className="flex items-center gap-3 rounded-2xl bg-white/[0.08] p-3 text-sm font-semibold ring-1 ring-white/10">
+                <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 dark:bg-white/[0.08] dark:text-white dark:ring-white/10">
                   <span className="flex size-7 items-center justify-center rounded-full bg-emerald-400 text-slate-950"><Check size={16} /></span>
                   {item}
                 </div>
@@ -256,11 +256,12 @@ function SetupForm() {
 
             <div className="mt-5">
               <div className="text-sm font-semibold text-slate-700 dark:text-white/75">Pressure level</div>
-              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              <div className="mt-2 grid gap-2 sm:grid-cols-4">
               {difficulties.map((item) => (
                 <button key={item} type="button" disabled={item === "Brutal" && entitlements?.allowBrutalMode === false} onClick={() => setDifficulty(item)} className={`rounded-2xl px-4 py-3 text-sm font-semibold ring-1 transition disabled:cursor-not-allowed disabled:opacity-45 ${difficulty === item ? "bg-slate-950 text-white ring-slate-950 shadow-[0_16px_35px_rgba(15,23,42,0.16)] dark:bg-white dark:text-slate-950" : "bg-slate-50 text-slate-700 ring-slate-200 hover:bg-white dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}>{item}</button>
               ))}
               </div>
+              {difficulty === "Beginner" && <p className="mt-2 text-sm font-medium text-slate-500 dark:text-white/50">Beginner Mode adds a briefing, conversation map, and reasoning hints. It teaches structure without feeding answers.</p>}
             </div>
 
             <section className="mt-5 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">

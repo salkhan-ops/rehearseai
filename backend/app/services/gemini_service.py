@@ -137,6 +137,9 @@ class GeminiService:
             if coordination_context.get("pressureAdjustment") == "increase":
                 return "Good. Now take it one level deeper: what assumption in your answer would a skeptical person challenge first?"
         pressure = {
+            "Beginner": "That is a useful start. What is the clearest reason behind your answer?",
+            "Intermediate": "I understand the point, but I need clearer evidence. What example proves that?",
+            "Advanced": "That needs tighter reasoning. What assumption would I challenge first?",
             "Friendly": "That is a solid start. Can you make it a little more specific?",
             "Realistic": "I understand the point, but I need clearer evidence. What example proves that?",
             "Brutal": "I am not convinced yet. Give me the strongest version without hedging.",

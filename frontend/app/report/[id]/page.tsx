@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BrainCircuit, Sparkles } from "lucide-react";
+import { BrainCircuit, Lightbulb, Sparkles } from "lucide-react";
 import { BenchmarkComparisonChart } from "@/components/analytics/BenchmarkComparisonChart";
 import { CommunicationEfficiencyChart } from "@/components/analytics/CommunicationEfficiencyChart";
 import { ConfidenceTrendChart } from "@/components/analytics/ConfidenceTrendChart";
@@ -22,10 +22,10 @@ import { Nav } from "@/components/Nav";
 import { ScoreCard } from "@/components/ScoreCard";
 import { PracticeRoutinePanel } from "@/components/scheduling/PracticeRoutinePanel";
 import { AIDisclaimer } from "@/components/legal/AIDisclaimer";
-import { getReport, getReportAnalytics } from "@/lib/api";
+import { getReport, getReportAnalytics, getSessionHints } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { isRtlLanguage } from "@/lib/languages";
-import type { PerformanceAnalytics, Report } from "@/lib/types";
+import type { PerformanceAnalytics, Report, SessionHint } from "@/lib/types";
 
 function ListSection({ title, items }: { title: string; items: string[] }) {
   return (
@@ -53,12 +53,18 @@ export default function ReportPage() {
   const { id } = useParams<{ id: string }>();
   const [report, setReport] = useState<Report | null>(null);
   const [analytics, setAnalytics] = useState<PerformanceAnalytics | null>(null);
+  const [hints, setHints] = useState<SessionHint[]>([]);
   const { getToken } = useAuth();
 
   useEffect(() => {
-    getToken().then((token: string | null) => Promise.all([getReport(id, token), getReportAnalytics(id, token)])).then(([nextReport, nextAnalytics]: [Report, PerformanceAnalytics]) => {
+    getToken().then(async (token: string | null) => {
+      const [nextReport, nextAnalytics] = await Promise.all([getReport(id, token), getReportAnalytics(id, token)]);
+      const nextHints = await getSessionHints(nextReport.sessionId, token).catch(() => []);
+      return [nextReport, nextAnalytics, nextHints] as const;
+    }).then(([nextReport, nextAnalytics, nextHints]) => {
       setReport(nextReport);
       setAnalytics(nextAnalytics);
+      setHints(nextHints);
     });
   }, [id, getToken]);
 
@@ -145,6 +151,39 @@ export default function ReportPage() {
         <AnimatedSection className="mt-4">
           <SessionReplayPanel replayItems={analytics.replayItems} criticalMoments={analytics.criticalMoments} />
         </AnimatedSection>
+
+        {hints.length > 0 && (
+          <AnimatedSection className="mt-4 rounded-[1.5rem] surface-low p-6">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--accent-primary)]"><Lightbulb size={16} /> Beginner coaching timeline</div>
+            <h2 className="mt-3 text-2xl font-semibold tracking-[-0.035em] text-primary-token">Where reasoning support appeared</h2>
+            <div className="mt-5 grid gap-3">
+              {hints.map((hint) => (
+                <div key={hint.hintId} className="rounded-2xl surface-medium p-4">
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-tertiary-token">
+                    <span>{new Date(hint.timestamp || hint.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span>{hint.hintType}</span>
+                    <span>{hint.triggerReason.replaceAll("_", " ")}</span>
+                  </div>
+                  <p className="mt-2 font-semibold leading-7 text-primary-token">{hint.hintText}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              <div className="rounded-2xl surface-medium p-4">
+                <div className="text-sm font-semibold text-tertiary-token">Missed opportunities</div>
+                <p className="mt-2 text-sm font-medium leading-6 text-secondary-token">{report.missedOpportunities[0] || "Use each hint as a signal to pause, narrow the point, and make the reasoning visible."}</p>
+              </div>
+              <div className="rounded-2xl surface-medium p-4">
+                <div className="text-sm font-semibold text-tertiary-token">Better reasoning approach</div>
+                <p className="mt-2 text-sm font-medium leading-6 text-secondary-token">{report.improvedResponses[0] || "Answer the objection directly, then support the claim with one concrete example."}</p>
+              </div>
+              <div className="rounded-2xl surface-medium p-4">
+                <div className="text-sm font-semibold text-tertiary-token">Next focus</div>
+                <p className="mt-2 text-sm font-medium leading-6 text-secondary-token">{report.nextRecommendation}</p>
+              </div>
+            </div>
+          </AnimatedSection>
+        )}
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
           <AnimatedSection className="rounded-[1.5rem] surface-low p-6">

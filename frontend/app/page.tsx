@@ -207,6 +207,35 @@ export default function Home() {
         </StaggeredGrid>
       </section>
 
+      <section className="relative z-10 mx-auto max-w-7xl px-4 py-16">
+        <div className="overflow-hidden rounded-[2.5rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl md:p-10">
+          <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+            <div>
+              <p className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 ring-1 ring-violet-100 dark:bg-cyan-100/10 dark:text-cyan-100 dark:ring-cyan-100/10"><BrainCircuit size={16} /> Guided Reasoning Mode</p>
+              <h2 className="mt-5 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-6xl">Learn the shape of the conversation before pressure starts.</h2>
+              <p className="mt-5 text-lg font-medium leading-8 text-slate-700 dark:text-white/58">New to interviews, presentations, or difficult conversations? Beginner Mode teaches you how conversations evolve, provides reasoning guidance, and helps you build confidence before facing pressure alone.</p>
+              <div className="mt-8"><ButtonLink href="/practice/setup?difficulty=Beginner">Start Beginner Mode</ButtonLink></div>
+            </div>
+            <div className="relative min-h-[24rem] overflow-hidden rounded-[2rem] bg-slate-950 p-5 text-white shadow-[0_30px_90px_rgba(15,23,42,0.25)]">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(45,212,191,0.24),transparent_34%),radial-gradient(circle_at_86%_22%,rgba(167,139,250,0.26),transparent_30%)]" />
+              {["Situation overview", "Likely objection", "Your reasoning", "Evidence example", "Resolution"].map((label, index) => (
+                <motion.div
+                  key={label}
+                  className="relative mb-3 rounded-2xl bg-white/10 p-4 ring-1 ring-white/10"
+                  animate={{ x: [0, index % 2 ? 7 : -7, 0], opacity: [0.78, 1, 0.86] }}
+                  transition={{ duration: 4 + index * 0.25, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-cyan-200/18 text-sm font-bold text-cyan-100">{index + 1}</span>
+                    <span className="font-semibold tracking-[-0.02em]">{label}</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="relative z-10 px-4 py-20">
         <AnimatedSection className="mx-auto max-w-7xl">
           <div className="max-w-4xl">
