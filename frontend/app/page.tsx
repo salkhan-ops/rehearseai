@@ -216,17 +216,17 @@ export default function Home() {
               <p className="mt-5 text-lg font-medium leading-8 text-slate-700 dark:text-white/58">New to interviews, presentations, or difficult conversations? Beginner Mode teaches you how conversations evolve, provides reasoning guidance, and helps you build confidence before facing pressure alone.</p>
               <div className="mt-8"><ButtonLink href="/practice/setup?difficulty=Beginner">Start Beginner Mode</ButtonLink></div>
             </div>
-            <div className="relative min-h-[24rem] overflow-hidden rounded-[2rem] bg-slate-950 p-5 text-white shadow-[0_30px_90px_rgba(15,23,42,0.25)]">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(45,212,191,0.24),transparent_34%),radial-gradient(circle_at_86%_22%,rgba(167,139,250,0.26),transparent_30%)]" />
+            <div className="relative min-h-[24rem] overflow-hidden rounded-[2rem] bg-white p-5 text-slate-950 shadow-[0_30px_90px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/80 dark:bg-slate-950 dark:text-white dark:shadow-[0_30px_90px_rgba(15,23,42,0.25)] dark:ring-white/10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(45,212,191,0.16),transparent_34%),radial-gradient(circle_at_86%_22%,rgba(167,139,250,0.18),transparent_30%)] dark:bg-[radial-gradient(circle_at_20%_12%,rgba(45,212,191,0.24),transparent_34%),radial-gradient(circle_at_86%_22%,rgba(167,139,250,0.26),transparent_30%)]" />
               {["Situation overview", "Likely objection", "Your reasoning", "Evidence example", "Resolution"].map((label, index) => (
                 <motion.div
                   key={label}
-                  className="relative mb-3 rounded-2xl bg-white/10 p-4 ring-1 ring-white/10"
+                  className="relative mb-3 rounded-2xl bg-slate-50/90 p-4 ring-1 ring-slate-200/80 dark:bg-white/10 dark:ring-white/10"
                   animate={{ x: [0, index % 2 ? 7 : -7, 0], opacity: [0.78, 1, 0.86] }}
                   transition={{ duration: 4 + index * 0.25, repeat: Infinity, ease: "easeInOut" }}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-cyan-200/18 text-sm font-bold text-cyan-100">{index + 1}</span>
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-cyan-100 text-sm font-bold text-cyan-700 dark:bg-cyan-200/18 dark:text-cyan-100">{index + 1}</span>
                     <span className="font-semibold tracking-[-0.02em]">{label}</span>
                   </div>
                 </motion.div>
@@ -289,11 +289,11 @@ export default function Home() {
             <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-slate-700 dark:text-white/58">Generate a personalized multi-day program with daily pressure missions, adaptive difficulty, reminders, and a reasoning skill tree.</p>
             <div className="mt-8"><ButtonLink href="/courses">Build Your Cognitive Strength</ButtonLink></div>
           </div>
-          <div className="relative overflow-hidden rounded-[2.4rem] bg-slate-950 p-6 text-white shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_85%_18%,rgba(139,92,246,0.24),transparent_34%)]" />
+          <div className="relative overflow-hidden rounded-[2.4rem] bg-white p-6 text-slate-950 shadow-[0_30px_90px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/80 dark:bg-slate-950 dark:text-white dark:shadow-[0_30px_90px_rgba(15,23,42,0.22)] dark:ring-white/10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(34,211,238,0.14),transparent_30%),radial-gradient(circle_at_85%_18%,rgba(139,92,246,0.16),transparent_34%)] dark:bg-[radial-gradient(circle_at_20%_10%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_85%_18%,rgba(139,92,246,0.24),transparent_34%)]" />
             <div className="relative flex items-center justify-between">
-              <span className="rounded-full bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/70">30-day reasoning course</span>
-              <Trophy className="text-violet-200" size={22} />
+              <span className="rounded-full bg-cyan-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-800 ring-1 ring-cyan-100 dark:bg-white/10 dark:text-cyan-100/70 dark:ring-white/10">30-day reasoning course</span>
+              <Trophy className="text-violet-600 dark:text-violet-200" size={22} />
             </div>
             <div className="relative mt-8 grid gap-3">
               {[
@@ -301,10 +301,10 @@ export default function Home() {
                 ["Day 12", "Recover after repeated interruption", "Composure"],
                 ["Day 21", "Handle a skeptical negotiation objection", "Strategic framing"],
               ].map(([day, mission, skill], index) => (
-                <motion.div key={day} className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/10" animate={{ y: [0, -6, 0] }} transition={{ duration: 4 + index * 0.4, repeat: Infinity, ease: "easeInOut" }}>
+                <motion.div key={day} className="rounded-2xl bg-slate-50/90 p-4 ring-1 ring-slate-200/80 dark:bg-white/10 dark:ring-white/10" animate={{ y: [0, -6, 0] }} transition={{ duration: 4 + index * 0.4, repeat: Infinity, ease: "easeInOut" }}>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-100/70"><CalendarDays size={15} /> {day}</span>
-                    <span className="rounded-full bg-violet-300/15 px-3 py-1 text-xs font-bold text-violet-100">{skill}</span>
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-800 dark:text-cyan-100/70"><CalendarDays size={15} /> {day}</span>
+                    <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-800 dark:bg-violet-300/15 dark:text-violet-100">{skill}</span>
                   </div>
                   <div className="mt-3 text-lg font-semibold tracking-[-0.03em]">{mission}</div>
                 </motion.div>
