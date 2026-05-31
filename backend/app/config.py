@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     paddle_pro_price_id: Optional[str] = None
     paddle_coach_price_id: Optional[str] = None
     paddle_environment: str = "sandbox"
+    first_admin_email: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

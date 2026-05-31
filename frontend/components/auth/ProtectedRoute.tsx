@@ -21,14 +21,24 @@ export function ProtectedRoute({ children, adminOnly = false }: { children: Reac
     }
     if (adminOnly && !isAdmin) {
       setDenied(true);
-      window.setTimeout(() => router.replace("/dashboard?admin=denied"), 900);
     }
   }, [adminOnly, isAdmin, loading, profile?.ageConfirmed, router, user]);
 
   if (loading || !user) return <div className="px-4 py-12 text-center font-semibold text-slate-600 dark:text-white/60">Checking access...</div>;
   if (!profile?.ageConfirmed) return <div className="px-4 py-12 text-center font-semibold text-slate-600 dark:text-white/60">Checking age eligibility...</div>;
   if (adminOnly && !isAdmin) {
-    return <div className="px-4 py-12 text-center font-semibold text-rose-600">{denied ? "You do not have admin access." : "Checking admin access..."}</div>;
+    return (
+      <div className="mx-auto max-w-xl px-4 py-12 text-center">
+        <div className="rounded-[1.5rem] bg-rose-50 p-6 font-semibold text-rose-700 ring-1 ring-rose-100">
+          {denied ? "Admin access required." : "Checking admin access..."}
+        </div>
+        {denied && (
+          <button onClick={() => router.push("/admin/bootstrap")} className="mt-4 rounded-2xl bg-[#6200a8] px-5 py-3 font-semibold text-white">
+            Bootstrap first admin
+          </button>
+        )}
+      </div>
+    );
   }
   return <>{children}</>;
 }

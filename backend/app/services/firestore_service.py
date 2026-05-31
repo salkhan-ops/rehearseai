@@ -1023,6 +1023,10 @@ class FirestoreService:
             return [doc.to_dict() for doc in docs]
         return list(self.admin_users.values())
 
+    async def admin_exists(self) -> bool:
+        users = await self.admin_list_users()
+        return any(user.get("role") == "admin" for user in users)
+
     async def admin_get_user(self, uid: str) -> Optional[dict]:
         if self.client:
             doc = self.client.collection("users").document(uid).get()

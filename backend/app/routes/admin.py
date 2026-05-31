@@ -1,11 +1,16 @@
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
+from app.config import get_settings
 
 router = APIRouter()
 
 
 def public_only(items: list[dict]) -> list[dict]:
-    return [item for item in items if item.get("isPublic", True) and item.get("isActive", True)]
+    return [
+        item
+        for item in items
+        if item.get("isPublic", True) and item.get("isActive", True)
+    ]
 
 
 async def require_admin_mvp() -> None:
@@ -13,14 +18,70 @@ async def require_admin_mvp() -> None:
     return None
 
 
-async def log_action(request: Request, action: str, target_type: str, target_id: str, before: Optional[dict] = None, after: Optional[dict] = None) -> None:
-    await request.app.state.store.log_admin_action("system", action, target_type, target_id, before=before, after=after)
+async def log_action(
+    request: Request,
+    action: str,
+    target_type: str,
+    target_id: str,
+    before: Optional[dict] = None,
+    after: Optional[dict] = None,
+) -> None:
+    await request.app.state.store.log_admin_action(
+        "system", action, target_type, target_id, before=before, after=after
+    )
 
 
 @router.get("/api/admin/stats")
 async def admin_stats(request: Request):
     await require_admin_mvp()
     return await request.app.state.store.admin_stats()
+
+
+@router.get("/api/admin/bootstrap/status")
+async def admin_bootstrap_status(request: Request):
+    store = request.app.state.store
+    return {
+        "adminExists": await store.admin_exists(),
+        "firstAdminEmailConfigured": bool(get_settings().first_admin_email),
+    }
+
+
+@router.post("/api/admin/bootstrap/claim")
+async def admin_bootstrap_claim(payload: dict, request: Request):
+    store = request.app.state.store
+    uid = str(payload.get("uid") or "")
+    email = str(payload.get("email") or "").lower()
+    if not uid:
+        raise HTTPException(status_code=400, detail="uid is required")
+    settings = get_settings()
+    configured_email = (settings.first_admin_email or "").lower()
+    if configured_email and email != configured_email:
+        raise HTTPException(
+            status_code=403, detail="This email is not configured as FIRST_ADMIN_EMAIL."
+        )
+    if await store.admin_exists():
+        raise HTTPException(
+            status_code=403,
+            detail="An admin already exists. Ask an existing admin to grant access.",
+        )
+    if store.client:
+        store.client.collection("users").document(uid).set(
+            {"uid": uid, "email": email, "role": "admin"}, merge=True
+        )
+    store.admin_users.setdefault(uid, {"uid": uid}).update(
+        {"email": email, "role": "admin"}
+    )
+    await store.admin_assign_plan(
+        uid, {"planId": "coach", "status": "active", "source": "admin"}
+    )
+    await store.log_admin_action(
+        uid,
+        "bootstrap first admin",
+        "user",
+        uid,
+        after={"uid": uid, "email": email, "role": "admin"},
+    )
+    return {"uid": uid, "email": email, "role": "admin"}
 
 
 @router.get("/api/catalog/products")
@@ -97,7 +158,9 @@ async def admin_update_user(uid: str, payload: dict, request: Request):
     before = await request.app.state.store.admin_get_user(uid) or {}
     current = {**before, **payload, "uid": uid}
     if request.app.state.store.client:
-        request.app.state.store.client.collection("users").document(uid).set(current, merge=True)
+        request.app.state.store.client.collection("users").document(uid).set(
+            current, merge=True
+        )
     request.app.state.store.admin_users.setdefault(uid, {"uid": uid}).update(current)
     await log_action(request, "update user", "user", uid, before=before, after=current)
     return current
@@ -144,7 +207,9 @@ async def admin_products(request: Request):
 async def create_admin_product(payload: dict, request: Request):
     await require_admin_mvp()
     saved = await request.app.state.store.admin_save_product(payload)
-    await log_action(request, "create product", "product", saved["productId"], after=saved)
+    await log_action(
+        request, "create product", "product", saved["productId"], after=saved
+    )
     return saved
 
 
@@ -175,16 +240,22 @@ async def admin_practice_templates(request: Request):
 async def create_admin_practice_template(payload: dict, request: Request):
     await require_admin_mvp()
     saved = await request.app.state.store.admin_save_practice_template(payload)
-    await log_action(request, "create template", "practiceTemplate", saved["templateId"], after=saved)
+    await log_action(
+        request, "create template", "practiceTemplate", saved["templateId"], after=saved
+    )
     return saved
 
 
 @router.patch("/api/admin/practice-templates/{template_id}")
-async def update_admin_practice_template(template_id: str, payload: dict, request: Request):
+async def update_admin_practice_template(
+    template_id: str, payload: dict, request: Request
+):
     await require_admin_mvp()
     payload["templateId"] = template_id
     saved = await request.app.state.store.admin_save_practice_template(payload)
-    await log_action(request, "update template", "practiceTemplate", template_id, after=saved)
+    await log_action(
+        request, "update template", "practiceTemplate", template_id, after=saved
+    )
     return saved
 
 
@@ -192,7 +263,9 @@ async def update_admin_practice_template(template_id: str, payload: dict, reques
 async def delete_admin_practice_template(template_id: str, request: Request):
     await require_admin_mvp()
     result = await request.app.state.store.admin_delete_practice_template(template_id)
-    await log_action(request, "delete template", "practiceTemplate", template_id, after=result)
+    await log_action(
+        request, "delete template", "practiceTemplate", template_id, after=result
+    )
     return result
 
 
@@ -206,16 +279,22 @@ async def admin_course_templates(request: Request):
 async def create_admin_course_template(payload: dict, request: Request):
     await require_admin_mvp()
     saved = await request.app.state.store.admin_save_course_template(payload)
-    await log_action(request, "create template", "courseTemplate", saved["templateId"], after=saved)
+    await log_action(
+        request, "create template", "courseTemplate", saved["templateId"], after=saved
+    )
     return saved
 
 
 @router.patch("/api/admin/course-templates/{template_id}")
-async def update_admin_course_template(template_id: str, payload: dict, request: Request):
+async def update_admin_course_template(
+    template_id: str, payload: dict, request: Request
+):
     await require_admin_mvp()
     payload["templateId"] = template_id
     saved = await request.app.state.store.admin_save_course_template(payload)
-    await log_action(request, "update template", "courseTemplate", template_id, after=saved)
+    await log_action(
+        request, "update template", "courseTemplate", template_id, after=saved
+    )
     return saved
 
 
@@ -223,7 +302,9 @@ async def update_admin_course_template(template_id: str, payload: dict, request:
 async def delete_admin_course_template(template_id: str, request: Request):
     await require_admin_mvp()
     result = await request.app.state.store.admin_delete_course_template(template_id)
-    await log_action(request, "delete template", "courseTemplate", template_id, after=result)
+    await log_action(
+        request, "delete template", "courseTemplate", template_id, after=result
+    )
     return result
 
 

@@ -521,6 +521,17 @@ export function getAdminLogs() {
   return adminRequest<AdminLog[]>("/api/admin/logs");
 }
 
+export function getAdminBootstrapStatus() {
+  return adminRequest<{ adminExists: boolean; firstAdminEmailConfigured: boolean }>("/api/admin/bootstrap/status");
+}
+
+export function claimFirstAdmin(payload: { uid: string; email: string }) {
+  return adminRequest<{ uid: string; email: string; role: "admin" }>("/api/admin/bootstrap/claim", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function getContactMessages(category = "", status = "") {
   const params = new URLSearchParams();
   if (category) params.set("category", category);
