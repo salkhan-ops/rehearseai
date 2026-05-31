@@ -27,6 +27,11 @@ DEFAULT_ENTITLEMENTS = {
     "allowSessionReplay": True,
     "allowLongitudinalMemory": False,
     "allowCustomPersonas": False,
+    "allowCourseTemplates": False,
+    "allowScheduledPractice": True,
+    "allowBeginnerHints": True,
+    "allowConversationMap": True,
+    "allowLanguageSelection": True,
     "allowTeachingMode": True,
     "allowInterviewMode": True,
     "allowPresentationMode": True,
@@ -39,9 +44,27 @@ DEFAULT_ENTITLEMENTS = {
 }
 
 DEFAULT_PLANS = [
-    {"planId": "free", "name": "Free", "description": "3 sessions/month, basic feedback, limited history.", "priceMonthly": 0, "priceYearly": 0, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "sortOrder": 1, "entitlements": DEFAULT_ENTITLEMENTS},
-    {"planId": "pro", "name": "Pro", "description": "Unlimited sessions, advanced reports, brutal mode, history, shareable reports, decision trees, and challenge mode.", "priceMonthly": 19, "priceYearly": 190, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "sortOrder": 2, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "allowBrutalMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "reportDepth": "advanced", "historyRetentionDays": 365, "monthlyGeminiTokenLimit": 400000}},
-    {"planId": "coach", "name": "Coach", "description": "Everything in Pro plus advanced personas, benchmarking, priority features, extended history, and advanced replay intelligence.", "priceMonthly": 49, "priceYearly": 490, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "sortOrder": 3, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "maxMessagesPerSession": 80, "maxSessionMinutes": 90, "allowBrutalMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowBenchmarking": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "allowCustomPersonas": True, "reportDepth": "coach", "historyRetentionDays": "unlimited", "monthlyGeminiTokenLimit": 1200000}},
+    {"planId": "free", "slug": "free", "name": "Free", "description": "3 sessions/month, basic feedback, limited history.", "priceMonthly": 0, "priceYearly": 0, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 1, "entitlements": DEFAULT_ENTITLEMENTS},
+    {"planId": "pro", "slug": "pro", "name": "Pro", "description": "Unlimited sessions, advanced reports, brutal mode, history, shareable reports, decision trees, and challenge mode.", "priceMonthly": 19, "priceYearly": 190, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 2, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "maxMessagesPerSession": 40, "maxSessionMinutes": 45, "allowBrutalMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "allowCourseTemplates": True, "reportDepth": "advanced", "historyRetentionDays": 365, "monthlyGeminiTokenLimit": 400000}},
+    {"planId": "coach", "slug": "coach", "name": "Coach", "description": "Everything in Pro plus advanced personas, benchmarking, priority features, extended history, and advanced replay intelligence.", "priceMonthly": 49, "priceYearly": 490, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 3, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "maxMessagesPerSession": 80, "maxSessionMinutes": 90, "allowBrutalMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowBenchmarking": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "allowCustomPersonas": True, "allowCourseTemplates": True, "reportDepth": "coach", "historyRetentionDays": "unlimited", "monthlyGeminiTokenLimit": 1200000}},
+]
+
+DEFAULT_PRODUCTS = [
+    {"productId": "free-interview-practice", "title": "Free Interview Practice", "slug": "free-interview-practice", "description": "Starter interview rehearsal with basic feedback.", "category": "practice", "linkedPlanId": "free", "linkedTemplateId": "", "priceDisplay": "$0", "badgeText": "Starter", "isFeatured": False, "isPublic": True, "sortOrder": 1, "heroText": "Practice your first interview loop.", "benefits": ["3 sessions/month", "Basic feedback"], "limitations": ["Limited reports"], "ctaText": "Start free", "ctaUrl": "/practice",},
+    {"productId": "pro-interview-pressure-training", "title": "Pro Interview Pressure Training", "slug": "pro-interview-pressure-training", "description": "Adaptive interview pressure with advanced analytics.", "category": "practice", "linkedPlanId": "pro", "linkedTemplateId": "job-interview-product-manager", "priceDisplay": "$19/mo", "badgeText": "Popular", "isFeatured": True, "isPublic": True, "sortOrder": 2, "heroText": "Train under realistic pressure.", "benefits": ["Unlimited sessions", "Advanced reports", "Brutal mode"], "limitations": [], "ctaText": "Upgrade to Pro", "ctaUrl": "/pricing",},
+    {"productId": "reasoning-under-pressure-30", "title": "30-Day Reasoning Under Pressure", "slug": "reasoning-under-pressure-30", "description": "A structured course for calm, evidence-backed reasoning.", "category": "course", "linkedPlanId": "coach", "linkedTemplateId": "reasoning-under-pressure-30", "priceDisplay": "$49/mo", "badgeText": "Coach", "isFeatured": True, "isPublic": True, "sortOrder": 3, "heroText": "Build durable reasoning under pressure.", "benefits": ["Daily missions", "Progressive pressure", "Reasoning map"], "limitations": [], "ctaText": "Open course", "ctaUrl": "/courses",},
+]
+
+DEFAULT_PRACTICE_TEMPLATES = [
+    {"templateId": "job-interview-product-manager", "title": "Job Interview: Product Manager", "slug": "job-interview-product-manager", "category": "interview", "practiceType": "Job Interview", "difficulty": "Intermediate", "description": "Product strategy and execution interview rehearsal.", "scenarioPrompt": "Ask product judgment, prioritization, and tradeoff questions.", "beginnerBriefingEnabled": True, "conversationMapEnabled": True, "hintsEnabled": True, "defaultDurationMinutes": 20, "isPublic": True, "isActive": True, "sortOrder": 1, "requiredEntitlements": ["allowInterviewMode"]},
+    {"templateId": "brutal-panel-discussion", "title": "Brutal Panel Discussion", "slug": "brutal-panel-discussion", "category": "panel", "practiceType": "Panel Discussion", "difficulty": "Brutal", "description": "High-friction panel practice with interruptions.", "scenarioPrompt": "Simulate multiple skeptical panelists.", "beginnerBriefingEnabled": False, "conversationMapEnabled": False, "hintsEnabled": False, "defaultDurationMinutes": 30, "isPublic": True, "isActive": True, "sortOrder": 2, "requiredEntitlements": ["allowBrutalMode"]},
+    {"templateId": "salary-negotiation", "title": "Salary Negotiation", "slug": "salary-negotiation", "category": "negotiation", "practiceType": "Salary Negotiation", "difficulty": "Advanced", "description": "Compensation negotiation with pushback.", "scenarioPrompt": "Challenge value claims and ask for evidence.", "beginnerBriefingEnabled": False, "conversationMapEnabled": False, "hintsEnabled": False, "defaultDurationMinutes": 20, "isPublic": True, "isActive": True, "sortOrder": 3, "requiredEntitlements": ["allowSalaryNegotiationMode"]},
+]
+
+DEFAULT_COURSE_TEMPLATES = [
+    {"templateId": "interview-pressure-sprint-7", "title": "7-Day Interview Pressure Sprint", "slug": "interview-pressure-sprint-7", "category": "interview", "durationDays": 7, "durationLabel": "7 days", "frequency": "daily", "dailyMinutes": 20, "difficulty": "Intermediate", "targetSkills": ["clarity", "evidence", "composure"], "description": "A short sprint for sharper interview answers.", "expectedTransformation": "More direct, evidence-backed answers.", "schedulePattern": "daily", "milestones": ["Opening answer", "Evidence", "Objections"], "requiredEntitlements": ["allowInterviewMode"], "isPublic": True, "isActive": True, "sortOrder": 1},
+    {"templateId": "public-speaking-confidence-14", "title": "14-Day Public Speaking Confidence Builder", "slug": "public-speaking-confidence-14", "category": "presentation", "durationDays": 14, "durationLabel": "14 days", "frequency": "daily", "dailyMinutes": 15, "difficulty": "Beginner", "targetSkills": ["structure", "confidence", "conciseness"], "description": "Build speaking confidence with guided scaffolding.", "expectedTransformation": "Calmer, clearer presentation delivery.", "schedulePattern": "daily", "milestones": ["Structure", "Audience questions", "Recovery"], "requiredEntitlements": ["allowPresentationMode"], "isPublic": True, "isActive": True, "sortOrder": 2},
+    {"templateId": "reasoning-under-pressure-30", "title": "30-Day Reasoning Under Pressure", "slug": "reasoning-under-pressure-30", "category": "reasoning", "durationDays": 30, "durationLabel": "30 days", "frequency": "daily", "dailyMinutes": 20, "difficulty": "Advanced", "targetSkills": ["reasoning", "objections", "judgment"], "description": "Progressive pressure missions for resilient reasoning.", "expectedTransformation": "Better structured thinking under challenge.", "schedulePattern": "daily", "milestones": ["Baseline", "Challenge", "Mastery"], "requiredEntitlements": ["allowCourseTemplates"], "isPublic": True, "isActive": True, "sortOrder": 3},
 ]
 
 
@@ -74,6 +97,10 @@ class FirestoreService:
         self.telemetry_labels: dict[str, dict] = {}
         self.safety_events: dict[str, dict] = {}
         self.session_hints: dict[str, dict] = {}
+        self.admin_products: dict[str, dict] = {item["productId"]: item for item in DEFAULT_PRODUCTS}
+        self.admin_practice_templates: dict[str, dict] = {item["templateId"]: item for item in DEFAULT_PRACTICE_TEMPLATES}
+        self.admin_course_templates: dict[str, dict] = {item["templateId"]: item for item in DEFAULT_COURSE_TEMPLATES}
+        self.admin_logs: dict[str, dict] = {}
 
     async def create_session(self, payload: SessionCreate) -> Session:
         session = Session(id=str(uuid4()), createdAt=utc_now_iso(), **payload.model_dump())
@@ -575,6 +602,7 @@ class FirestoreService:
         }
         if self.client:
             self.client.collection("adminLogs").document(log_id).set(payload)
+        self.admin_logs[log_id] = payload
         return payload
 
     async def track_feature_usage(self, user_id: str, feature: str, session_id: Optional[str] = None, count: int = 1, month_key: Optional[str] = None) -> dict:
@@ -883,11 +911,22 @@ class FirestoreService:
     async def admin_stats(self) -> dict:
         plans = await self.admin_list_plans()
         users = await self.admin_list_users()
+        products = await self.admin_list_products()
+        course_templates = await self.admin_list_course_templates()
+        practice_templates = await self.admin_list_practice_templates()
+        logs = await self.admin_list_logs(limit_count=500)
         return {
+            "totalUsers": len(users),
             "totalPlans": len(plans),
             "activeUsers": len([user for user in users if user.get("status", "active") != "disabled"]),
             "activeSubscribers": len([user for user in users if user.get("planId", "free") != "free"]),
+            "activePlans": len([plan for plan in plans if plan.get("isActive", True)]),
+            "activeProducts": len([item for item in products if item.get("isPublic") and item.get("isActive", True)]),
+            "activeCourseTemplates": len([item for item in course_templates if item.get("isActive", True)]),
+            "activePracticeTemplates": len([item for item in practice_templates if item.get("isActive", True)]),
             "pendingSubscriptions": 0,
+            "pendingBillingEvents": 0,
+            "adminActionsThisWeek": len(logs),
         }
 
     async def admin_list_plans(self) -> list[dict]:
@@ -898,12 +937,85 @@ class FirestoreService:
         return sorted(self.admin_plans.values(), key=lambda plan: plan.get("sortOrder", 0))
 
     async def admin_save_plan(self, plan: dict) -> dict:
+        if "planId" not in plan:
+            plan["planId"] = str(plan.get("slug") or plan.get("name", "plan")).lower().replace(" ", "-")
+        plan.setdefault("slug", plan["planId"])
+        plan.setdefault("isPublic", True)
+        plan.setdefault("isActive", True)
         plan["updatedAt"] = utc_now_iso()
         plan.setdefault("createdAt", utc_now_iso())
         if self.client:
             self.client.collection("plans").document(plan["planId"]).set(plan, merge=True)
         self.admin_plans[plan["planId"]] = plan
         return plan
+
+    async def admin_delete_plan(self, plan_id: str) -> dict:
+        if self.client:
+            self.client.collection("plans").document(plan_id).set({"isActive": False, "updatedAt": utc_now_iso()}, merge=True)
+        if plan_id in self.admin_plans:
+            self.admin_plans[plan_id]["isActive"] = False
+        return {"planId": plan_id, "isActive": False}
+
+    async def _admin_list_collection(self, collection_name: str, fallback: dict[str, dict]) -> list[dict]:
+        if self.client:
+            docs = self.client.collection(collection_name).stream()
+            items = [doc.to_dict() for doc in docs]
+            return sorted(items or fallback.values(), key=lambda item: item.get("sortOrder", 0))
+        return sorted(fallback.values(), key=lambda item: item.get("sortOrder", 0))
+
+    async def _admin_save_collection_item(self, collection_name: str, memory_store: dict[str, dict], id_key: str, payload: dict) -> dict:
+        item_id = payload.get(id_key) or str(payload.get("slug") or payload.get("title", id_key)).lower().replace(" ", "-")
+        payload[id_key] = item_id
+        payload.setdefault("slug", item_id)
+        payload.setdefault("isPublic", True)
+        payload.setdefault("isActive", True)
+        payload["updatedAt"] = utc_now_iso()
+        payload.setdefault("createdAt", utc_now_iso())
+        if self.client:
+            self.client.collection(collection_name).document(item_id).set(payload, merge=True)
+        memory_store[item_id] = payload
+        return payload
+
+    async def _admin_delete_collection_item(self, collection_name: str, memory_store: dict[str, dict], item_id: str) -> dict:
+        payload = {"isActive": False, "isPublic": False, "updatedAt": utc_now_iso()}
+        if self.client:
+            self.client.collection(collection_name).document(item_id).set(payload, merge=True)
+        if item_id in memory_store:
+            memory_store[item_id].update(payload)
+        return {"id": item_id, **payload}
+
+    async def admin_list_products(self) -> list[dict]:
+        return await self._admin_list_collection("products", self.admin_products)
+
+    async def admin_save_product(self, payload: dict) -> dict:
+        return await self._admin_save_collection_item("products", self.admin_products, "productId", payload)
+
+    async def admin_delete_product(self, product_id: str) -> dict:
+        return await self._admin_delete_collection_item("products", self.admin_products, product_id)
+
+    async def admin_list_practice_templates(self) -> list[dict]:
+        return await self._admin_list_collection("practiceTemplates", self.admin_practice_templates)
+
+    async def admin_save_practice_template(self, payload: dict) -> dict:
+        return await self._admin_save_collection_item("practiceTemplates", self.admin_practice_templates, "templateId", payload)
+
+    async def admin_delete_practice_template(self, template_id: str) -> dict:
+        return await self._admin_delete_collection_item("practiceTemplates", self.admin_practice_templates, template_id)
+
+    async def admin_list_course_templates(self) -> list[dict]:
+        return await self._admin_list_collection("courseTemplates", self.admin_course_templates)
+
+    async def admin_save_course_template(self, payload: dict) -> dict:
+        return await self._admin_save_collection_item("courseTemplates", self.admin_course_templates, "templateId", payload)
+
+    async def admin_delete_course_template(self, template_id: str) -> dict:
+        return await self._admin_delete_collection_item("courseTemplates", self.admin_course_templates, template_id)
+
+    async def admin_list_logs(self, limit_count: int = 100) -> list[dict]:
+        if self.client:
+            docs = self.client.collection("adminLogs").order_by("createdAt", direction=firestore.Query.DESCENDING).limit(limit_count).stream()
+            return [doc.to_dict() for doc in docs]
+        return sorted(self.admin_logs.values(), key=lambda item: item.get("createdAt", ""), reverse=True)[:limit_count]
 
     async def admin_list_users(self) -> list[dict]:
         if self.client:
@@ -918,13 +1030,16 @@ class FirestoreService:
         return self.admin_users.get(uid)
 
     async def admin_set_role(self, uid: str, role: str) -> dict:
+        before = await self.admin_get_user(uid) or {}
         payload = {"uid": uid, "role": role, "updatedAt": utc_now_iso()}
         if self.client:
             self.client.collection("users").document(uid).set(payload, merge=True)
         self.admin_users.setdefault(uid, {"uid": uid}).update(payload)
+        await self.log_admin_action("system", "role change", "user", uid, before=before, after=self.admin_users.get(uid, payload))
         return self.admin_users.get(uid, payload)
 
     async def admin_assign_plan(self, uid: str, payload: dict) -> dict:
+        before = await self.admin_get_user(uid) or {}
         plan_id = payload.get("planId", "free")
         plans = {plan["planId"]: plan for plan in await self.admin_list_plans()}
         plan = plans.get(plan_id, DEFAULT_PLANS[0])
@@ -946,7 +1061,14 @@ class FirestoreService:
             self.client.collection("userEntitlements").document(uid).set(assignment, merge=True)
             self.client.collection("users").document(uid).set({"planId": assignment["planId"], "planName": assignment["planName"], "status": assignment["status"], "updatedAt": assignment["updatedAt"]}, merge=True)
         self.admin_users.setdefault(uid, {"uid": uid}).update({"planId": assignment["planId"], "planName": assignment["planName"], "status": assignment["status"]})
+        await self.log_admin_action("system", "assign plan", "user", uid, before=before, after=assignment)
         return assignment
 
     async def admin_billing(self) -> dict:
-        return {"customers": [], "subscriptions": [], "checkouts": [], "failedPayments": [], "provider": "paddle"}
+        if self.client:
+            customers = [doc.to_dict() for doc in self.client.collection("billing_customers").limit(100).stream()]
+            subscriptions = [doc.to_dict() for doc in self.client.collection("billing_subscriptions").limit(100).stream()]
+            checkouts = [doc.to_dict() for doc in self.client.collection("billing_checkouts").limit(100).stream()]
+            events = [doc.to_dict() for doc in self.client.collection("billing_events").limit(100).stream()]
+            return {"customers": customers, "subscriptions": subscriptions, "checkouts": checkouts, "events": events, "failedPayments": [], "provider": "paddle"}
+        return {"customers": [], "subscriptions": list(self.billing_subscriptions.values()), "checkouts": [], "events": [], "failedPayments": [], "provider": "paddle"}

@@ -30,6 +30,11 @@ export type Entitlements = {
   allowSessionReplay: boolean;
   allowLongitudinalMemory: boolean;
   allowCustomPersonas: boolean;
+  allowCourseTemplates: boolean;
+  allowScheduledPractice: boolean;
+  allowBeginnerHints: boolean;
+  allowConversationMap: boolean;
+  allowLanguageSelection: boolean;
   allowTeachingMode: boolean;
   allowInterviewMode: boolean;
   allowPresentationMode: boolean;
@@ -43,6 +48,7 @@ export type Entitlements = {
 
 export type Plan = {
   planId: string;
+  slug?: string;
   name: string;
   description: string;
   priceMonthly: number;
@@ -52,10 +58,104 @@ export type Plan = {
   paddleMonthlyPriceId: string;
   paddleYearlyPriceId: string;
   isActive: boolean;
+  isPublic?: boolean;
   sortOrder: number;
   entitlements: Entitlements;
   createdAt?: unknown;
   updatedAt?: unknown;
+};
+
+export type Product = {
+  productId: string;
+  title: string;
+  slug: string;
+  description: string;
+  category: string;
+  linkedPlanId: string;
+  linkedTemplateId?: string;
+  priceDisplay: string;
+  badgeText: string;
+  isFeatured: boolean;
+  isPublic: boolean;
+  isActive?: boolean;
+  sortOrder: number;
+  heroText: string;
+  benefits: string[];
+  limitations: string[];
+  ctaText: string;
+  ctaUrl: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type PracticeTemplate = {
+  templateId: string;
+  title: string;
+  slug: string;
+  category: string;
+  practiceType: string;
+  difficulty: string;
+  description: string;
+  scenarioPrompt: string;
+  beginnerBriefingEnabled: boolean;
+  conversationMapEnabled: boolean;
+  hintsEnabled: boolean;
+  defaultDurationMinutes: number;
+  isPublic: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  requiredEntitlements: string[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type CourseTemplateAdmin = {
+  templateId: string;
+  title: string;
+  slug: string;
+  category: string;
+  durationDays: number;
+  durationLabel: string;
+  frequency: string;
+  dailyMinutes: number;
+  difficulty: string;
+  targetSkills: string[];
+  description: string;
+  expectedTransformation: string;
+  schedulePattern: string;
+  milestones: string[];
+  requiredEntitlements: string[];
+  isPublic: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type AdminLog = {
+  logId: string;
+  adminUid: string;
+  adminEmail?: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type AdminStats = {
+  totalUsers: number;
+  activeUsers: number;
+  activePlans: number;
+  activeProducts: number;
+  activeCourseTemplates: number;
+  activePracticeTemplates: number;
+  pendingBillingEvents: number;
+  adminActionsThisWeek: number;
+  totalPlans?: number;
+  activeSubscribers?: number;
+  pendingSubscriptions?: number;
 };
 
 export type AdminUser = {
@@ -157,6 +257,11 @@ const baseEntitlements: Entitlements = {
   allowSessionReplay: true,
   allowLongitudinalMemory: false,
   allowCustomPersonas: false,
+  allowCourseTemplates: false,
+  allowScheduledPractice: true,
+  allowBeginnerHints: true,
+  allowConversationMap: true,
+  allowLanguageSelection: true,
   allowTeachingMode: true,
   allowInterviewMode: true,
   allowPresentationMode: true,
@@ -167,6 +272,21 @@ const baseEntitlements: Entitlements = {
   historyRetentionDays: 30,
   monthlyGeminiTokenLimit: 50000,
 };
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+async function adminRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Admin request failed: ${response.status}`);
+  return response.json() as Promise<T>;
+}
 
 export const defaultPlans: Plan[] = [
   {
@@ -180,6 +300,7 @@ export const defaultPlans: Plan[] = [
     paddleMonthlyPriceId: "",
     paddleYearlyPriceId: "",
     isActive: true,
+    isPublic: true,
     sortOrder: 1,
     entitlements: baseEntitlements,
   },
@@ -194,6 +315,7 @@ export const defaultPlans: Plan[] = [
     paddleMonthlyPriceId: "",
     paddleYearlyPriceId: "",
     isActive: true,
+    isPublic: true,
     sortOrder: 2,
     entitlements: {
       ...baseEntitlements,
@@ -208,6 +330,7 @@ export const defaultPlans: Plan[] = [
       allowShareableReports: true,
       allowReportExport: true,
       allowLongitudinalMemory: true,
+      allowCourseTemplates: true,
       reportDepth: "advanced",
       historyRetentionDays: 365,
       monthlyGeminiTokenLimit: 400000,
@@ -224,6 +347,7 @@ export const defaultPlans: Plan[] = [
     paddleMonthlyPriceId: "",
     paddleYearlyPriceId: "",
     isActive: true,
+    isPublic: true,
     sortOrder: 3,
     entitlements: {
       ...baseEntitlements,
@@ -240,6 +364,7 @@ export const defaultPlans: Plan[] = [
       allowReportExport: true,
       allowLongitudinalMemory: true,
       allowCustomPersonas: true,
+      allowCourseTemplates: true,
       reportDepth: "coach",
       historyRetentionDays: "unlimited",
       monthlyGeminiTokenLimit: 1200000,
@@ -285,11 +410,26 @@ export async function findUser(term: string) {
 }
 
 export async function setUserAdmin(uid: string, admin: boolean) {
+  try {
+    await adminRequest(`/api/admin/users/${uid}/${admin ? "make-admin" : "remove-admin"}`, { method: "POST" });
+    return;
+  } catch {
+    // Fall back to direct Firestore in local admin setups.
+  }
   const db = dbOrThrow();
   await updateDoc(doc(db, "users", uid), { role: admin ? "admin" : "user", updatedAt: serverTimestamp() });
 }
 
 export async function assignPlan(uid: string, plan: Plan, status: string, overrides: Partial<Entitlements> = {}, trialEndsAt = "") {
+  try {
+    await adminRequest(`/api/admin/users/${uid}/assign-plan`, {
+      method: "POST",
+      body: JSON.stringify({ planId: plan.planId, status, overrides, trialEndsAt, source: "admin" }),
+    });
+    return;
+  } catch {
+    // Fall back to direct Firestore in local admin setups.
+  }
   const db = dbOrThrow();
   const entitlements = { ...plan.entitlements, ...overrides };
   await setDoc(doc(db, "userEntitlements", uid), {
@@ -309,13 +449,76 @@ export async function assignPlan(uid: string, plan: Plan, status: string, overri
 }
 
 export async function getAdminStats() {
-  const [plans, users] = await Promise.all([getPlans(), getUsers()]);
-  return {
+  try {
+    return await adminRequest<AdminStats>("/api/admin/stats");
+  } catch {
+    const [plans, users] = await Promise.all([getPlans(), getUsers()]);
+    return {
+      totalUsers: users.length,
+      activePlans: plans.filter((plan) => plan.isActive).length,
+      activeProducts: 0,
+      activeCourseTemplates: 0,
+      activePracticeTemplates: 0,
+      pendingBillingEvents: 0,
+      adminActionsThisWeek: 0,
     totalPlans: plans.length,
     activeUsers: users.filter((user) => user.status !== "disabled").length,
     activeSubscribers: users.filter((user) => user.planId && user.planId !== "free").length,
     pendingSubscriptions: 0,
-  };
+    };
+  }
+}
+
+export function listProducts() {
+  return adminRequest<Product[]>("/api/admin/products");
+}
+
+export function saveProduct(product: Product) {
+  return adminRequest<Product>(`/api/admin/products/${product.productId}`, { method: "PATCH", body: JSON.stringify(product) });
+}
+
+export function createProduct(product: Product) {
+  return adminRequest<Product>("/api/admin/products", { method: "POST", body: JSON.stringify(product) });
+}
+
+export function deleteProduct(productId: string) {
+  return adminRequest(`/api/admin/products/${productId}`, { method: "DELETE" });
+}
+
+export function listPracticeTemplates() {
+  return adminRequest<PracticeTemplate[]>("/api/admin/practice-templates");
+}
+
+export function savePracticeTemplate(template: PracticeTemplate) {
+  return adminRequest<PracticeTemplate>(`/api/admin/practice-templates/${template.templateId}`, { method: "PATCH", body: JSON.stringify(template) });
+}
+
+export function createPracticeTemplate(template: PracticeTemplate) {
+  return adminRequest<PracticeTemplate>("/api/admin/practice-templates", { method: "POST", body: JSON.stringify(template) });
+}
+
+export function deletePracticeTemplate(templateId: string) {
+  return adminRequest(`/api/admin/practice-templates/${templateId}`, { method: "DELETE" });
+}
+
+export function listCourseTemplatesAdmin() {
+  return adminRequest<CourseTemplateAdmin[]>("/api/admin/course-templates");
+}
+
+export function saveCourseTemplateAdmin(template: CourseTemplateAdmin) {
+  return adminRequest<CourseTemplateAdmin>(`/api/admin/course-templates/${template.templateId}`, { method: "PATCH", body: JSON.stringify(template) });
+}
+
+export function createCourseTemplateAdmin(template: CourseTemplateAdmin) {
+  return adminRequest<CourseTemplateAdmin>("/api/admin/course-templates", { method: "POST", body: JSON.stringify(template) });
+}
+
+export function deleteCourseTemplateAdmin(templateId: string) {
+  return adminRequest(`/api/admin/course-templates/${templateId}`, { method: "DELETE" });
+}
+
+export function getAdminLogs() {
+  return adminRequest<AdminLog[]>("/api/admin/logs");
 }
 
 export async function getContactMessages(category = "", status = "") {

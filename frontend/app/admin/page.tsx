@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CreditCard, Database, FileText, Gem, Inbox, KeyRound, Layers, ShieldAlert, ShieldCheck, UserCog, Users } from "lucide-react";
+import { BookOpen, Box, CreditCard, Database, FileText, Inbox, KeyRound, Layers, ListChecks, ScrollText, ShieldAlert, ShieldCheck, UserCog, Users } from "lucide-react";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
-import { getAdminStats, getPlans } from "@/lib/admin";
+import { getAdminStats, type AdminStats } from "@/lib/admin";
 
 export default function AdminPage() {
-  const [stats, setStats] = useState({ totalPlans: 0, activeUsers: 0, activeSubscribers: 0, pendingSubscriptions: 0 });
+  const [stats, setStats] = useState<AdminStats>({ totalUsers: 0, activeUsers: 0, activePlans: 0, activeProducts: 0, activeCourseTemplates: 0, activePracticeTemplates: 0, pendingBillingEvents: 0, adminActionsThisWeek: 0 });
 
   useEffect(() => {
     getAdminStats().then(setStats).catch(() => undefined);
@@ -18,13 +18,22 @@ export default function AdminPage() {
   return (
     <AdminLayout>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <AdminStatCard icon={Layers} label="Total Plans" value={stats.totalPlans} />
+        <AdminStatCard icon={Users} label="Total Users" value={stats.totalUsers} />
         <AdminStatCard icon={Users} label="Active Users" value={stats.activeUsers} />
-        <AdminStatCard icon={Gem} label="Active Subscribers" value={stats.activeSubscribers} />
-        <AdminStatCard icon={CreditCard} label="Pending Subscriptions" value={stats.pendingSubscriptions} />
+        <AdminStatCard icon={Layers} label="Active Plans" value={stats.activePlans} />
+        <AdminStatCard icon={Box} label="Active Products" value={stats.activeProducts} />
+        <AdminStatCard icon={BookOpen} label="Course Templates" value={stats.activeCourseTemplates} />
+        <AdminStatCard icon={ListChecks} label="Practice Templates" value={stats.activePracticeTemplates} />
+        <AdminStatCard icon={CreditCard} label="Billing Events" value={stats.pendingBillingEvents} />
+        <AdminStatCard icon={ScrollText} label="Actions This Week" value={stats.adminActionsThisWeek} />
       </div>
       <AdminSection title="Plans & Subscriptions">
         <AdminCard href="/admin/plans" icon={FileText} title="Manage Plan Templates" subtitle="Create & edit plans with feature flags and limits" badge={stats.totalPlans} />
+      </AdminSection>
+      <AdminSection title="Catalog">
+        <AdminCard href="/admin/products" icon={Box} title="Products & Packages" subtitle="Cards that will later power pricing, courses, and practice pages" />
+        <AdminCard href="/admin/practice-templates" icon={ListChecks} title="Practice Templates" subtitle="Reusable scenarios for quick-start practice flows" />
+        <AdminCard href="/admin/course-templates" icon={BookOpen} title="Course Templates" subtitle="Fixed-duration courses and training paths" />
       </AdminSection>
       <AdminSection title="User Management">
         <AdminCard href="/admin/assign-plan" icon={UserCog} title="Assign Plan to User" subtitle="Search by UID/email, set entitlements and overrides" />
@@ -33,6 +42,7 @@ export default function AdminPage() {
       </AdminSection>
       <AdminSection title="Billing">
         <AdminCard href="/admin/billing" icon={CreditCard} title="Pending Subscriptions" subtitle="Review Paddle checkout attempts, subscription states, and provider mapping" />
+        <AdminCard href="/admin/logs" icon={ScrollText} title="Admin Logs" subtitle="Audit create, update, role, and assignment actions" />
       </AdminSection>
       <AdminSection title="Entitlements">
         <AdminCard href="/admin/entitlements" icon={ShieldCheck} title="Global Entitlement Rules" subtitle="Control feature limits used by pricing packages" />
