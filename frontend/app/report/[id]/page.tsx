@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import ReportPage from "./ReportClient";
 
 export const dynamicParams = false;
@@ -7,5 +8,9 @@ export async function generateStaticParams() {
 }
 
 export default function Page() {
-  return <ReportPage />;
+  return (
+    <Suspense fallback={null}>
+      <ReportPage />
+    </Suspense>
+  );
 }

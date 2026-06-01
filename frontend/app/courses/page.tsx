@@ -9,6 +9,7 @@ import { CourseGenerator } from "@/components/courses/CourseGenerator";
 import { Nav } from "@/components/Nav";
 import { getCourse, getUserCourses } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { courseHref } from "@/lib/routes";
 import type { Course, CourseBundle } from "@/lib/types";
 
 export default function CoursesPage() {
@@ -91,7 +92,7 @@ export default function CoursesPage() {
                   const percent = bundle?.progress.totalSessions ? Math.round((bundle.progress.completedSessions / bundle.progress.totalSessions) * 100) : 0;
                   return (
                   <AnimatedCard key={course.id} className="group rounded-[2rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-xl dark:bg-white/[0.07] dark:ring-white/12">
-                    <Link href={`/course/${course.id}`} className="block">
+                    <Link href={courseHref(course.id)} className="block">
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <div className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700 dark:text-cyan-100/60">{course.durationDays} days · {course.difficulty}</div>
@@ -124,7 +125,7 @@ export default function CoursesPage() {
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
                   {completedBundles.map((bundle) => (
-                    <Link key={bundle.course.id} href={`/course/${bundle.course.id}`} className="rounded-[1.4rem] bg-white/70 p-4 ring-1 ring-slate-200/80 transition hover:-translate-y-0.5 dark:bg-white/[0.06] dark:ring-white/10">
+                    <Link key={bundle.course.id} href={courseHref(bundle.course.id)} className="rounded-[1.4rem] bg-white/70 p-4 ring-1 ring-slate-200/80 transition hover:-translate-y-0.5 dark:bg-white/[0.06] dark:ring-white/10">
                       <div className="text-lg font-semibold tracking-[-0.035em]">{bundle.course.title}</div>
                       <p className="mt-1 text-sm font-medium text-slate-600 dark:text-white/58">{bundle.progress.completedSessions} missions completed · streak {bundle.progress.streak}</p>
                     </Link>

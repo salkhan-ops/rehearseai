@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import CourseDetailPage from "./CourseDetailClient";
 
 export const dynamicParams = false;
@@ -7,5 +8,9 @@ export async function generateStaticParams() {
 }
 
 export default function Page() {
-  return <CourseDetailPage />;
+  return (
+    <Suspense fallback={null}>
+      <CourseDetailPage />
+    </Suspense>
+  );
 }

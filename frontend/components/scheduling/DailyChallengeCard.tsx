@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ArrowRight, Flame, Shuffle } from "lucide-react";
 import { quickStartChallenge } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { sessionHref } from "@/lib/routes";
 import type { DailyChallenge, Difficulty, PracticeType } from "@/lib/types";
 
 export function DailyChallengeCard({ challenge }: { challenge: DailyChallenge | null }) {
@@ -26,7 +27,7 @@ export function DailyChallengeCard({ challenge }: { challenge: DailyChallenge | 
         feedbackLanguage: profile?.preferredFeedbackLanguage || "en",
         durationPreference: 10,
       }, token);
-      router.push(`/session/${result.session.id}`);
+      router.push(sessionHref(result.session.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start challenge.");
     } finally {

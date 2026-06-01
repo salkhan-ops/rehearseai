@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Shuffle, Zap } from "lucide-react";
 import { quickStartChallenge } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { sessionHref } from "@/lib/routes";
 import type { Difficulty, PracticeType } from "@/lib/types";
 
 const randomCategories: PracticeType[] = ["Job Interview", "Panel Discussion", "Difficult Conversation", "Salary Negotiation", "Sales Pitch"];
@@ -27,7 +28,7 @@ export function RandomChallengeButton({ category, difficulty = "Intermediate" }:
         feedbackLanguage: profile?.preferredFeedbackLanguage || "en",
         durationPreference: 10,
       }, token);
-      router.push(`/session/${result.session.id}`);
+      router.push(sessionHref(result.session.id));
     } finally {
       setLoading(false);
     }

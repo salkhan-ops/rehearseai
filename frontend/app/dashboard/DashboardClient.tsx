@@ -12,6 +12,7 @@ import { DailyChallengeCard } from "@/components/scheduling/DailyChallengeCard";
 import { PracticeRoutinePanel } from "@/components/scheduling/PracticeRoutinePanel";
 import { generateReport, getDailyChallenge, getPracticeHistory, getPracticeSchedules, getUserCourses, getUserHintSummary, getUserSessions, updatePracticeSchedule } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { courseHref, reportHref } from "@/lib/routes";
 import type { LanguageCode } from "@/lib/languages";
 import type { Course, DailyChallenge, HintSummary, PracticeHistory, PracticeSchedule, Session } from "@/lib/types";
 
@@ -87,7 +88,7 @@ function DashboardContent() {
     setLoadingId(session.id);
     const token = await getToken();
     const report = await generateReport(session.id, token);
-    router.push(`/report/${report.id}`);
+    router.push(reportHref(report.id));
   }
 
   return (
@@ -157,7 +158,7 @@ function DashboardContent() {
           {courses.length > 0 && (
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               {courses.slice(0, 3).map((course) => (
-                <Link key={course.id} href={`/course/${course.id}`} className="rounded-[1.4rem] surface-medium p-4 transition hover:-translate-y-0.5">
+                <Link key={course.id} href={courseHref(course.id)} className="rounded-[1.4rem] surface-medium p-4 transition hover:-translate-y-0.5">
                   <div className="text-xs font-bold uppercase tracking-[0.14em] text-tertiary-token">{course.durationDays} days · {course.difficulty}</div>
                   <div className="mt-2 text-lg font-semibold tracking-[-0.035em] text-primary-token">{course.title}</div>
                   <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-secondary-token">{course.goal}</p>

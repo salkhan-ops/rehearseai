@@ -11,6 +11,7 @@ import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { createPracticeSchedule, createSession, generateRandomScenario } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canUsePracticeType, getUserEntitlements } from "@/lib/entitlements";
+import { sessionHref } from "@/lib/routes";
 import type { LanguageCode } from "@/lib/languages";
 import { difficulties, Difficulty, practiceTypes, PracticeType } from "@/lib/types";
 import type { Entitlements } from "@/lib/admin";
@@ -126,7 +127,7 @@ function SetupForm() {
         reminderMinutesBefore,
       }, token).catch(() => undefined);
     }
-    router.push(`/session/${session.id}`);
+    router.push(sessionHref(session.id));
   }
 
   function applyTemplate(template: { topic: string; context: string; goal: string; notes: string }) {

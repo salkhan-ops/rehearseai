@@ -5,6 +5,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { enrollCourseTemplate } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { courseHref } from "@/lib/routes";
 import type { CourseTemplate, Difficulty } from "@/lib/types";
 import { difficulties } from "@/lib/types";
 
@@ -47,7 +48,7 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
         practiceLanguage: profile?.preferredPracticeLanguage || "en",
         feedbackLanguage: profile?.preferredFeedbackLanguage || "en",
       }, token);
-      router.push(`/course/${bundle.course.id}`);
+      router.push(courseHref(bundle.course.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not enroll in this course.");
     } finally {

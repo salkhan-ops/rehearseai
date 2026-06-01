@@ -16,6 +16,7 @@ import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
 import { completeCourseSession, endSession, generateReport, getSession, sendMessage, updateSessionHint } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { getLanguage, isRtlLanguage } from "@/lib/languages";
+import { reportHref } from "@/lib/routes";
 import { outcomeFromReport, sendSessionOutcome, sendTurnTelemetry } from "@/lib/telemetry";
 import type { Message, Session, SessionHint } from "@/lib/types";
 
@@ -90,9 +91,10 @@ function AmbientField({ mode }: { mode: OrbMode }) {
 }
 
 export default function SessionPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const id = params?.id || searchParams.get("id") || "";
   const [session, setSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -115,6 +117,10 @@ export default function SessionPage() {
   const voice = useRealtimeVoice({ browserSpeechCode: practiceLanguage.browserSpeechCode, deepgramCode: practiceLanguage.deepgramCode, longPauseMs: coordination.longPauseMs || 3400 });
 
   useEffect(() => {
+    if (!id) {
+      setError("Missing session id.");
+      return;
+    }
     getToken()
       .then((token: string | null) => getSession(id, token))
       .then((data: { session: Session; messages: Message[] }) => {
@@ -274,7 +280,7 @@ export default function SessionPage() {
       if (session) {
         await sendSessionOutcome(outcomeFromReport({ ...session, status: "completed" }, report, seconds), token).catch(() => undefined);
       }
-      router.push(`/report/${report.id}`);
+      router.push(reportHref(report.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not generate report. Check that the backend is running.");
     } finally {

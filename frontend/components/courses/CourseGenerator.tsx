@@ -5,6 +5,7 @@ import { useState } from "react";
 import { BrainCircuit, CalendarDays, Sparkles } from "lucide-react";
 import { generateCourse } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { courseHref } from "@/lib/routes";
 import type { CourseSkillLevel, Difficulty, PracticeType } from "@/lib/types";
 import { difficulties, practiceTypes } from "@/lib/types";
 
@@ -48,7 +49,7 @@ export function CourseGenerator() {
         practiceLanguage: profile?.preferredPracticeLanguage || "en",
         feedbackLanguage: profile?.preferredFeedbackLanguage || "en",
       }, token);
-      router.push(`/course/${bundle.course.id}`);
+      router.push(courseHref(bundle.course.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not generate course.");
     } finally {

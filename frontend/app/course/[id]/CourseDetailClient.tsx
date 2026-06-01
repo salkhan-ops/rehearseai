@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Bell, CalendarDays, Clock, Flame, Target, TrendingUp, type LucideIcon } from "lucide-react";
 import { AnimatedCard, AnimatedPage } from "@/components/animations";
@@ -10,11 +10,14 @@ import { ReasoningSkillTree } from "@/components/courses/ReasoningSkillTree";
 import { Nav } from "@/components/Nav";
 import { createPracticeSchedule, getCourse, startCourseSession } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { sessionHref } from "@/lib/routes";
 import type { CourseBundle, CourseSession } from "@/lib/types";
 
 export default function CourseDetailPage() {
-  const params = useParams<{ id: string }>();
+  const params = useParams<{ id?: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const id = params?.id || searchParams.get("id") || "";
   const { getToken, userId } = useAuth();
   const [bundle, setBundle] = useState<CourseBundle | null>(null);
   const [loadingMission, setLoadingMission] = useState<string | null>(null);
@@ -22,11 +25,15 @@ export default function CourseDetailPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!id) {
+      setError("Missing course id.");
+      return;
+    }
     getToken()
-      .then((token) => getCourse(params.id, token))
+      .then((token) => getCourse(id, token))
       .then(setBundle)
       .catch(() => setError("Could not load this course."));
-  }, [getToken, params.id]);
+  }, [getToken, id]);
 
   const nextMission = useMemo(() => bundle?.sessions.find((session) => !session.completed) || bundle?.sessions[0], [bundle]);
   const progress = bundle?.progress.totalSessions ? Math.round((bundle.progress.completedSessions / bundle.progress.totalSessions) * 100) : 0;
@@ -35,7 +42,7 @@ export default function CourseDetailPage() {
     setLoadingMission(session.id);
     const token = await getToken();
     const response = await startCourseSession(session.id, token);
-    router.push(`/session/${response.sessionId}?courseSessionId=${session.id}`);
+    router.push(sessionHref(response.sessionId, { courseSessionId: session.id }));
   }
 
   async function createRoutine() {

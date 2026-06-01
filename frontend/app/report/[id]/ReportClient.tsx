@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BrainCircuit, Lightbulb, Sparkles } from "lucide-react";
 import { BenchmarkComparisonChart } from "@/components/analytics/BenchmarkComparisonChart";
@@ -50,13 +50,16 @@ function ReportAmbient() {
 }
 
 export default function ReportPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string }>();
+  const searchParams = useSearchParams();
+  const id = params?.id || searchParams.get("id") || "";
   const [report, setReport] = useState<Report | null>(null);
   const [analytics, setAnalytics] = useState<PerformanceAnalytics | null>(null);
   const [hints, setHints] = useState<SessionHint[]>([]);
   const { getToken } = useAuth();
 
   useEffect(() => {
+    if (!id) return;
     getToken().then(async (token: string | null) => {
       const [nextReport, nextAnalytics] = await Promise.all([getReport(id, token), getReportAnalytics(id, token)]);
       const nextHints = await getSessionHints(nextReport.sessionId, token).catch(() => []);
