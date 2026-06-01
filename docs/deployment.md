@@ -23,6 +23,12 @@ gcloud run deploy rehearseai-backend \
 
 After deployment, Cloud Run prints the service URL. Use that full URL as `NEXT_PUBLIC_API_URL` in the GitHub repository variables.
 
+Current expected backend URL after the service is healthy:
+
+```text
+https://rehearseai-backend-805488057071.us-central1.run.app
+```
+
 Set environment variables in Cloud Run or Secret Manager:
 
 - `GEMINI_API_KEY`
