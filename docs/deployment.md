@@ -4,16 +4,24 @@
 
 The backend is ready for Google Cloud Run using `backend/Dockerfile`.
 
-High-level flow:
+Current Google Cloud project:
+
+```text
+rehearseai-prod
+```
+
+Deploy the backend:
 
 ```bash
-gcloud builds submit backend --tag gcr.io/YOUR_PROJECT/rehearseai-backend
+gcloud builds submit backend --tag gcr.io/rehearseai-prod/rehearseai-backend
 gcloud run deploy rehearseai-backend \
-  --image gcr.io/YOUR_PROJECT/rehearseai-backend \
+  --image gcr.io/rehearseai-prod/rehearseai-backend \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated
 ```
+
+After deployment, Cloud Run prints the service URL. Use that full URL as `NEXT_PUBLIC_API_URL` in the GitHub repository variables.
 
 Set environment variables in Cloud Run or Secret Manager:
 
@@ -24,19 +32,27 @@ Set environment variables in Cloud Run or Secret Manager:
 - `PADDLE_ENVIRONMENT`
 - `CORS_ORIGINS`
 
-For GitHub Pages, include the final Pages URL in `CORS_ORIGINS`, for example:
+For GitHub Pages, include the production frontend URL in `CORS_ORIGINS`:
 
 ```text
-https://YOUR_GITHUB_USER.github.io/YOUR_REPOSITORY
+https://salkhan-ops.github.io/rehearseai
 ```
 
 ## Frontend
 
 The frontend can be published as a static GitHub Pages site. A workflow is included at `.github/workflows/github-pages.yml`.
 
+Production links:
+
+```text
+Repository: https://github.com/salkhan-ops/rehearseai
+Frontend:   https://salkhan-ops.github.io/rehearseai/
+Actions:    https://github.com/salkhan-ops/rehearseai/actions
+```
+
 1. In GitHub, open **Settings → Pages** and set the source to **GitHub Actions**.
 2. In **Settings → Secrets and variables → Actions → Variables**, add:
-   - `NEXT_PUBLIC_API_URL`: your Cloud Run service URL, for example `https://rehearseai-backend-xxxxx-uc.a.run.app`
+   - `NEXT_PUBLIC_API_URL`: your deployed Cloud Run backend URL
    - `NEXT_PUBLIC_FIREBASE_API_KEY`
    - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
    - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
@@ -44,6 +60,8 @@ The frontend can be published as a static GitHub Pages site. A workflow is inclu
    - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
    - `NEXT_PUBLIC_FIREBASE_APP_ID`
 3. Push to `main`, or run the workflow manually from the GitHub Actions tab.
+
+Do not use `http://localhost:8000` as `NEXT_PUBLIC_API_URL` for production. It only works for local development and temporary testing.
 
 For a local static export check:
 
