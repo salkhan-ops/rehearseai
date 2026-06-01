@@ -34,6 +34,8 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
         adaptation = "The user is performing strongly. Increase conceptual depth and ask a sharper second-order follow-up."
     if session.difficulty == "Brutal":
         adaptation += " In brutal mode, interruptions are allowed, but keep them professional and never abusive."
+    if session.difficulty == "Nerve":
+        adaptation += " In Nerve Mode, do not coach. Cross-examine the user's idea and expose weak logic, missing evidence, unsupported assumptions, and feasibility risk."
     coordination_block = "No live conversation coordination context provided."
     if coordination_context:
         coordination_block = f"""
@@ -44,6 +46,7 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
 - shouldAiInterrupt: {coordination_context.get("shouldAiInterrupt")}
 - instruction: {coordination_context.get("instruction")}
 - future Cartesia delivery: {coordination_context.get("cartesia")}
+- nerve cross-examination: {coordination_context.get("nerve")}
 """
     return f"""
 Run a Cognitive Performance Training pressure simulation. Reply only as the counterpart, not as a coach.
@@ -61,6 +64,10 @@ Scenario:
 - User goal: {session.goal}
 - Optional notes: {session.optionalNotes or "None"}
 - Practice language: {practice_language}
+- Nerve entry type: {session.nerveEntryType or "None"}
+- Nerve panel persona: {session.nervePersona or "None"}
+- Nerve material: {session.nerveMaterialName or "None"}
+- Nerve pressure level: {session.pressureLevel}/10
 
 Adaptive behavior signals:
 - User turns: {len(user_turns)}
@@ -78,6 +85,7 @@ Apply coordination before writing the response:
 - If userState is overexplaining, interrupt politely and request a concise answer.
 - If pressureAdjustment is increase, ask a sharper follow-up.
 - If pressureAdjustment is decrease, soften pressure without dropping realism.
+- If nerve cross-examination is present, follow its instruction first. Nerve Mode is not coaching: ask hard objections, expose the weakest assumption, and require evidence. If shouldInterrupt is true, begin with a short interruption such as "That does not answer the question" or "Where is your evidence?"
 
 Conversation so far:
 {turns}
@@ -102,6 +110,9 @@ Context: {session.context}
 Goal: {session.goal}
 Practice language: {practice_language}
 Feedback language: {feedback_language}
+Nerve entry type: {session.nerveEntryType or "None"}
+Nerve panel persona: {session.nervePersona or "None"}
+Nerve pressure level reached: {session.pressureLevel}/10
 
 Write every user-facing field in the JSON report in {feedback_language}.
 If the practice language is English, include practical second-language coaching inside strengths, weakMoments, improvedResponses, drills, and nextRecommendation when relevant:

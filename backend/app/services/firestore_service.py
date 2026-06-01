@@ -16,6 +16,7 @@ DEFAULT_ENTITLEMENTS = {
     "maxMessagesPerSession": 16,
     "maxSessionMinutes": 15,
     "allowBrutalMode": False,
+    "allowNerveMode": False,
     "allowChallengeMode": False,
     "allowVoiceMode": True,
     "allowAdvancedAnalytics": False,
@@ -45,8 +46,8 @@ DEFAULT_ENTITLEMENTS = {
 
 DEFAULT_PLANS = [
     {"planId": "free", "slug": "free", "name": "Free", "description": "3 sessions/month, basic feedback, limited history.", "priceMonthly": 0, "priceYearly": 0, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 1, "entitlements": DEFAULT_ENTITLEMENTS},
-    {"planId": "pro", "slug": "pro", "name": "Pro", "description": "Unlimited sessions, advanced reports, brutal mode, history, shareable reports, decision trees, and challenge mode.", "priceMonthly": 19, "priceYearly": 190, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 2, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "maxMessagesPerSession": 40, "maxSessionMinutes": 45, "allowBrutalMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "allowCourseTemplates": True, "reportDepth": "advanced", "historyRetentionDays": 365, "monthlyGeminiTokenLimit": 400000}},
-    {"planId": "coach", "slug": "coach", "name": "Coach", "description": "Everything in Pro plus advanced personas, benchmarking, priority features, extended history, and advanced replay intelligence.", "priceMonthly": 49, "priceYearly": 490, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 3, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "maxMessagesPerSession": 80, "maxSessionMinutes": 90, "allowBrutalMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowBenchmarking": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "allowCustomPersonas": True, "allowCourseTemplates": True, "reportDepth": "coach", "historyRetentionDays": "unlimited", "monthlyGeminiTokenLimit": 1200000}},
+    {"planId": "pro", "slug": "pro", "name": "Pro", "description": "Unlimited sessions, advanced reports, brutal mode, Nerve Mode, history, shareable reports, decision trees, and challenge mode.", "priceMonthly": 19, "priceYearly": 190, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 2, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "maxMessagesPerSession": 40, "maxSessionMinutes": 45, "allowBrutalMode": True, "allowNerveMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "allowCourseTemplates": True, "reportDepth": "advanced", "historyRetentionDays": 365, "monthlyGeminiTokenLimit": 400000}},
+    {"planId": "coach", "slug": "coach", "name": "Coach", "description": "Everything in Pro plus advanced personas, benchmarking, priority features, extended history, and advanced replay intelligence.", "priceMonthly": 49, "priceYearly": 490, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 3, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "maxMessagesPerSession": 80, "maxSessionMinutes": 90, "allowBrutalMode": True, "allowNerveMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowBenchmarking": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "allowCustomPersonas": True, "allowCourseTemplates": True, "reportDepth": "coach", "historyRetentionDays": "unlimited", "monthlyGeminiTokenLimit": 1200000}},
 ]
 
 DEFAULT_PRODUCTS = [
@@ -96,6 +97,7 @@ class FirestoreService:
         self.session_outcomes: dict[str, dict] = {}
         self.telemetry_labels: dict[str, dict] = {}
         self.safety_events: dict[str, dict] = {}
+        self.session_analysis: dict[str, dict] = {}
         self.session_hints: dict[str, dict] = {}
         self.admin_products: dict[str, dict] = {item["productId"]: item for item in DEFAULT_PRODUCTS}
         self.admin_practice_templates: dict[str, dict] = {item["templateId"]: item for item in DEFAULT_PRACTICE_TEMPLATES}
@@ -145,6 +147,21 @@ class FirestoreService:
             self.client.collection("sessions").document(session.id).set({**session.model_dump(), "sessionId": session.id, "updatedAt": utc_now_iso()}, merge=True)
         self.sessions[session.id] = session
         return session
+
+    async def save_session_analysis(self, analysis: dict) -> dict:
+        analysis_id = analysis["analysisId"]
+        if self.client:
+            self.client.collection("sessionAnalysis").document(analysis_id).set(analysis, merge=True)
+        self.session_analysis[analysis_id] = analysis
+        return analysis
+
+    async def get_session_analysis(self, analysis_id: str) -> Optional[dict]:
+        if analysis_id in self.session_analysis:
+            return self.session_analysis[analysis_id]
+        if self.client:
+            doc = self.client.collection("sessionAnalysis").document(analysis_id).get()
+            return doc.to_dict() if doc.exists else None
+        return None
 
     async def save_report(self, report: Report) -> Report:
         if self.client:

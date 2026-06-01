@@ -127,6 +127,12 @@ class GeminiService:
 
     def _mock_roleplay(self, session: Session, history: list[Message], coordination_context: Optional[dict] = None) -> str:
         if coordination_context:
+            nerve = coordination_context.get("nerve") or {}
+            if nerve:
+                if nerve.get("shouldInterrupt"):
+                    return f"That does not answer the question. {nerve.get('instruction', 'Where is your evidence?')}"
+                objections = (nerve.get("analysis") or {}).get("possibleObjections") or ["What evidence supports that claim?"]
+                return str(objections[0])
             state = coordination_context.get("userState")
             if state == "confused":
                 return "Let me narrow it down. What is the one part of the question you want me to clarify first?"
@@ -143,6 +149,7 @@ class GeminiService:
             "Friendly": "That is a solid start. Can you make it a little more specific?",
             "Realistic": "I understand the point, but I need clearer evidence. What example proves that?",
             "Brutal": "I am not convinced yet. Give me the strongest version without hedging.",
+            "Nerve": "Where is your evidence? Defend the assumption behind your claim without giving me a generic answer.",
         }[session.difficulty]
         return f"{pressure} Stay focused on your goal: {session.goal}"
 

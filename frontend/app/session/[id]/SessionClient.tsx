@@ -40,6 +40,7 @@ const listeningPrompts: Record<string, string> = {
 
 function stateCopy(mode: OrbMode, voiceMode: boolean, autoSubmitNotice: string) {
   if (autoSubmitNotice) return autoSubmitNotice;
+  if (voiceMode && mode === "pressure") return "Nerve pressure is active. Defend the claim directly.";
   if (mode === "listening") return "Listening. Speak naturally.";
   if (mode === "thinking") return "Reasoning through your response.";
   if (mode === "speaking") return "AI persona is responding.";
@@ -144,7 +145,7 @@ export default function SessionPage() {
     if (voice.voiceState === "error" || error) return "error";
     if (loading || voice.isProcessing) return "thinking";
     if (voice.isSpeaking) return "speaking";
-    if (session?.difficulty === "Brutal" && voice.isListening) return "pressure";
+    if ((session?.difficulty === "Brutal" || session?.difficulty === "Nerve") && voice.isListening) return "pressure";
     if (voice.isListening || voice.voiceState === "user_speaking" || voice.voiceState === "silence_detected") return "listening";
     return "idle";
   }, [error, loading, session?.difficulty, voice.isListening, voice.isProcessing, voice.isSpeaking, voice.voiceState]);
@@ -365,13 +366,13 @@ export default function SessionPage() {
             <MicroMetric label="Reasoning stability" value={loading ? 61 : 82} tone="bg-violet-300 text-violet-300" />
           </div>
           <div className="absolute right-0 top-20 hidden max-w-xs space-y-3 lg:block">
-            <MicroMetric label="Pressure" value={session?.difficulty === "Brutal" ? 88 : session?.difficulty === "Realistic" ? 62 : 34} tone="bg-rose-300 text-rose-300" />
+            <MicroMetric label="Pressure" value={session?.difficulty === "Nerve" ? Math.min(100, (session.pressureLevel || 1) * 10) : session?.difficulty === "Brutal" ? 88 : session?.difficulty === "Realistic" ? 62 : 34} tone="bg-rose-300 text-rose-300" />
             <MicroMetric label="Recovery" value={voice.isSpeaking ? 78 : 71} tone="bg-emerald-300 text-emerald-300" />
           </div>
 
           <div className="w-full max-w-4xl text-center">
             <div className="mx-auto mb-3 w-fit rounded-full bg-white/[0.08] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/76 ring-1 ring-white/12 backdrop-blur-2xl">
-              {voice.provider === "deepgram" ? "Deepgram live" : "Browser fallback"} · {practiceLanguage.nativeName} · {session?.difficulty || "Realistic"}
+              {voice.provider === "deepgram" ? "Deepgram live" : "Browser fallback"} · {practiceLanguage.nativeName} · {session?.difficulty || "Realistic"}{session?.difficulty === "Nerve" ? ` · pressure ${session.pressureLevel || 1}/10` : ""}
             </div>
             <AIPresenceOrb state={orbMode} intensity={(session?.turnCount || 0) / 8} />
             <h1 className="mx-auto -mt-3 max-w-3xl text-4xl font-semibold leading-[0.98] tracking-[-0.055em] text-white sm:text-6xl">
@@ -399,7 +400,7 @@ export default function SessionPage() {
           <div className="mb-3 max-h-[24vh] space-y-3 overflow-y-auto px-1 [mask-image:linear-gradient(to_bottom,transparent,black_12%,black_88%,transparent)]">
             {messages.length === 0 && (
               <AnimatedMessage className="mx-auto max-w-2xl text-center text-lg font-medium leading-8 text-white/72">
-                The persona is present. Start with your opening answer, and the room will adapt to your clarity, composure, and logic.
+                {session?.difficulty === "Nerve" ? "The panel is present. Make your claim, then defend the evidence, assumptions, and risks under pressure." : "The persona is present. Start with your opening answer, and the room will adapt to your clarity, composure, and logic."}
               </AnimatedMessage>
             )}
             {messages.slice(-5).map((message) => (

@@ -9,10 +9,14 @@ export const practiceTypes = [
   "Sales Pitch"
 ] as const;
 
-export const difficulties = ["Beginner", "Intermediate", "Advanced", "Brutal"] as const;
+export const difficulties = ["Beginner", "Intermediate", "Advanced", "Brutal", "Nerve"] as const;
+export const nerveEntryTypes = ["Topic", "Presentation", "Thesis", "Startup Pitch", "Report / Proposal"] as const;
+export const nervePersonas = ["Investor", "Professor", "Executive", "Board Member", "Regulator", "Consultant", "Client", "Mixed Panel"] as const;
 
 export type PracticeType = (typeof practiceTypes)[number];
 export type Difficulty = (typeof difficulties)[number] | "Friendly" | "Realistic";
+export type NerveEntryType = (typeof nerveEntryTypes)[number];
+export type NervePersona = (typeof nervePersonas)[number];
 
 export type SessionHint = {
   hintId: string;
@@ -51,6 +55,12 @@ export type Session = {
   practiceLanguage?: string;
   feedbackLanguage?: string;
   durationPreference?: number;
+  nerveEntryType?: NerveEntryType;
+  nervePersona?: NervePersona;
+  nerveMaterialName?: string;
+  nerveMaterialText?: string;
+  nerveAnalysisId?: string;
+  pressureLevel?: number;
   status: "active" | "completed";
   turnCount: number;
   createdAt: string;
@@ -82,6 +92,15 @@ export type Report = {
   improvedResponses: string[];
   drills: string[];
   nextRecommendation: string;
+  nerveReport?: {
+    defendabilityScore?: number;
+    metrics?: Record<string, number>;
+    strongestDefense?: string;
+    weakestDefense?: string;
+    questionsThatBrokeYou?: string[];
+    assumptionsYouCouldNotDefend?: string[];
+    recommendedFollowUpPractice?: string;
+  } | null;
   createdAt: string;
 };
 
@@ -159,6 +178,10 @@ export type SessionPayload = {
   practiceLanguage?: string;
   feedbackLanguage?: string;
   durationPreference?: number;
+  nerveEntryType?: NerveEntryType;
+  nervePersona?: NervePersona;
+  nerveMaterialName?: string;
+  nerveMaterialText?: string;
 };
 
 export type PracticeSchedule = {

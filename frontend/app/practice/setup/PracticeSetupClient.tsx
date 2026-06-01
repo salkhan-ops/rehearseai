@@ -13,7 +13,8 @@ import { useAuth } from "@/lib/auth";
 import { canUsePracticeType, getUserEntitlements } from "@/lib/entitlements";
 import { sessionHref } from "@/lib/routes";
 import type { LanguageCode } from "@/lib/languages";
-import { difficulties, Difficulty, practiceTypes, PracticeType } from "@/lib/types";
+import { difficulties, Difficulty, nerveEntryTypes, nervePersonas, practiceTypes, PracticeType } from "@/lib/types";
+import type { NerveEntryType, NervePersona } from "@/lib/types";
 import type { Entitlements } from "@/lib/admin";
 
 const frequencyOptions = [
@@ -66,6 +67,10 @@ function SetupForm() {
   const [goal, setGoal] = useState("");
   const [optionalNotes, setOptionalNotes] = useState("");
   const [durationPreference, setDurationPreference] = useState(10);
+  const [nerveEntryType, setNerveEntryType] = useState<NerveEntryType>("Topic");
+  const [nervePersona, setNervePersona] = useState<NervePersona>("Mixed Panel");
+  const [nerveMaterialName, setNerveMaterialName] = useState("");
+  const [nerveMaterialText, setNerveMaterialText] = useState("");
   const [customDuration, setCustomDuration] = useState(false);
   const [createRoutine, setCreateRoutine] = useState(false);
   const [frequencyType, setFrequencyType] = useState<"daily" | "twice_weekly" | "three_times_weekly" | "weekdays" | "custom">("daily");
@@ -92,6 +97,10 @@ function SetupForm() {
         setError("Brutal mode requires Pro or Coach.");
         return;
       }
+      if (difficulty === "Nerve" && !entitlements.allowNerveMode && !entitlements.allowBrutalMode) {
+        setError("Nerve Mode requires Pro or Coach.");
+        return;
+      }
       if (!canUsePracticeType(entitlements, practiceType)) {
         setError("This practice mode is not included in your current plan.");
         return;
@@ -112,7 +121,8 @@ function SetupForm() {
       optionalNotes,
       practiceLanguage,
       feedbackLanguage,
-      durationPreference
+      durationPreference,
+      ...(difficulty === "Nerve" ? { nerveEntryType, nervePersona, nerveMaterialName, nerveMaterialText } : {})
     }, token);
     if (createRoutine) {
       await createPracticeSchedule({
@@ -152,6 +162,16 @@ function SetupForm() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleNerveMaterial(file?: File) {
+    if (!file) return;
+    setNerveMaterialName(file.name);
+    if (/\.(txt|md|csv|json)$/i.test(file.name)) {
+      setNerveMaterialText((await file.text()).slice(0, 8000));
+      return;
+    }
+    setNerveMaterialText(`Uploaded file: ${file.name}. Binary formats are used as material context by name in this MVP; paste key claims or abstract text below for deeper analysis.`);
   }
 
   return (
@@ -257,13 +277,56 @@ function SetupForm() {
 
             <div className="mt-5">
               <div className="text-sm font-semibold text-slate-700 dark:text-white/75">Pressure level</div>
-              <div className="mt-2 grid gap-2 sm:grid-cols-4">
+              <div className="mt-2 grid gap-2 sm:grid-cols-5">
               {difficulties.map((item) => (
-                <button key={item} type="button" disabled={item === "Brutal" && entitlements?.allowBrutalMode === false} onClick={() => setDifficulty(item)} className={`rounded-2xl px-4 py-3 text-sm font-semibold ring-1 transition disabled:cursor-not-allowed disabled:opacity-45 ${difficulty === item ? "bg-slate-950 text-white ring-slate-950 shadow-[0_16px_35px_rgba(15,23,42,0.16)] dark:bg-white dark:text-slate-950" : "bg-slate-50 text-slate-700 ring-slate-200 hover:bg-white dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}>{item}</button>
+                <button key={item} type="button" disabled={(item === "Brutal" && entitlements?.allowBrutalMode === false) || (item === "Nerve" && entitlements?.allowNerveMode === false && entitlements?.allowBrutalMode === false)} onClick={() => setDifficulty(item)} className={`rounded-2xl px-4 py-3 text-sm font-semibold ring-1 transition disabled:cursor-not-allowed disabled:opacity-45 ${difficulty === item ? item === "Nerve" ? "bg-slate-950 text-rose-100 ring-slate-950 shadow-[0_16px_35px_rgba(15,23,42,0.20)]" : "bg-slate-950 text-white ring-slate-950 shadow-[0_16px_35px_rgba(15,23,42,0.16)] dark:bg-white dark:text-slate-950" : "bg-slate-50 text-slate-700 ring-slate-200 hover:bg-white dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}>{item}</button>
               ))}
               </div>
               {difficulty === "Beginner" && <p className="mt-2 text-sm font-medium text-slate-500 dark:text-white/50">Beginner Mode adds a briefing, conversation map, and reasoning hints. It teaches structure without feeding answers.</p>}
+              {difficulty === "Nerve" && <p className="mt-2 text-sm font-medium text-slate-500 dark:text-white/50">Nerve Mode is not coaching. It cross-examines your idea and exposes weak evidence, assumptions, and evasive answers.</p>}
             </div>
+
+            {difficulty === "Nerve" && (
+              <section className="mt-5 rounded-[1.5rem] bg-slate-950 p-4 text-white ring-1 ring-slate-800">
+                <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-rose-200">
+                  <Zap size={16} /> Nerve Mode
+                </div>
+                <p className="mt-2 text-sm font-medium leading-6 text-white/64">Defend your ideas under pressure. Upload or paste material, choose the panel, then survive cross-examination.</p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <label className="text-sm font-semibold text-white/80">
+                    Entry type
+                    <select value={nerveEntryType} onChange={(event) => setNerveEntryType(event.target.value as NerveEntryType)} className="mt-2 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-white outline-none [color-scheme:dark]">
+                      {nerveEntryTypes.map((item) => <option key={item}>{item}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-sm font-semibold text-white/80">
+                    Panel persona
+                    <select value={nervePersona} onChange={(event) => setNervePersona(event.target.value as NervePersona)} className="mt-2 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-white outline-none [color-scheme:dark]">
+                      {nervePersonas.map((item) => <option key={item}>{item}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <label className="mt-4 block text-sm font-semibold text-white/80">
+                  Upload material
+                  <input type="file" accept=".txt,.md,.csv,.json,.pdf,.ppt,.pptx,.doc,.docx" onChange={(event) => handleNerveMaterial(event.target.files?.[0]).catch(() => undefined)} className="mt-2 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white file:mr-3 file:rounded-xl file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-950" />
+                </label>
+                {nerveMaterialName && <p className="mt-2 text-xs font-semibold text-white/45">Loaded: {nerveMaterialName}</p>}
+                <label className="mt-4 block text-sm font-semibold text-white/80">
+                  Key claims, abstract, slide notes, or proposal text
+                  <textarea value={nerveMaterialText} onChange={(event) => setNerveMaterialText(event.target.value.slice(0, 8000))} rows={5} className="mt-2 w-full resize-none rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-rose-200/50 focus:ring-4 focus:ring-rose-200/10" placeholder="Paste the argument you want attacked. Example: Remote work improves productivity because..." />
+                </label>
+                <button type="button" onClick={() => {
+                  setTopic("Remote work improves productivity");
+                  setContext("Nerve Mode demo. The panel should challenge evidence quality, industry exclusions, measurement, and selection bias.");
+                  setGoal("Defend the claim with evidence, logic, consistency, and composure.");
+                  setNerveMaterialText("Claim: Remote work improves productivity. The defense should address evidence, excluded industries, measurement quality, team effects, and selection bias.");
+                  setNervePersona("Mixed Panel");
+                  setNerveEntryType("Topic");
+                }} className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950">
+                  <Sparkles size={16} /> Load sample challenge
+                </button>
+              </section>
+            )}
 
             <section className="mt-5 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
               <label className="flex cursor-pointer items-start gap-3">

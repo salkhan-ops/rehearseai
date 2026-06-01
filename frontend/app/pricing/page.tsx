@@ -4,8 +4,8 @@ import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animatio
 
 const plans = [
   { name: "Free", price: "$0", href: "/practice", signal: "Start", features: ["3 sessions/month", "Basic feedback", "Text rehearsal", "Starter reports"] },
-  { name: "Pro", price: "$19/mo", href: process.env.NEXT_PUBLIC_PADDLE_PRO_CHECKOUT_URL || "", signal: "Most adaptive", features: ["Unlimited sessions", "Advanced reports", "Brutal mode", "Session history", "Decision tree analysis"] },
-  { name: "Coach", price: "$49/mo", href: process.env.NEXT_PUBLIC_PADDLE_COACH_CHECKOUT_URL || "", signal: "Deep intelligence", features: ["Advanced personas", "Detailed analytics", "Benchmarking", "Priority features", "Extended history"] },
+  { name: "Pro", price: "$19/mo", href: process.env.NEXT_PUBLIC_PADDLE_PRO_CHECKOUT_URL || "", signal: "Most adaptive", features: ["Unlimited sessions", "Advanced reports", "Brutal mode", "Nerve Mode", "Decision tree analysis"] },
+  { name: "Coach", price: "$49/mo", href: process.env.NEXT_PUBLIC_PADDLE_COACH_CHECKOUT_URL || "", signal: "Deep intelligence", features: ["Advanced personas", "Nerve panel defense", "Detailed analytics", "Benchmarking", "Extended history"] },
 ];
 
 export default function PricingPage() {

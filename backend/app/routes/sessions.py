@@ -5,6 +5,7 @@ from app.models.session import SessionCreate
 from app.services.gemini_service import GeminiService
 from app.services.firestore_service import FirestoreService
 from app.services.conversation_coordination_service import ConversationCoordinationService, CoordinationAnalyzeRequest
+from app.services.cross_examination_service import CrossExaminationService
 from app.utils.security import get_current_user_id
 from app.utils.timestamps import utc_now_iso
 
@@ -23,6 +24,10 @@ def get_coordination(request: Request) -> ConversationCoordinationService:
     return request.app.state.conversation_coordination
 
 
+def get_cross_examination(request: Request) -> CrossExaminationService:
+    return request.app.state.cross_examination
+
+
 async def require_age_confirmed(store: FirestoreService, user_id: Optional[str]) -> None:
     if not user_id:
         return
@@ -36,7 +41,15 @@ async def create_session(payload: SessionCreate, request: Request, current_user_
     await require_age_confirmed(get_store(request), current_user_id)
     if current_user_id:
         payload.userId = current_user_id
-    return await get_store(request).create_session(payload)
+    if payload.difficulty == "Nerve" and current_user_id:
+        entitlements = await get_store(request).get_user_entitlements(current_user_id)
+        flags = entitlements.get("entitlements") or {}
+        if not (flags.get("allowNerveMode", False) or flags.get("allowBrutalMode", False)):
+            raise HTTPException(status_code=403, detail="Nerve Mode requires Pro or Coach.")
+    session = await get_store(request).create_session(payload)
+    if session.difficulty == "Nerve":
+        session = await get_cross_examination(request).prepare_session(session)
+    return session
 
 
 @router.get("/api/sessions/{session_id}")
@@ -104,6 +117,9 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
         )
     )
     coordination_context = get_coordination(request).prompt_context(coordination_state)
+    if session.difficulty == "Nerve":
+        nerve_context = await get_cross_examination(request).build_turn_context(session, history, payload.content, coordination_state)
+        coordination_context = {**(coordination_context or {}), "nerve": nerve_context}
     ai_content = await get_ai(request).generate_roleplay_response(session, history, coordination_context)
     hint = await request.app.state.coach.maybe_generate_hint(session, history, payload.content, coordination_state)
     ai_message = await store.add_message(session_id, "ai", ai_content)

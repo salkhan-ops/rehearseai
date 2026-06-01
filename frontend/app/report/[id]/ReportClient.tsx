@@ -114,6 +114,56 @@ export default function ReportPage() {
           <AnimatedCard><ScoreCard label="Structure" score={report.structureScore} /></AnimatedCard>
         </StaggeredGrid>
 
+        {report.nerveReport && (
+          <AnimatedSection className="mt-4 rounded-[1.5rem] bg-slate-950 p-6 text-white ring-1 ring-white/10">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-rose-200/80">Nerve Report</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">Defendability Score</h2>
+              </div>
+              <div className="rounded-2xl bg-white/10 px-5 py-4 text-4xl font-semibold ring-1 ring-white/10">
+                {report.nerveReport.defendabilityScore ?? 0}
+              </div>
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-4">
+              {Object.entries(report.nerveReport.metrics || {}).map(([label, value]) => (
+                <div key={label} className="rounded-2xl bg-white/8 p-4 ring-1 ring-white/10">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-white/45">{label}</div>
+                  <div className="mt-2 text-2xl font-semibold">{value}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 grid gap-3 lg:grid-cols-2">
+              <div className="rounded-2xl bg-white/8 p-4 ring-1 ring-white/10">
+                <div className="text-sm font-semibold text-emerald-100">Strongest defense</div>
+                <p className="mt-2 text-sm font-medium leading-6 text-white/72">{report.nerveReport.strongestDefense}</p>
+              </div>
+              <div className="rounded-2xl bg-white/8 p-4 ring-1 ring-white/10">
+                <div className="text-sm font-semibold text-rose-100">Weakest defense</div>
+                <p className="mt-2 text-sm font-medium leading-6 text-white/72">{report.nerveReport.weakestDefense}</p>
+              </div>
+            </div>
+            <div className="mt-5 grid gap-3 lg:grid-cols-3">
+              <div>
+                <div className="text-sm font-semibold text-white">Questions that broke you</div>
+                <ul className="mt-2 space-y-2 text-sm font-medium leading-6 text-white/64">
+                  {(report.nerveReport.questionsThatBrokeYou || []).map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-white">Assumptions you could not defend</div>
+                <ul className="mt-2 space-y-2 text-sm font-medium leading-6 text-white/64">
+                  {(report.nerveReport.assumptionsYouCouldNotDefend || []).map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-white">Follow-up practice</div>
+                <p className="mt-2 text-sm font-medium leading-6 text-white/64">{report.nerveReport.recommendedFollowUpPractice}</p>
+              </div>
+            </div>
+          </AnimatedSection>
+        )}
+
         <div className="mt-4 grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
           <ResilienceScoreCard metrics={analytics.pressureMetrics} />
           <AnimatedSection className="rounded-[1.5rem] surface-low p-6">

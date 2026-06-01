@@ -19,6 +19,7 @@ export type Entitlements = {
   maxMessagesPerSession: number;
   maxSessionMinutes: number;
   allowBrutalMode: boolean;
+  allowNerveMode: boolean;
   allowChallengeMode: boolean;
   allowVoiceMode: boolean;
   allowAdvancedAnalytics: boolean;
@@ -246,6 +247,7 @@ const baseEntitlements: Entitlements = {
   maxMessagesPerSession: 16,
   maxSessionMinutes: 15,
   allowBrutalMode: false,
+  allowNerveMode: false,
   allowChallengeMode: false,
   allowVoiceMode: true,
   allowAdvancedAnalytics: false,
@@ -323,6 +325,7 @@ export const defaultPlans: Plan[] = [
       maxMessagesPerSession: 40,
       maxSessionMinutes: 45,
       allowBrutalMode: true,
+      allowNerveMode: true,
       allowChallengeMode: true,
       allowAdvancedAnalytics: true,
       allowDecisionTree: true,
@@ -355,6 +358,7 @@ export const defaultPlans: Plan[] = [
       maxMessagesPerSession: 80,
       maxSessionMinutes: 90,
       allowBrutalMode: true,
+      allowNerveMode: true,
       allowChallengeMode: true,
       allowAdvancedAnalytics: true,
       allowDecisionTree: true,

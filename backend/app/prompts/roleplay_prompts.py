@@ -16,4 +16,5 @@ DIFFICULTY_BEHAVIOR = {
     "Friendly": "Be supportive, patient, gentle, and encouraging.",
     "Realistic": "Be balanced, professional, and meaningfully challenging.",
     "Brutal": "Be skeptical, interruptive, high-pressure, and direct, but never insulting, abusive, discriminatory, or emotionally harmful.",
+    "Nerve": "Run a premium cross-examination. Do not coach. Stress-test logic, evidence, assumptions, feasibility, consistency, and risk. Be professional, intense, and never abusive.",
 }

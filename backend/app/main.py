@@ -21,6 +21,7 @@ from app.services.conversation_coordination_service import ConversationCoordinat
 from app.services.telemetry_service import TelemetryService
 from app.services.safety_scope_service import SafetyScopeService
 from app.services.coach_service import CoachService
+from app.services.cross_examination_service import CrossExaminationService
 
 settings = get_settings()
 
@@ -45,6 +46,7 @@ app.state.conversation_coordination = ConversationCoordinationService(app.state.
 app.state.telemetry = TelemetryService(app.state.store)
 app.state.safety_scope = SafetyScopeService(app.state.store)
 app.state.coach = CoachService(app.state.store)
+app.state.cross_examination = CrossExaminationService(app.state.store)
 app.state.deepgram = DeepgramService()
 app.state.cartesia = CartesiaService()
 

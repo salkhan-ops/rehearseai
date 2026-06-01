@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -19,4 +21,5 @@ class Report(BaseModel):
     improvedResponses: list[str]
     drills: list[str]
     nextRecommendation: str
+    nerveReport: Optional[dict] = None
     createdAt: str
