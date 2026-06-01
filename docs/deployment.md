@@ -41,7 +41,7 @@ Set environment variables in Cloud Run or Secret Manager:
 For GitHub Pages, include the production frontend URL in `CORS_ORIGINS`:
 
 ```text
-https://salkhan-ops.github.io/rehearseai
+https://salkhan-ops.github.io
 ```
 
 ## Frontend
