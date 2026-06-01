@@ -1,16 +1,18 @@
 "use client";
 
-import { AnimatedPage } from "@/components/animations";
-import { AuthForm } from "@/components/auth/AuthForm";
-import { Nav } from "@/components/Nav";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function SignInPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/?auth=signin");
+  }, [router]);
+
   return (
-    <main className="min-h-screen bg-[#f4f8fc] dark:bg-[#0e1020]">
-      <Nav />
-      <AnimatedPage className="mx-auto max-w-md px-4 py-16">
-        <AuthForm mode="signin" />
-      </AnimatedPage>
+    <main className="grid min-h-screen place-items-center bg-white px-4 text-center text-sm font-semibold text-slate-600 dark:bg-[#07111f] dark:text-white/60">
+      Opening sign in...
     </main>
   );
 }

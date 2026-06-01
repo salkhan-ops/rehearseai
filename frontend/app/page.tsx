@@ -2,8 +2,11 @@
 
 import { motion } from "framer-motion";
 import { ArrowRight, BrainCircuit, CalendarDays, GitBranch, Radio, Sparkles, Trophy, Waves, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
 import { AnimatedCard, AnimatedPage, AnimatedSection, StaggeredGrid } from "@/components/animations";
+import { AuthDialog } from "@/components/auth/AuthDialog";
+import type { AuthMode } from "@/components/auth/AuthForm";
 import { ButtonLink } from "@/components/ButtonLink";
 import { Nav } from "@/components/Nav";
 import { PracticeType, practiceTypes } from "@/lib/types";
@@ -20,6 +23,8 @@ const faqs = [
   ["Does it guarantee success?", "No. It helps you rehearse, improve confidence, and prepare better for the real moment."],
   ["Is brutal mode mean?", "No. Brutal mode is direct and high-pressure, but it is designed to stay constructive and never abusive."],
 ];
+
+const authModes: AuthMode[] = ["signin", "signup", "forgot"];
 
 const categoryMeta: Record<PracticeType, { shape: string; line: string; accent: string }> = {
   "Job Interview": { shape: "structured geometry", line: "Probe vague claims and turn stories into evidence.", accent: "from-cyan-300 to-violet-500" },
@@ -162,6 +167,40 @@ function LiveSystemDemo() {
 }
 
 export default function Home() {
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedMode = params.get("auth");
+    if (requestedMode && authModes.includes(requestedMode as AuthMode)) {
+      setAuthMode(requestedMode as AuthMode);
+    }
+
+    function handleAuthEvent(event: Event) {
+      const mode = (event as CustomEvent<AuthMode>).detail;
+      if (authModes.includes(mode)) {
+        openAuth(mode);
+      }
+    }
+
+    window.addEventListener("rehearseai:auth", handleAuthEvent);
+    return () => window.removeEventListener("rehearseai:auth", handleAuthEvent);
+  }, []);
+
+  function openAuth(mode: AuthMode) {
+    setAuthMode(mode);
+    const url = new URL(window.location.href);
+    url.searchParams.set("auth", mode);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  function closeAuth() {
+    setAuthMode(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("auth");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-white text-slate-950 dark:bg-[#07111f] dark:text-white">
       <AmbientBackground />
@@ -187,7 +226,13 @@ export default function Home() {
           </motion.p>
 
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.24 }} className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <ButtonLink href="/practice">Start Rehearsing Free</ButtonLink>
+            <button
+              type="button"
+              onClick={() => openAuth("signup")}
+              className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
+            >
+              Start Rehearsing Free
+            </button>
             <ButtonLink href="/practice/setup?type=Panel%20Discussion&difficulty=Brutal" variant="secondary">Try Brutal Panel Mode</ButtonLink>
           </motion.div>
 
@@ -331,9 +376,18 @@ export default function Home() {
           <Zap className="mx-auto mb-6 text-violet-700 dark:text-cyan-100" size={34} />
           <h2 className="text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-7xl">Enter the simulation.</h2>
           <p className="mx-auto mt-5 max-w-2xl font-medium leading-8 text-slate-700 dark:text-white/58">Build pressure-tested reasoning, confidence, composure, and communication intelligence before the real moment.</p>
-          <div className="mt-8"><ButtonLink href="/practice">Start Rehearsing Free</ButtonLink></div>
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={() => openAuth("signup")}
+              className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
+            >
+              Start Rehearsing Free
+            </button>
+          </div>
         </div>
       </section>
+      <AuthDialog mode={authMode} onClose={closeAuth} onModeChange={openAuth} />
     </main>
   );
 }

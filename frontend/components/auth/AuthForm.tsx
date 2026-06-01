@@ -4,20 +4,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import type { ReactNode } from "react";
-import { BrainCircuit, Check, LockKeyhole, Sparkles, Target, Waves } from "lucide-react";
+import { Check, LockKeyhole, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import type { LanguageCode } from "@/lib/languages";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
-import { AIDisclaimer } from "@/components/legal/AIDisclaimer";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 
-const signupSignals = [
-  { icon: BrainCircuit, label: "Adaptive practice memory" },
-  { icon: Target, label: "Protected reports" },
-  { icon: Waves, label: "Voice-first sessions" },
-];
+export type AuthMode = "signin" | "signup" | "forgot";
 
-export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
+export function AuthForm({
+  mode,
+  onModeChange,
+}: {
+  mode: AuthMode;
+  onModeChange?: (mode: AuthMode) => void;
+}) {
   const router = useRouter();
   const auth = useAuth();
   const [error, setError] = useState("");
@@ -31,10 +32,10 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const title = mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Reset password";
   const subtitle = mode === "signup"
-    ? "Build a private training profile for high-stakes conversations, pressure recovery, and reasoning growth."
+    ? "Save your practice history, reports, and language preferences."
     : mode === "forgot"
-      ? "Reset your password and get back to your rehearsal history."
-      : "Save your cognitive performance history and protected reports with Firebase Authentication.";
+      ? "Enter your email and we will send a reset link."
+      : "Continue to your practice dashboard.";
 
   async function routeAfterLogin() {
     router.push("/dashboard");
@@ -98,9 +99,9 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
     onChange: (checked: boolean) => void;
   }) {
     return (
-      <label className={`flex items-start gap-3 rounded-2xl p-3 ring-1 transition ${checked ? "bg-violet-50 text-slate-950 ring-violet-200 dark:bg-violet-300/12 dark:text-white dark:ring-violet-200/20" : "bg-white/70 text-slate-700 ring-slate-200 hover:bg-white dark:bg-white/[0.06] dark:text-white/72 dark:ring-white/10"}`}>
-        <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-lg ring-1 ${checked ? "bg-[#6200a8] text-white ring-[#6200a8]" : "bg-white text-transparent ring-slate-300 dark:bg-white/10 dark:ring-white/20"}`}>
-          <Check size={15} strokeWidth={3} />
+      <label className={`flex items-start gap-3 rounded-2xl p-3 text-sm ring-1 transition ${checked ? "bg-violet-50 text-slate-950 ring-violet-200 dark:bg-violet-300/12 dark:text-white dark:ring-violet-200/20" : "bg-white/70 text-slate-700 ring-slate-200 hover:bg-white dark:bg-white/[0.06] dark:text-white/72 dark:ring-white/10"}`}>
+        <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-md ring-1 ${checked ? "bg-[#6200a8] text-white ring-[#6200a8]" : "bg-white text-transparent ring-slate-300 dark:bg-white/10 dark:ring-white/20"}`}>
+          <Check size={13} strokeWidth={3} />
         </span>
         <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="sr-only" />
         <span>{children}</span>
@@ -108,32 +109,31 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
     );
   }
 
+  function ModeLink({ nextMode, children }: { nextMode: AuthMode; children: ReactNode }) {
+    if (onModeChange) {
+      return (
+        <button type="button" onClick={() => onModeChange(nextMode)} className="transition hover:text-[#6200a8] dark:hover:text-violet-100">
+          {children}
+        </button>
+      );
+    }
+    return <Link href={`/?auth=${nextMode}`}>{children}</Link>;
+  }
+
   return (
-    <div className="relative overflow-hidden rounded-[1.75rem] bg-white p-7 shadow-[0_24px_80px_rgba(35,45,75,0.10)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
-      <div className="pointer-events-none absolute -right-20 -top-24 h-52 w-52 rounded-full bg-cyan-200/45 blur-3xl dark:bg-cyan-300/10" />
-      <div className="pointer-events-none absolute -bottom-20 left-8 h-52 w-52 rounded-full bg-violet-200/55 blur-3xl dark:bg-violet-400/12" />
+    <div className="relative overflow-hidden rounded-[1.5rem] bg-white p-6 shadow-[0_22px_70px_rgba(35,45,75,0.12)] ring-1 ring-slate-200/75 dark:bg-slate-950 dark:ring-white/10 sm:p-7">
+      <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-cyan-200/40 blur-3xl dark:bg-cyan-300/10" />
+      <div className="pointer-events-none absolute -bottom-24 left-8 h-48 w-48 rounded-full bg-violet-200/50 blur-3xl dark:bg-violet-400/12" />
       <div className="relative">
-        <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 ring-1 ring-violet-100 dark:bg-white/10 dark:text-violet-100 dark:ring-white/10">
-          <Sparkles size={16} /> {mode === "signup" ? "Start your training profile" : "Welcome back"}
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 ring-1 ring-violet-100 dark:bg-white/10 dark:text-violet-100 dark:ring-white/10">
+          <Sparkles size={14} /> {mode === "signup" ? "Start free" : "Welcome back"}
         </div>
-        <h1 className="text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white">{title}</h1>
-        <p className="mt-4 text-lg font-medium leading-8 text-slate-600 dark:text-white/60">{subtitle}</p>
+        <h1 className="text-4xl font-semibold leading-none tracking-[-0.045em] text-slate-950 dark:text-white sm:text-5xl">{title}</h1>
+        <p className="mt-3 text-base font-medium leading-7 text-slate-600 dark:text-white/60">{subtitle}</p>
       </div>
 
       {mode === "signup" && (
-        <div className="relative mt-5 grid gap-2 sm:grid-cols-3">
-          {signupSignals.map(({ icon: Icon, label }) => (
-            <div key={label} className="rounded-2xl bg-slate-50/80 p-3 ring-1 ring-slate-200 dark:bg-white/[0.06] dark:ring-white/10">
-              <Icon size={18} className="text-[#6200a8] dark:text-violet-100" />
-              <div className="mt-2 text-xs font-bold leading-5 text-slate-600 dark:text-white/62">{label}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {mode === "signup" && (
         <div className="relative mt-5 space-y-3">
-          <AIDisclaimer compact />
           <LanguageSelector
             compact
             practiceLanguage={practiceLanguage}
@@ -141,11 +141,11 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
             onPracticeLanguageChange={setPracticeLanguage}
             onFeedbackLanguageChange={setFeedbackLanguage}
           />
-          <div className="space-y-2 rounded-[1.5rem] bg-slate-50/70 p-3 text-sm font-semibold ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
+          <div className="space-y-2 rounded-[1.25rem] bg-slate-50/70 p-3 font-semibold ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
             <ConsentRow checked={ageConfirmed} onChange={setAgeConfirmed}>I confirm I am at least 16 years old.</ConsentRow>
-            <ConsentRow checked={minorConsentAcknowledged} onChange={setMinorConsentAcknowledged}>If I am under 18, I should use RehearseAI with permission from a parent or guardian.</ConsentRow>
             <ConsentRow checked={termsAccepted} onChange={setTermsAccepted}>I agree to the <Link href="/terms" className="text-[#6200a8] dark:text-violet-200">Terms</Link>.</ConsentRow>
             <ConsentRow checked={privacyAccepted} onChange={setPrivacyAccepted}>I agree to the <Link href="/privacy" className="text-[#6200a8] dark:text-violet-200">Privacy Policy</Link>.</ConsentRow>
+            <ConsentRow checked={minorConsentAcknowledged} onChange={setMinorConsentAcknowledged}>If I am under 18, I have parent or guardian permission.</ConsentRow>
           </div>
         </div>
       )}
@@ -158,9 +158,9 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" | "forgot" }) {
       </form>
       {mode !== "forgot" && <div className="relative mt-3"><GoogleSignInButton onClick={google} disabled={loading || (mode === "signup" && (!ageConfirmed || !termsAccepted || !privacyAccepted))} /></div>}
       <div className="relative mt-5 flex flex-wrap justify-center gap-4 text-sm font-bold text-slate-600 dark:text-white/60">
-        {mode !== "signin" && <Link href="/signin">Sign in</Link>}
-        {mode !== "signup" && <Link href="/signup">Create account</Link>}
-        {mode !== "forgot" && <Link href="/forgot-password">Forgot password?</Link>}
+        {mode !== "signin" && <ModeLink nextMode="signin">Sign in</ModeLink>}
+        {mode !== "signup" && <ModeLink nextMode="signup">Create account</ModeLink>}
+        {mode !== "forgot" && <ModeLink nextMode="forgot">Forgot password?</ModeLink>}
       </div>
       {message && <p className="relative mt-4 rounded-2xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{message}</p>}
       {error && <p className="relative mt-4 rounded-2xl bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}

@@ -38,6 +38,10 @@ export function Nav() {
     window.localStorage.setItem("theme", nextDark ? "dark" : "light");
   }
 
+  function openAuth(mode: "signin" | "signup") {
+    window.dispatchEvent(new CustomEvent("rehearseai:auth", { detail: mode }));
+  }
+
   return (
     <header className="relative z-40">
       <div className="border-b border-slate-200/70 bg-gradient-to-r from-cyan-50 via-violet-50 to-blue-50 px-4 py-3 text-center text-sm font-semibold text-slate-700 dark:border-white/10 dark:from-cyan-400/10 dark:via-violet-500/10 dark:to-blue-500/10 dark:text-white/76">
@@ -93,11 +97,11 @@ export function Nav() {
               <LogOut size={16} /> Sign out
             </button>
           ) : (
-            <Link href="/signin" className="rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
+            <Link href="/?auth=signin" onClick={() => openAuth("signin")} className="rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
               {loading ? "..." : "Sign in"}
             </Link>
           )}
-          <Link href="/signup" className="hidden rounded-2xl bg-[#6200a8] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b] sm:inline-flex">
+          <Link href="/?auth=signup" onClick={() => openAuth("signup")} className="hidden rounded-2xl bg-[#6200a8] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b] sm:inline-flex">
             Start free
           </Link>
         </div>
