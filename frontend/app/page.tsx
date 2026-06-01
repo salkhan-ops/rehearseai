@@ -360,16 +360,16 @@ export default function Home() {
       </section>
 
       <section className="relative z-10 mx-auto max-w-7xl px-4 py-20">
-        <div className="grid overflow-hidden rounded-[2.5rem] bg-slate-950 text-white ring-1 ring-slate-800 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="grid overflow-hidden rounded-[2.5rem] bg-white text-slate-950 shadow-[0_30px_90px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/80 dark:bg-slate-950 dark:text-white dark:shadow-none dark:ring-slate-800 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="p-8 md:p-12">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-rose-200/80">Nerve Mode</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-rose-700 dark:text-rose-200/80">Nerve Mode</p>
             <h2 className="mt-4 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] md:text-7xl">See if your ideas survive pressure.</h2>
-            <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-white/62">Upload your presentation, thesis, pitch, or proposal. RehearseAI becomes your toughest critic before the real audience does.</p>
+            <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-slate-600 dark:text-white/62">Upload your presentation, thesis, pitch, or proposal. RehearseAI becomes your toughest critic before the real audience does.</p>
             <div className="mt-8"><ButtonLink href="/practice/setup?difficulty=Nerve" variant="secondary">Start Nerve Mode</ButtonLink></div>
           </div>
-          <div className="grid gap-3 bg-white/[0.04] p-8 md:p-12">
+          <div className="grid gap-3 bg-slate-50 p-8 dark:bg-white/[0.04] md:p-12">
             {["Where is your evidence?", "What industries are excluded?", "What happens if assumption #3 fails?", "That does not answer my question."].map((item) => (
-              <motion.div key={item} className="rounded-2xl bg-white/[0.08] p-5 text-lg font-semibold ring-1 ring-white/10" animate={{ x: [0, -6, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>
+              <motion.div key={item} className="rounded-2xl bg-white p-5 text-lg font-semibold text-slate-800 shadow-[0_14px_36px_rgba(15,23,42,0.06)] ring-1 ring-slate-200 dark:bg-white/[0.08] dark:text-white dark:shadow-none dark:ring-white/10" animate={{ x: [0, -6, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>
                 {item}
               </motion.div>
             ))}
