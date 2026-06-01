@@ -26,8 +26,7 @@ export function Nav() {
 
   useEffect(() => {
     const stored = window.localStorage.getItem("theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const nextDark = stored ? stored === "dark" : prefersDark;
+    const nextDark = stored === "dark";
     setDark(nextDark);
     document.documentElement.classList.toggle("dark", nextDark);
   }, []);
