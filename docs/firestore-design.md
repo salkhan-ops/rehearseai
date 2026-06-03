@@ -1,6 +1,7 @@
 # RehearseAI Firestore Design
 
 RehearseAI uses Firestore as the primary application database for users, sessions, reports, analytics, billing metadata, entitlements, and admin operations.
+For the complete system architecture and standards alignment, see `architecture.md`.
 
 Backend services that use Firebase Admin SDK or Google service-account credentials bypass Firestore security rules. Frontend clients are restricted by `firestore.rules`.
 
@@ -23,6 +24,19 @@ Backend services that use Firebase Admin SDK or Google service-account credentia
 - `contactMessages/{messageId}`
 - `practiceSchedules/{scheduleId}`
 - `practiceHistory/{historyId}`
+- `courses/{courseId}`
+- `courseModules/{moduleId}`
+- `courseSessions/{sessionId}`
+- `courseProgress/{progressId}`
+- `conversationTelemetry/{telemetryId}`
+- `sessionOutcomes/{outcomeId}`
+- `voiceProfiles/{userId}`
+- `privacySettings/{uid}`
+- `telemetryLabels/{labelId}`
+- `safetyEvents/{eventId}`
+- `notifications/{notificationId}`
+- `achievements/{achievementId}`
+- `userProgress/{uid}`
 
 ## users/{uid}
 
@@ -390,6 +404,90 @@ Rules:
 - Users can create and read their own practice history.
 - Backend/admin may update history for completion, streaks, and reminder actions.
 
+## Telemetry and Voice Profile Collections
+
+Detailed telemetry is privacy-aware and should be written only when user settings allow it. Raw audio is disabled by default.
+
+### `conversationTelemetry/{telemetryId}`
+
+Fields:
+- `telemetryId: string`
+- `userId: string`
+- `sessionId: string`
+- `turnIndex: number`
+- `speechDurationMs: number`
+- `silenceBeforeMs: number`
+- `silenceAfterMs: number`
+- `wordsPerMinute: number`
+- `fillerRate: number`
+- `responseLatencyMs: number`
+- `interruptionDetected: boolean`
+- `recommendedAiTone: string`
+- `recommendedResponseLength: string`
+- `labels: map`
+- `expiresAt: timestamp`
+- `retainForTraining: boolean`
+- `anonymized: boolean`
+- `rawAudioStored: boolean`
+- `createdAt: timestamp`
+
+Rules:
+- Users should not write detailed telemetry directly from the frontend.
+- Backend writes telemetry after applying consent settings.
+- Admins may read anonymized samples for labeling.
+
+### `sessionOutcomes/{outcomeId}`
+
+Fields:
+- `outcomeId: string`
+- `userId: string`
+- `sessionId: string`
+- `completed: boolean`
+- `abandoned: boolean`
+- `reportGenerated: boolean`
+- `reportScores: map`
+- `createdAt: timestamp`
+
+### `voiceProfiles/{userId}`
+
+Fields:
+- `userId: string`
+- `sessionCount: number`
+- `averageWordsPerMinute: number`
+- `averagePauseMs: number`
+- `longPauseThresholdMs: number`
+- `fillerWordRate: number`
+- `overExplainWordThreshold: number`
+- `hesitationMarkerRate: number`
+- `confusionMarkerRate: number`
+- `defensiveMarkerRate: number`
+- `updatedAt: timestamp`
+
+### `privacySettings/{uid}`
+
+Fields:
+- `uid: string`
+- `allowTelemetry: boolean`
+- `allowModelImprovement: boolean`
+- `allowRawAudioStorage: boolean`
+- `updatedAt: timestamp`
+
+### `telemetryLabels/{labelId}`
+
+Fields:
+- `labelId: string`
+- `telemetryId: string`
+- `pauseType: string`
+- `userState: string`
+- `aiActionQuality: string`
+- `labeledBy: string`
+- `createdAt: timestamp`
+
+Rules:
+- Users may read their own summary/profile data when exposed by API.
+- Backend/admin writes detailed telemetry, outcomes, profiles, and labels.
+- Training exports must remove direct identifiers.
+
 ## Reasoning Courses
 
 Structured cognitive training programs are stored as four linked collections. Course generation happens in the FastAPI backend so the frontend never writes curriculum, progress, or generated missions directly.
@@ -464,6 +562,51 @@ Fields:
 Rules:
 - Users can read their own progress.
 - Backend/admin updates progress after mission completion.
+
+## Operational Collections
+
+### `safetyEvents/{eventId}`
+
+Stores safety-scope events and admin review signals.
+
+Fields:
+- `eventId: string`
+- `userId: string | null`
+- `sessionId: string | null`
+- `category: string`
+- `severity: string`
+- `actionTaken: string`
+- `createdAt: timestamp`
+
+Rules:
+- Backend writes safety events.
+- Admins can read safety events.
+- Users do not directly access safety event records.
+
+### `notifications/{notificationId}`
+
+Stores user notifications created by course, routine, and progress services.
+
+Fields:
+- `notificationId: string`
+- `userId: string`
+- `title: string`
+- `body: string`
+- `type: string`
+- `read: boolean`
+- `createdAt: timestamp`
+
+Rules:
+- Users can read their own notifications.
+- Backend/admin creates and updates notifications.
+
+### `achievements/{achievementId}` and `userProgress/{uid}`
+
+Store gamification state, streaks, completion counts, skill progress, and unlocked achievements.
+
+Rules:
+- Users can read their own progress and achievements.
+- Backend/admin writes progress and achievement updates.
 
 ## Standard Entitlement Map
 

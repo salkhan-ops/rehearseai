@@ -13,6 +13,10 @@ RehearseAI is a full-stack MVP for cognitive performance training: adaptive pres
 - Payments: Paddle placeholder
 - Hosting target: GitHub Pages for the static frontend, Google Cloud Run for the backend API
 
+## Architecture and standards
+
+For a judge-facing technical overview, see `docs/architecture.md`. It explains the end-to-end architecture, runtime flows, Firestore data model, security/privacy controls, AI governance, deployment topology, and standards alignment with ISO/IEC, OWASP, GDPR-style privacy principles, WCAG, and NIST AI RMF.
+
 ## Live URLs
 
 - GitHub repository: `https://github.com/salkhan-ops/rehearseai`
@@ -156,6 +160,7 @@ The current admin protection uses frontend Firestore role checks for MVP speed. 
 ## Firestore design, rules, and indexes
 
 The full Firestore collection design is documented in `docs/firestore-design.md`.
+The security posture is documented in `docs/firestore-security.md`, and the architecture-level data flow is documented in `docs/architecture.md`.
 
 Deploy Firestore security rules:
 

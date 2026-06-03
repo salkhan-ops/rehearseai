@@ -1,6 +1,7 @@
 # Conversation Telemetry and Future ML
 
 RehearseAI collects privacy-aware conversation signals so the Conversation Coordination Engine can improve timing, interruptions, and support under pressure. The pipeline is for data collection and labeling only; no model is trained in production yet.
+The full application context is documented in `architecture.md`.
 
 ## What Is Collected
 
@@ -17,6 +18,17 @@ Session-level outcomes are stored in `sessionOutcomes/{outcomeId}` so future cla
 ## What Is Not Collected By Default
 
 Raw audio is not stored by default. The product should prefer timing data and transcript-derived features over private audio. The user setting `privacySettings.allowRawAudioStorage` defaults to `false` and should remain an advanced option.
+
+## Standards Alignment
+
+The telemetry design follows data minimization and purpose limitation principles:
+
+- Collect only features needed for timing, coaching, and model-improvement evaluation.
+- Keep raw audio disabled by default.
+- Use consent settings before writing telemetry or training exports.
+- Store expiration metadata for detailed telemetry.
+- Export anonymized features and labels rather than direct identifiers.
+- Evaluate future classifiers before runtime use and fall back to rules when confidence is low.
 
 ## Consent Settings
 
