@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
+import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
 import { AnimatedMessage, AnimatedPage, TypingIndicator } from "@/components/animations";
 import { BeginnerBriefing } from "@/components/learning/BeginnerBriefing";
 import { CoachPanel } from "@/components/learning/CoachPanel";
@@ -361,6 +362,7 @@ export default function SessionPage() {
         </header>
 
         <section className="relative grid flex-1 place-items-center py-8">
+          <AICharacterEnvironment mode={session?.environmentMode || "AI Orb"} />
           <div className="absolute left-0 top-8 hidden max-w-xs space-y-3 lg:block">
             <MicroMetric label="Confidence" value={voice.isListening ? 74 : 68} tone="bg-cyan-300 text-cyan-300" />
             <MicroMetric label="Reasoning stability" value={loading ? 61 : 82} tone="bg-violet-300 text-violet-300" />
@@ -370,7 +372,7 @@ export default function SessionPage() {
             <MicroMetric label="Recovery" value={voice.isSpeaking ? 78 : 71} tone="bg-emerald-300 text-emerald-300" />
           </div>
 
-          <div className="w-full max-w-4xl text-center">
+          <div className="relative z-10 w-full max-w-4xl text-center">
             <div className="mx-auto mb-3 w-fit rounded-full bg-white/[0.08] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/76 ring-1 ring-white/12 backdrop-blur-2xl">
               {voice.provider === "deepgram" ? "Deepgram live" : "Browser fallback"} · {practiceLanguage.nativeName} · {session?.difficulty || "Realistic"}{session?.difficulty === "Nerve" ? ` · pressure ${session.pressureLevel || 1}/10` : ""}
             </div>

@@ -15,6 +15,18 @@ PracticeType = Literal[
 Difficulty = Literal["Beginner", "Intermediate", "Advanced", "Brutal", "Nerve", "Friendly", "Realistic"]
 NerveEntryType = Literal["Topic", "Presentation", "Thesis", "Startup Pitch", "Report / Proposal"]
 NervePersona = Literal["Investor", "Professor", "Executive", "Board Member", "Regulator", "Consultant", "Client", "Mixed Panel"]
+EnvironmentMode = Literal[
+    "AI Orb",
+    "Single Interviewer",
+    "Executive Interview",
+    "Thesis Defense Panel",
+    "Investor Panel",
+    "Board Meeting",
+    "Classroom Presentation",
+    "Hostile Panel",
+    "Conference Q&A",
+    "Custom Future Mode",
+]
 
 
 class SessionCreate(BaseModel):
@@ -28,6 +40,7 @@ class SessionCreate(BaseModel):
     practiceLanguage: str = Field(default="en", max_length=8)
     feedbackLanguage: str = Field(default="en", max_length=8)
     durationPreference: int = Field(default=10, ge=1, le=120)
+    environmentMode: EnvironmentMode = "AI Orb"
     nerveEntryType: Optional[NerveEntryType] = None
     nervePersona: Optional[NervePersona] = None
     nerveMaterialName: Optional[str] = Field(default=None, max_length=180)
@@ -46,6 +59,7 @@ class Session(BaseModel):
     practiceLanguage: str = "en"
     feedbackLanguage: str = "en"
     durationPreference: int = 10
+    environmentMode: EnvironmentMode = "AI Orb"
     nerveEntryType: Optional[NerveEntryType] = None
     nervePersona: Optional[NervePersona] = None
     nerveMaterialName: Optional[str] = None

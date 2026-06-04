@@ -12,11 +12,24 @@ export const practiceTypes = [
 export const difficulties = ["Beginner", "Intermediate", "Advanced", "Brutal", "Nerve"] as const;
 export const nerveEntryTypes = ["Topic", "Presentation", "Thesis", "Startup Pitch", "Report / Proposal"] as const;
 export const nervePersonas = ["Investor", "Professor", "Executive", "Board Member", "Regulator", "Consultant", "Client", "Mixed Panel"] as const;
+export const environmentModes = [
+  "AI Orb",
+  "Single Interviewer",
+  "Executive Interview",
+  "Thesis Defense Panel",
+  "Investor Panel",
+  "Board Meeting",
+  "Classroom Presentation",
+  "Hostile Panel",
+  "Conference Q&A",
+  "Custom Future Mode",
+] as const;
 
 export type PracticeType = (typeof practiceTypes)[number];
 export type Difficulty = (typeof difficulties)[number] | "Friendly" | "Realistic";
 export type NerveEntryType = (typeof nerveEntryTypes)[number];
 export type NervePersona = (typeof nervePersonas)[number];
+export type EnvironmentMode = (typeof environmentModes)[number];
 
 export type SessionHint = {
   hintId: string;
@@ -55,6 +68,7 @@ export type Session = {
   practiceLanguage?: string;
   feedbackLanguage?: string;
   durationPreference?: number;
+  environmentMode?: EnvironmentMode;
   nerveEntryType?: NerveEntryType;
   nervePersona?: NervePersona;
   nerveMaterialName?: string;
@@ -178,6 +192,7 @@ export type SessionPayload = {
   practiceLanguage?: string;
   feedbackLanguage?: string;
   durationPreference?: number;
+  environmentMode?: EnvironmentMode;
   nerveEntryType?: NerveEntryType;
   nervePersona?: NervePersona;
   nerveMaterialName?: string;

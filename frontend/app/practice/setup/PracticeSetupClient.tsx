@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Bell, CalendarClock, Check, Clock, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Bell, CalendarClock, Check, Clock, Sparkles, UsersRound, Zap } from "lucide-react";
 import { Suspense } from "react";
 import { FormEvent, useEffect, useState } from "react";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
+import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Nav } from "@/components/Nav";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
@@ -13,8 +14,8 @@ import { useAuth } from "@/lib/auth";
 import { canUsePracticeType, getUserEntitlements } from "@/lib/entitlements";
 import { sessionHref } from "@/lib/routes";
 import type { LanguageCode } from "@/lib/languages";
-import { difficulties, Difficulty, nerveEntryTypes, nervePersonas, practiceTypes, PracticeType } from "@/lib/types";
-import type { NerveEntryType, NervePersona } from "@/lib/types";
+import { difficulties, Difficulty, environmentModes, nerveEntryTypes, nervePersonas, practiceTypes, PracticeType } from "@/lib/types";
+import type { EnvironmentMode, NerveEntryType, NervePersona } from "@/lib/types";
 import type { Entitlements } from "@/lib/admin";
 
 const frequencyOptions = [
@@ -67,6 +68,7 @@ function SetupForm() {
   const [goal, setGoal] = useState("");
   const [optionalNotes, setOptionalNotes] = useState("");
   const [durationPreference, setDurationPreference] = useState(10);
+  const [environmentMode, setEnvironmentMode] = useState<EnvironmentMode>("AI Orb");
   const [nerveEntryType, setNerveEntryType] = useState<NerveEntryType>("Topic");
   const [nervePersona, setNervePersona] = useState<NervePersona>("Mixed Panel");
   const [nerveMaterialName, setNerveMaterialName] = useState("");
@@ -122,6 +124,7 @@ function SetupForm() {
       practiceLanguage,
       feedbackLanguage,
       durationPreference,
+      environmentMode,
       ...(difficulty === "Nerve" ? { nerveEntryType, nervePersona, nerveMaterialName, nerveMaterialText } : {})
     }, token);
     if (createRoutine) {
@@ -243,6 +246,25 @@ function SetupForm() {
                 }}
               />
             </div>
+
+            <section className="mt-5 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
+                <UsersRound size={16} /> Visual environment
+              </div>
+              <AICharacterEnvironment mode={environmentMode} preview />
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                {environmentModes.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setEnvironmentMode(mode)}
+                    className={`min-h-16 rounded-2xl px-3 py-3 text-left text-xs font-bold leading-5 ring-1 transition ${environmentMode === mode ? "bg-slate-950 text-white ring-slate-950 shadow-[0_14px_34px_rgba(15,23,42,0.14)] dark:bg-white dark:text-slate-950 dark:ring-white" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white/70 dark:ring-white/10 dark:hover:bg-white/14"}`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </section>
 
             <div className="mt-5">
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
