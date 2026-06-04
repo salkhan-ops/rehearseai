@@ -91,6 +91,8 @@ Conversation so far:
 {turns}
 
 Reply in character in 1-3 sentences in {practice_language}. Ask one pointed follow-up or objection.
+Respond directly to the user's latest words; do not repeat generic goal reminders, slogans, or the same coaching phrase across turns.
+Use natural emotion appropriate to the role: curious, skeptical, concerned, impatient, warm, or impressed. Vary sentence openings and rhythm.
 Adapt pressure dynamically based on the user's behavior. Challenge vague logic, probe unsupported assumptions, and increase depth when performance is strong. If the user appears overwhelmed, soften the tone slightly while staying realistic. Never be abusive. Do not give a feedback report yet.
 """
 

@@ -42,8 +42,8 @@ function stateCopy(mode: OrbMode, voiceMode: boolean, autoSubmitNotice: string) 
   if (autoSubmitNotice) return autoSubmitNotice;
   if (voiceMode && mode === "pressure") return "Nerve pressure is active. Defend the claim directly.";
   if (mode === "listening") return "Listening. Speak naturally.";
-  if (mode === "thinking") return "Reasoning through your response.";
-  if (mode === "speaking") return "AI persona is responding.";
+  if (mode === "thinking") return "Reading the last thing you said.";
+  if (mode === "speaking") return "Responding in character.";
   if (mode === "pressure") return "Pressure rising. Stay structured.";
   if (mode === "error") return "Voice fallback is ready.";
   return voiceMode ? "Waiting for your next answer." : "Tap start and enter the chamber.";

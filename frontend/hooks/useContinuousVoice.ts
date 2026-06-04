@@ -55,7 +55,9 @@ function pickVoice() {
 
 function humanizeSpeech(text: string) {
   return text
+    .replace(/^(AI persona|Coach|Assistant)\s*:\s*/i, "")
     .replace(/\s+/g, " ")
+    .replace(/\b(Stay focused on your goal:)\s*/gi, "")
     .replace(/([.!?])\s+/g, "$1 ")
     .replace(/, /g, ", ")
     .trim();
@@ -187,8 +189,8 @@ export function useContinuousVoice(language = "en-US") {
       waitForVoices().then(() => {
       const utterance = new SpeechSynthesisUtterance(humanizeSpeech(text));
       utterance.voice = pickVoice();
-      utterance.rate = 0.92;
-      utterance.pitch = 1.08;
+      utterance.rate = 0.88;
+      utterance.pitch = 1.02;
       utterance.volume = 1;
       let resolved = false;
       const finish = () => {

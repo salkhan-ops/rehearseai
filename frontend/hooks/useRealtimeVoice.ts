@@ -43,6 +43,14 @@ function pickVoice(language = "en-US") {
   );
 }
 
+function humanizeSpeech(text: string) {
+  return text
+    .replace(/^(AI persona|Coach|Assistant)\s*:\s*/i, "")
+    .replace(/\s+/g, " ")
+    .replace(/\b(Stay focused on your goal:)\s*/gi, "")
+    .trim();
+}
+
 export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "en", longPauseMs = DEEPGRAM_LONG_PAUSE_MS } = {}) {
   const fallback = useContinuousVoice(browserSpeechCode);
   const callbackRef = useRef<FinalTranscriptCallback | null>(null);
@@ -225,7 +233,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     cleanupDeepgram();
     fallback.stopListening();
     setVoiceState("ai_speaking");
-    const cleanText = text.replace(/\s+/g, " ").trim();
+    const cleanText = humanizeSpeech(text);
     return new Promise(async (resolve) => {
       const playBrowserFallback = () => {
         if (typeof window === "undefined" || !window.speechSynthesis) {
@@ -237,8 +245,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = speechCode;
         utterance.voice = pickVoice(speechCode);
-        utterance.rate = 0.92;
-        utterance.pitch = 1.08;
+        utterance.rate = 0.88;
+        utterance.pitch = 1.02;
         utterance.volume = 1;
         utterance.onend = () => {
           setVoiceState("idle");

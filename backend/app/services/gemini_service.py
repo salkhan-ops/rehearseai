@@ -126,6 +126,25 @@ class GeminiService:
         return json.loads(cleaned)
 
     def _mock_roleplay(self, session: Session, history: list[Message], coordination_context: Optional[dict] = None) -> str:
+        latest_user = next((message.content for message in reversed(history) if message.role == "user"), "")
+        previous_ai = [message.content for message in history if message.role == "ai"]
+        lower_latest = latest_user.lower()
+
+        def first_fresh(options: list[str]) -> str:
+            for option in options:
+                if option not in previous_ai[-4:]:
+                    return option
+            return options[len(previous_ai) % len(options)]
+
+        if "stop repeating" in lower_latest or "repeat" in lower_latest:
+            return "Fair. I hear you. Let us drop the canned line and work with your actual point: what claim do you want to make about the Tesla price, and what evidence would make that price feel justified?"
+        if any(term in lower_latest for term in ["tesla", "rocket", "mars", "price", "ips"]):
+            return first_fresh([
+                "Okay, now we have a real argument. Are you saying the high price is justified by extreme technical risk, launch constraints, and the cost of reaching Mars? Put that into one clean claim.",
+                "That sounds like a pricing-defense question. I would challenge the leap from difficulty to price: what evidence shows buyers should pay that much, not just admire the engineering?",
+                "I can feel the point you are reaching for. Separate it into three parts: why the mission is hard, why that raises cost, and why the final price is still rational.",
+            ])
+
         if coordination_context:
             nerve = coordination_context.get("nerve") or {}
             if nerve:
@@ -135,23 +154,58 @@ class GeminiService:
                 return str(objections[0])
             state = coordination_context.get("userState")
             if state == "confused":
-                return "Let me narrow it down. What is the one part of the question you want me to clarify first?"
+                return first_fresh([
+                    "Let me narrow it down. What is the one part of the question you want me to clarify first?",
+                    "No problem. Let us make the target smaller: are you defending the idea, the evidence, or the price?",
+                ])
             if state == "overexplaining":
-                return "I am going to pause you there. Give me the core answer in one concise sentence."
+                return first_fresh([
+                    "I am going to pause you there. Give me the core answer in one concise sentence.",
+                    "Too many threads at once. Pick the strongest one and say it cleanly.",
+                ])
             if state == "rushing":
-                return "Slow it down for a moment. What is your main claim, and what is the single strongest proof?"
+                return first_fresh([
+                    "Slow it down for a moment. What is your main claim, and what is the single strongest proof?",
+                    "Take one breath. Lead with the claim, then give me only the proof that matters most.",
+                ])
             if coordination_context.get("pressureAdjustment") == "increase":
-                return "Good. Now take it one level deeper: what assumption in your answer would a skeptical person challenge first?"
-        pressure = {
-            "Beginner": "That is a useful start. What is the clearest reason behind your answer?",
-            "Intermediate": "I understand the point, but I need clearer evidence. What example proves that?",
-            "Advanced": "That needs tighter reasoning. What assumption would I challenge first?",
-            "Friendly": "That is a solid start. Can you make it a little more specific?",
-            "Realistic": "I understand the point, but I need clearer evidence. What example proves that?",
-            "Brutal": "I am not convinced yet. Give me the strongest version without hedging.",
-            "Nerve": "Where is your evidence? Defend the assumption behind your claim without giving me a generic answer.",
-        }[session.difficulty]
-        return f"{pressure} Stay focused on your goal: {session.goal}"
+                return first_fresh([
+                    "Good. Now take it one level deeper: what assumption in your answer would a skeptical person challenge first?",
+                    "Sharper now. Let me press the next layer: what would make your argument fail?",
+                    "That has a spine. Now defend the riskiest assumption in it.",
+                ])
+
+        difficulty_responses = {
+            "Beginner": [
+                "That is a useful start. Say the main point first, then give me one concrete example.",
+                "I am with you. What is the simplest version of your answer in one sentence?",
+            ],
+            "Intermediate": [
+                "I understand the point, but I need clearer evidence. What example proves that?",
+                "That answer has direction. Now make it less general: what happened, what changed, and what result followed?",
+            ],
+            "Advanced": [
+                "That needs tighter reasoning. What assumption would I challenge first?",
+                "Good pressure test: if I disagreed, which part of your logic would be easiest for me to attack?",
+            ],
+            "Friendly": [
+                "That is a solid start. Can you make it a little more specific?",
+                "Nice. Give me one human detail so it sounds lived, not rehearsed.",
+            ],
+            "Realistic": [
+                "I understand the point, but I need clearer evidence. What example proves that?",
+                "You are close, but it still sounds broad. Give me the strongest proof point and skip the setup.",
+            ],
+            "Brutal": [
+                "I am not convinced yet. Give me the strongest version without hedging.",
+                "That is too soft for this room. Make the claim directly, then defend it with one hard fact.",
+            ],
+            "Nerve": [
+                "Where is your evidence? Defend the assumption behind your claim without giving me a generic answer.",
+                "I am going to challenge the weakest link: what proof do you have that this is feasible, not just ambitious?",
+            ],
+        }
+        return first_fresh(difficulty_responses[session.difficulty])
 
     def _mock_report(self, report_id: str, session: Session) -> Report:
         return Report(
