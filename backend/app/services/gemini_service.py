@@ -1,4 +1,6 @@
+import asyncio
 import json
+import logging
 import re
 from typing import Optional
 import google.generativeai as genai
@@ -10,6 +12,8 @@ from app.models.session import Session
 from app.services.analytics_service import AnalyticsService
 from app.services.prompt_service import build_opening_prompt, build_report_prompt, build_roleplay_prompt
 from app.utils.timestamps import utc_now_iso
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiService:
@@ -28,47 +32,76 @@ class GeminiService:
         if not self.enabled or self.roleplay_model is None:
             return self._mock_roleplay(session, history, coordination_context)
         try:
-            response = await self.roleplay_model.generate_content_async(
-                build_roleplay_prompt(session, history, self.settings.ai_history_messages, coordination_context),
-                generation_config={
-                    "max_output_tokens": self.settings.ai_roleplay_max_output_tokens,
-                    "temperature": self.settings.ai_temperature,
-                },
+            response = await asyncio.wait_for(
+                self.roleplay_model.generate_content_async(
+                    build_roleplay_prompt(session, history, self.settings.ai_history_messages, coordination_context),
+                    generation_config={
+                        "max_output_tokens": self.settings.ai_roleplay_max_output_tokens,
+                        "temperature": self.settings.ai_temperature,
+                    },
+                ),
+                timeout=self.settings.ai_roleplay_timeout_seconds,
             )
             return (response.text or self._mock_roleplay(session, history, coordination_context)).strip()
-        except Exception:
+        except Exception as exc:
+            logger.warning("Gemini roleplay response failed; using fallback: %s", exc)
             return self._mock_roleplay(session, history, coordination_context)
 
     async def generate_opening_response(self, session: Session) -> str:
         if not self.enabled or self.roleplay_model is None:
             return self._mock_opening(session)
         try:
-            response = await self.roleplay_model.generate_content_async(
-                build_opening_prompt(session),
-                generation_config={
-                    "max_output_tokens": 120,
-                    "temperature": min(0.9, max(0.55, self.settings.ai_temperature)),
-                },
+            response = await asyncio.wait_for(
+                self.roleplay_model.generate_content_async(
+                    build_opening_prompt(session),
+                    generation_config={
+                        "max_output_tokens": 120,
+                        "temperature": min(0.9, max(0.55, self.settings.ai_temperature)),
+                    },
+                ),
+                timeout=min(8.0, self.settings.ai_roleplay_timeout_seconds),
             )
             return (response.text or self._mock_opening(session)).strip()
-        except Exception:
+        except Exception as exc:
+            logger.warning("Gemini opening response failed; using fallback: %s", exc)
             return self._mock_opening(session)
+
+    async def check_access(self) -> dict:
+        if not self.enabled or self.roleplay_model is None:
+            return {"configured": False, "ok": False, "reason": "GEMINI_API_KEY is not configured"}
+        try:
+            response = await asyncio.wait_for(
+                self.roleplay_model.generate_content_async(
+                    "Reply with exactly: OK",
+                    generation_config={"max_output_tokens": 8, "temperature": 0},
+                ),
+                timeout=min(8.0, self.settings.ai_roleplay_timeout_seconds),
+            )
+            text = (response.text or "").strip()
+            return {"configured": True, "ok": bool(text), "model": self.settings.gemini_roleplay_model, "sample": text[:20]}
+        except Exception as exc:
+            logger.warning("Gemini access check failed: %s", exc)
+            return {"configured": True, "ok": False, "model": self.settings.gemini_roleplay_model, "reason": exc.__class__.__name__}
 
     async def generate_feedback_report(self, report_id: str, session: Session, history: list[Message]) -> Report:
         if not self.enabled or self.report_model is None:
             return self._mock_report(report_id, session)
         try:
-            response = await self.report_model.generate_content_async(
-                build_report_prompt(session, history[-24:]),
-                generation_config={
-                    "max_output_tokens": self.settings.ai_report_max_output_tokens,
-                    "temperature": 0.35,
-                    "response_mime_type": "application/json",
-                },
+            response = await asyncio.wait_for(
+                self.report_model.generate_content_async(
+                    build_report_prompt(session, history[-24:]),
+                    generation_config={
+                        "max_output_tokens": self.settings.ai_report_max_output_tokens,
+                        "temperature": 0.35,
+                        "response_mime_type": "application/json",
+                    },
+                ),
+                timeout=self.settings.ai_report_timeout_seconds,
             )
             payload = self._parse_json(response.text or "")
             return Report(id=report_id, userId=session.userId, sessionId=session.id, practiceLanguage=session.practiceLanguage, feedbackLanguage=session.feedbackLanguage, createdAt=utc_now_iso(), **payload)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Gemini report response failed; using fallback: %s", exc)
             return self._mock_report(report_id, session)
 
     async def generate_performance_analytics(
@@ -97,16 +130,20 @@ class GeminiService:
                 + "\n\nBaseline JSON schema and fallback values:\n"
                 + fallback.model_dump_json()
             )
-            response = await self.report_model.generate_content_async(
-                prompt,
-                generation_config={
-                    "max_output_tokens": max(self.settings.ai_report_max_output_tokens, 2600),
-                    "temperature": 0.25,
-                    "response_mime_type": "application/json",
-                },
+            response = await asyncio.wait_for(
+                self.report_model.generate_content_async(
+                    prompt,
+                    generation_config={
+                        "max_output_tokens": max(self.settings.ai_report_max_output_tokens, 2600),
+                        "temperature": 0.25,
+                        "response_mime_type": "application/json",
+                    },
+                ),
+                timeout=self.settings.ai_report_timeout_seconds,
             )
             return PerformanceAnalytics(**self._parse_json(response.text or ""))
-        except Exception:
+        except Exception as exc:
+            logger.warning("Gemini analytics response failed; using fallback: %s", exc)
             return fallback
 
     async def generate_course_outline(self, baseline: dict, user_history: list[dict]) -> dict:
@@ -123,17 +160,21 @@ class GeminiService:
                 + "\n\nUser history summary:\n"
                 + json.dumps(user_history[-20:])
             )
-            response = await self.report_model.generate_content_async(
-                prompt,
-                generation_config={
-                    "max_output_tokens": 4200,
-                    "temperature": 0.35,
-                    "response_mime_type": "application/json",
-                },
+            response = await asyncio.wait_for(
+                self.report_model.generate_content_async(
+                    prompt,
+                    generation_config={
+                        "max_output_tokens": 4200,
+                        "temperature": 0.35,
+                        "response_mime_type": "application/json",
+                    },
+                ),
+                timeout=self.settings.ai_report_timeout_seconds,
             )
             payload = self._parse_json(response.text or "")
             return payload if isinstance(payload, dict) else baseline
-        except Exception:
+        except Exception as exc:
+            logger.warning("Gemini course outline response failed; using fallback: %s", exc)
             return baseline
 
     def _parse_json(self, text: str) -> dict:

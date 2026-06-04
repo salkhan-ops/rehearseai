@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     ai_roleplay_max_output_tokens: int = 180
     ai_report_max_output_tokens: int = 900
     ai_temperature: float = 0.65
+    ai_roleplay_timeout_seconds: float = 10.0
+    ai_report_timeout_seconds: float = 25.0
     firestore_project_id: Optional[str] = None
     paddle_api_key: Optional[str] = None
     paddle_webhook_secret: Optional[str] = None

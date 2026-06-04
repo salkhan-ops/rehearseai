@@ -15,3 +15,11 @@ async def health(request: Request) -> dict:
             "reportModel": getattr(getattr(ai, "settings", None), "gemini_model", None),
         },
     }
+
+
+@router.get("/health/gemini")
+async def gemini_health(request: Request) -> dict:
+    ai = getattr(request.app.state, "ai", None)
+    if not ai:
+        return {"configured": False, "ok": False, "reason": "AI service is unavailable"}
+    return await ai.check_access()
