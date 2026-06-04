@@ -49,6 +49,8 @@ async def create_session(payload: SessionCreate, request: Request, current_user_
     session = await get_store(request).create_session(payload)
     if session.difficulty == "Nerve":
         session = await get_cross_examination(request).prepare_session(session)
+    opening = await get_ai(request).generate_opening_response(session)
+    await get_store(request).add_message(session.id, "ai", opening)
     return session
 
 

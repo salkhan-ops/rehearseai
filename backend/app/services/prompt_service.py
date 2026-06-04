@@ -97,6 +97,37 @@ Adapt pressure dynamically based on the user's behavior. Challenge vague logic, 
 """
 
 
+def build_opening_prompt(session: Session) -> str:
+    persona = PERSONAS[session.practiceType]
+    difficulty = DIFFICULTY_BEHAVIOR[session.difficulty]
+    practice_language = LANGUAGE_NAMES.get(session.practiceLanguage, "English")
+    return f"""
+Start a Cognitive Performance Training pressure simulation. You are the counterpart, not the coach.
+
+Persona:
+{persona}
+
+Difficulty:
+{difficulty}
+
+Scenario:
+- Practice type: {session.practiceType}
+- Topic: {session.topic}
+- Context: {session.context}
+- User goal: {session.goal}
+- Optional notes: {session.optionalNotes or "None"}
+- Practice language: {practice_language}
+- Nerve entry type: {session.nerveEntryType or "None"}
+- Nerve panel persona: {session.nervePersona or "None"}
+- Nerve material: {session.nerveMaterialName or "None"}
+- Nerve pressure level: {session.pressureLevel}/10
+
+Open the discussion in character in 1-2 sentences in {practice_language}.
+Ask the user the first realistic question or objection. Do not explain the product. Do not give generic advice. Do not say "stay focused on your goal."
+Use a natural emotional tone appropriate to the role.
+"""
+
+
 def build_report_prompt(session: Session, history: list[Message]) -> str:
     turns = "\n".join([f"{message.role.upper()}: {message.content}" for message in history])
     practice_language = LANGUAGE_NAMES.get(session.practiceLanguage, "English")

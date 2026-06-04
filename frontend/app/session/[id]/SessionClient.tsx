@@ -444,7 +444,9 @@ export default function SessionPage() {
                     setError("");
                     setVoiceMode(true);
                     if (session?.status !== "completed") {
-                      voice.speak(listeningPrompts[practiceLanguage.code] || listeningPrompts.en, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode).then(() => voice.startListening());
+                      const hasUserTurn = messages.some((message) => message.role === "user");
+                      const openingMessage = !hasUserTurn ? messages.find((message) => message.role === "ai")?.content : "";
+                      voice.speak(openingMessage || listeningPrompts[practiceLanguage.code] || listeningPrompts.en, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode).then(() => voice.startListening());
                       return;
                     }
                     voice.startListening();

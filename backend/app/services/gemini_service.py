@@ -8,7 +8,7 @@ from app.models.message import Message
 from app.models.report import Report
 from app.models.session import Session
 from app.services.analytics_service import AnalyticsService
-from app.services.prompt_service import build_report_prompt, build_roleplay_prompt
+from app.services.prompt_service import build_opening_prompt, build_report_prompt, build_roleplay_prompt
 from app.utils.timestamps import utc_now_iso
 
 
@@ -38,6 +38,21 @@ class GeminiService:
             return (response.text or self._mock_roleplay(session, history, coordination_context)).strip()
         except Exception:
             return self._mock_roleplay(session, history, coordination_context)
+
+    async def generate_opening_response(self, session: Session) -> str:
+        if not self.enabled or self.roleplay_model is None:
+            return self._mock_opening(session)
+        try:
+            response = await self.roleplay_model.generate_content_async(
+                build_opening_prompt(session),
+                generation_config={
+                    "max_output_tokens": 120,
+                    "temperature": min(0.9, max(0.55, self.settings.ai_temperature)),
+                },
+            )
+            return (response.text or self._mock_opening(session)).strip()
+        except Exception:
+            return self._mock_opening(session)
 
     async def generate_feedback_report(self, report_id: str, session: Session, history: list[Message]) -> Report:
         if not self.enabled or self.report_model is None:
@@ -206,6 +221,19 @@ class GeminiService:
             ],
         }
         return first_fresh(difficulty_responses[session.difficulty])
+
+    def _mock_opening(self, session: Session) -> str:
+        openings = {
+            "Job Interview": f"Let us begin with the real question. For {session.topic}, what is the strongest evidence that you are ready for this role?",
+            "Presentation / Public Speaking": f"I am in the audience and I need a reason to care. Open your {session.topic} in one clear sentence.",
+            "Panel Discussion": f"I will start the panel. On {session.topic}, what is your position, and what would you say to someone who disagrees?",
+            "Thesis Defense": f"Let us begin with your central claim. What is the most defensible argument in your {session.topic}, and where is it vulnerable?",
+            "Salary Negotiation": f"I am going to be direct: why should this compensation change? Give me the evidence, not the desire.",
+            "Difficult Conversation": f"I am here and I am listening. What is the issue you need to raise, and what outcome are you trying to protect?",
+            "Teaching Session": f"I am your learner, and I am not fully following yet. Explain {session.topic} from the first principle.",
+            "Sales Pitch": f"I am skeptical about cost and urgency. Why should I care about {session.topic} now?",
+        }
+        return openings[session.practiceType]
 
     def _mock_report(self, report_id: str, session: Session) -> Report:
         return Report(
