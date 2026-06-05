@@ -106,6 +106,17 @@ export type Report = {
   improvedResponses: string[];
   drills: string[];
   nextRecommendation: string;
+  conversationDynamicsReport?: {
+    summary?: string;
+    whereUserStruggled?: string[];
+    pressureTriggers?: string[];
+    stanceChanges?: number;
+    howUserHandledOpposition?: string;
+    howUserHandledAgreementFollowUp?: string;
+    responseBreakdownMoments?: string[];
+    recoveryMoments?: string[];
+    aiActionsUsed?: string[];
+  } | null;
   nerveReport?: {
     defendabilityScore?: number;
     metrics?: Record<string, number>;
@@ -428,6 +439,25 @@ export type VoiceProfile = {
 };
 
 export type CoordinationUserState = "calm" | "thinking" | "confused" | "rushing" | "hesitating" | "defensive" | "overexplaining" | "collapsing" | "improving";
+export type ConversationStance = "supportive" | "curious" | "neutral" | "skeptical" | "opposing" | "hostile";
+export type ResponseBreakdown = "none" | "mild" | "moderate" | "severe";
+export type LikelyCause = "thinking" | "confused" | "avoiding" | "overexplaining" | "emotionally pressured" | "lacks evidence";
+
+export type ConversationControl = {
+  mode: string;
+  stance: ConversationStance;
+  pressureLevel: number;
+  responseBreakdown: ResponseBreakdown;
+  likelyCause: LikelyCause;
+  shouldClarify: boolean;
+  shouldChallenge: boolean;
+  shouldInterrupt: boolean;
+  shouldSupport: boolean;
+  shouldEscalate: boolean;
+  activePanelPersona?: string | null;
+  aiAction: "support" | "clarify" | "challenge" | "interrupt" | "escalate" | "multi_panel_followup";
+  breakdownSignals: string[];
+};
 
 export type ConversationCoordinationState = {
   userState: CoordinationUserState;
@@ -442,6 +472,12 @@ export type ConversationCoordinationState = {
   recommendedResponseLength: "micro" | "short" | "medium";
   pressureAdjustment: "decrease" | "maintain" | "increase";
   coachingSignal: string;
+  responseBreakdown: ResponseBreakdown;
+  likelyCause: LikelyCause;
+  stance: ConversationStance;
+  pressureLevel: number;
+  aiAction: ConversationControl["aiAction"];
+  conversationControl: ConversationControl;
   cartesia: {
     voiceEmotion: string;
     speakingRate: number;
@@ -463,6 +499,7 @@ export type ConversationAnalyzePayload = {
     userStateApprox?: string;
     adjustedWaitMs?: number;
     cameraAssisted?: boolean;
+    cameraHesitation?: boolean;
   };
 };
 

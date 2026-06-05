@@ -202,12 +202,35 @@ class GeminiService:
             ])
 
         if coordination_context:
+            control = coordination_context.get("conversationControl") or {}
             nerve = coordination_context.get("nerve") or {}
             if nerve:
                 if nerve.get("shouldInterrupt"):
                     return f"That does not answer the question. {nerve.get('instruction', 'Where is your evidence?')}"
                 objections = (nerve.get("analysis") or {}).get("possibleObjections") or ["What evidence supports that claim?"]
                 return str(objections[0])
+            if control.get("aiAction") == "multi_panel_followup":
+                return first_fresh([
+                    "Panelist 1: That did not answer the question. Panelist 2: Before you continue, explain the evidence behind the claim.",
+                    "Panelist A: I accept the direction, but the logic is thin. Panelist B: Name the assumption you are relying on.",
+                ])
+            if control.get("shouldSupport") and control.get("responseBreakdown") != "none":
+                return first_fresh([
+                    "Let me reframe the question. What evidence supports your conclusion, in one simple example?",
+                    "I will make the target smaller: what is the main claim, and what is one fact that supports it?",
+                ])
+            if control.get("stance") == "supportive" and control.get("shouldChallenge"):
+                return "That is a reasonable point. If it is true, what follows from it, and what evidence makes it stronger?"
+            if control.get("stance") in {"opposing", "hostile"}:
+                return first_fresh([
+                    "I do not buy that assumption. Give me a direct answer and the evidence behind it.",
+                    "That conclusion does not follow yet. Show me the causal link.",
+                ])
+            if control.get("stance") == "skeptical":
+                return first_fresh([
+                    "I can see the direction, but your evidence is weak. What proof supports the claim?",
+                    "You are close, but that is still broad. What specific example makes it defensible?",
+                ])
             state = coordination_context.get("userState")
             if state == "confused":
                 return first_fresh([
@@ -295,5 +318,6 @@ class GeminiService:
             improvedResponses=["I would frame this in three parts: context, action, and result.", "The strongest evidence is a recent example where I delivered under similar pressure.", "Before I answer, I want to clarify the main concern you want me to address."],
             drills=["Practice 60-second structured answers", "Record three objection responses", "Run one brutal-mode follow-up session"],
             nextRecommendation="Repeat this scenario at Realistic or Brutal difficulty and focus on concise evidence.",
+            conversationDynamicsReport=None,
             createdAt=utc_now_iso(),
         )

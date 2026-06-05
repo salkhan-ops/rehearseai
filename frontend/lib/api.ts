@@ -1,4 +1,4 @@
-import type { Achievement, CalibrationStart, ConversationAnalyzePayload, ConversationCoordinationState, Course, CourseBundle, CourseGeneratePayload, CourseSession, CourseTemplate, CourseTemplateEnrollmentPayload, CurrentSubscription, DailyChallenge, Difficulty, HintSummary, Message, NotificationItem, PerformanceAnalytics, PracticeHistory, PracticeScenario, PracticeSchedule, PracticeType, Report, Session, SessionHint, SessionPayload, UserProgress, VoiceProfile } from "./types";
+import type { Achievement, CalibrationStart, ConversationAnalyzePayload, ConversationControl, ConversationCoordinationState, Course, CourseBundle, CourseGeneratePayload, CourseSession, CourseTemplate, CourseTemplateEnrollmentPayload, CurrentSubscription, DailyChallenge, Difficulty, HintSummary, Message, NotificationItem, PerformanceAnalytics, PracticeHistory, PracticeScenario, PracticeSchedule, PracticeType, Report, Session, SessionHint, SessionPayload, UserProgress, VoiceProfile } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -36,7 +36,7 @@ export function getSession(id: string, token?: string | null) {
 }
 
 export function sendMessage(sessionId: string, content: string, userId = "guest", token?: string | null, coordination?: Partial<ConversationAnalyzePayload>) {
-  return request<{ userMessage: Message; aiMessage: Message; turnCount: number; hint?: SessionHint }>(`/api/sessions/${sessionId}/message`, {
+  return request<{ userMessage: Message; aiMessage: Message; turnCount: number; hint?: SessionHint; dynamics?: Record<string, unknown>; conversationControl?: ConversationControl }>(`/api/sessions/${sessionId}/message`, {
     method: "POST",
     body: JSON.stringify({ userId, content, ...(coordination || {}) }),
     token

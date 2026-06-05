@@ -38,12 +38,19 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
         adaptation += " In Nerve Mode, do not coach. Cross-examine the user's idea and expose weak logic, missing evidence, unsupported assumptions, and feasibility risk."
     coordination_block = "No live conversation coordination context provided."
     if coordination_context:
+        conversation_control = coordination_context.get("conversationControl") or {}
         coordination_block = f"""
 - userState: {coordination_context.get("userState")}
 - pressureAdjustment: {coordination_context.get("pressureAdjustment")}
 - recommendedAiTone: {coordination_context.get("recommendedAiTone")}
 - recommendedResponseLength: {coordination_context.get("recommendedResponseLength")}
 - shouldAiInterrupt: {coordination_context.get("shouldAiInterrupt")}
+- conversationControl: {conversation_control}
+- stance: {coordination_context.get("stance")}
+- pressureLevel: {coordination_context.get("pressureLevel")}
+- responseBreakdown: {coordination_context.get("responseBreakdown")}
+- likelyCause: {coordination_context.get("likelyCause")}
+- aiAction: {coordination_context.get("aiAction")}
 - pauseDecision: {coordination_context.get("pauseDecision")}
 - userStateApprox: {coordination_context.get("userStateApprox")}
 - adjustedWaitMs: {coordination_context.get("adjustedWaitMs")}
@@ -85,6 +92,16 @@ Conversation coordination instructions:
 {coordination_block}
 
 Apply coordination before writing the response:
+- Treat conversationControl as the governing control layer for this turn.
+- Use the selected stance: supportive, curious, neutral, skeptical, opposing, or hostile. Hostile means professionally adversarial, never abusive.
+- Agreement can be pressure: if stance is supportive or neutral and shouldChallenge is true, briefly agree with the reasonable part, then test evidence, implications, or assumptions.
+- Opposition should challenge assumptions, evidence, logic, feasibility, consistency, or implications.
+- Beginner/Friendly breakdown behavior: clarify, reframe, support, lower pressure, and ask a smaller follow-up.
+- Intermediate breakdown behavior: ask a clarifying follow-up and lightly challenge without giving the answer.
+- Advanced breakdown behavior: point out vagueness and request evidence.
+- Brutal breakdown behavior: directly challenge avoidance and demand clarity while staying professional.
+- Nerve breakdown behavior: use panel dynamics when shouldEscalate is true. A second panel voice may interrupt or chain a question, but keep the exchange coherent.
+- If safety risk reduced pressure, do not escalate. Avoid aggressive questioning on mental health, self-harm, medical, legal, harmful persuasion, or crisis topics.
 - If userState is confused, ask a shorter clarifying question.
 - If userState is overexplaining, interrupt politely and request a concise answer.
 - If pressureAdjustment is increase, ask a sharper follow-up.

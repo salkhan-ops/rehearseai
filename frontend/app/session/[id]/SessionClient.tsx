@@ -23,7 +23,7 @@ import { pauseFusionEngine } from "@/lib/local-signals/pauseFusionEngine";
 import { reportHref } from "@/lib/routes";
 import { getTelemetryConsent, outcomeFromReport, saveLocalSignalTelemetry, sendSessionOutcome, sendTurnTelemetry, type PrivacySettings, updateTelemetryConsent } from "@/lib/telemetry";
 import { environmentModes } from "@/lib/types";
-import type { EnvironmentMode, Message, Session, SessionHint } from "@/lib/types";
+import type { ConversationControl, EnvironmentMode, Message, Session, SessionHint } from "@/lib/types";
 import type { PauseFusionDecision } from "@/lib/local-signals/types";
 
 type OrbMode = "idle" | "listening" | "thinking" | "speaking" | "pressure" | "error";
@@ -86,6 +86,16 @@ function MicroMetric({ label, value, tone }: { label: string; value: number; ton
   );
 }
 
+function stanceLabel(control?: ConversationControl | null) {
+  if (!control) return "Neutral";
+  return control.stance.replace(/^\w/, (match) => match.toUpperCase());
+}
+
+function pressurePercent(control?: ConversationControl | null, session?: Session | null) {
+  const level = control?.pressureLevel || session?.pressureLevel || 1;
+  return Math.min(100, Math.max(10, level * 10));
+}
+
 function AmbientField({ mode }: { mode: OrbMode }) {
   const pressure = mode === "pressure";
   return (
@@ -131,6 +141,7 @@ export default function SessionPage() {
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(profile?.privacySettings || defaultPrivacySettings);
   const [latestHint, setLatestHint] = useState<SessionHint | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
+  const [latestControl, setLatestControl] = useState<ConversationControl | null>(null);
   const [autoSubmitNotice, setAutoSubmitNotice] = useState("");
   const [pauseDecision, setPauseDecision] = useState<PauseFusionDecision | null>(null);
   const autoEndingRef = useRef(false);
@@ -317,11 +328,16 @@ export default function SessionPage() {
           userStateApprox: localDecision.userStateApprox,
           adjustedWaitMs: localDecision.adjustedWaitMs,
           cameraAssisted: localDecision.cameraAssisted,
+          cameraHesitation: cameraAssistedTiming && (cameraSignals.signals.visualStillnessMs > 2600 || cameraSignals.signals.lookingAwayScore > 0.65),
         } : undefined,
       });
       const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
       setSession((current) => current ? { ...current, turnCount: result.turnCount } : current);
+      if (result.conversationControl) {
+        setLatestControl(result.conversationControl);
+        setSession((current) => current ? { ...current, pressureLevel: result.conversationControl?.pressureLevel || current.pressureLevel } : current);
+      }
       if (beginnerMode && result.hint) {
         setLatestHint(result.hint);
         setHintVisible(true);
@@ -534,7 +550,8 @@ export default function SessionPage() {
             <MicroMetric label="Reasoning stability" value={loading ? 61 : 82} tone="bg-violet-300 text-violet-300" />
           </div>
           <div className="absolute right-0 top-20 hidden max-w-xs space-y-3 lg:block">
-            <MicroMetric label="Pressure" value={session?.difficulty === "Nerve" ? Math.min(100, (session.pressureLevel || 1) * 10) : session?.difficulty === "Brutal" ? 88 : session?.difficulty === "Realistic" ? 62 : 34} tone="bg-rose-300 text-rose-300" />
+            <MicroMetric label="Pressure" value={pressurePercent(latestControl || coordination.state?.conversationControl, session)} tone="bg-rose-300 text-rose-300" />
+            <MicroMetric label="Stance" value={latestControl?.stance === "supportive" ? 28 : latestControl?.stance === "curious" ? 42 : latestControl?.stance === "skeptical" ? 68 : latestControl?.stance === "opposing" || latestControl?.stance === "hostile" ? 88 : 52} tone="bg-amber-200 text-amber-200" />
             <MicroMetric label="Recovery" value={voice.isSpeaking ? 78 : 71} tone="bg-emerald-300 text-emerald-300" />
           </div>
 
@@ -543,6 +560,14 @@ export default function SessionPage() {
               {voice.provider === "deepgram" ? "Deepgram live" : "Browser fallback"} · {practiceLanguage.nativeName} · {session?.difficulty || "Realistic"}{session?.difficulty === "Nerve" ? ` · pressure ${session.pressureLevel || 1}/10` : ""}
             </div>
             <div className="mx-auto mb-4 flex w-fit flex-wrap items-center justify-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-3 py-1.5 text-xs font-bold text-white/62 ring-1 ring-white/12 backdrop-blur-2xl">
+                <BrainCircuit size={14} /> {stanceLabel(latestControl || coordination.state?.conversationControl)} · pressure {latestControl?.pressureLevel || coordination.state?.pressureLevel || session?.pressureLevel || 1}/10
+              </div>
+              {session?.difficulty === "Nerve" && (
+                <div className="inline-flex items-center gap-2 rounded-full bg-rose-300/12 px-3 py-1.5 text-xs font-bold text-rose-50 ring-1 ring-rose-200/20 backdrop-blur-2xl">
+                  <UsersRound size={14} /> Panel mode
+                </div>
+              )}
               <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ring-1 backdrop-blur-2xl ${cameraAssistedTiming ? "bg-emerald-300/12 text-emerald-50 ring-emerald-200/20" : "bg-white/[0.08] text-white/50 ring-white/12"}`}>
                 <ShieldCheck size={14} /> {cameraAssistedTiming ? cameraSignals.message : "Camera assistance is off."} {cameraAssistedTiming && <span className="rounded-full bg-white/10 px-2 py-0.5">local only</span>}
               </div>
@@ -567,6 +592,11 @@ export default function SessionPage() {
               <div className="mt-8 grid gap-4 text-left">
                 <BeginnerBriefing session={session} />
                 <ConversationMap session={session} />
+              </div>
+            )}
+            {beginnerMode && (latestControl?.shouldSupport || coordination.state?.conversationControl?.shouldSupport) && (
+              <div className="mx-auto mt-5 max-w-xl rounded-[1.25rem] bg-cyan-100/[0.08] px-4 py-3 text-sm font-semibold text-cyan-50/76 ring-1 ring-cyan-100/15 backdrop-blur-2xl">
+                Try a smaller answer: claim first, then one piece of evidence.
               </div>
             )}
           </div>

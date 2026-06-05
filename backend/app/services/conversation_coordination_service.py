@@ -5,6 +5,9 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from app.services.firestore_service import FirestoreService
+from app.services.conversation_stance_service import ConversationStance, ConversationStanceService
+from app.services.pressure_escalation_service import AiAction, PressureEscalationService
+from app.services.response_breakdown_service import LikelyCause, ResponseBreakdown, responseBreakdownDetector
 from app.utils.timestamps import utc_now_iso
 
 
@@ -75,6 +78,14 @@ class CoordinationAnalyzeRequest(BaseModel):
     wordTimings: list[WordTiming] = Field(default_factory=list)
     sessionId: Optional[str] = None
     userId: str = "guest"
+    mode: str = "Intermediate"
+    currentPressureLevel: int = 1
+    turnId: Optional[str] = None
+    turnCount: int = 0
+    activePanelPersona: Optional[str] = None
+    safetyRiskLevel: str = "LOW"
+    cameraAssisted: bool = False
+    cameraHesitation: bool = False
 
 
 class CartesiaCoordination(BaseModel):
@@ -82,6 +93,22 @@ class CartesiaCoordination(BaseModel):
     speakingRate: float
     intensity: float
     pauseStyle: str
+
+
+class ConversationControl(BaseModel):
+    mode: str
+    stance: ConversationStance
+    pressureLevel: int
+    responseBreakdown: ResponseBreakdown
+    likelyCause: LikelyCause
+    shouldClarify: bool
+    shouldChallenge: bool
+    shouldInterrupt: bool
+    shouldSupport: bool
+    shouldEscalate: bool
+    activePanelPersona: Optional[str] = None
+    aiAction: AiAction
+    breakdownSignals: list[str] = Field(default_factory=list)
 
 
 class CoordinationState(BaseModel):
@@ -98,12 +125,20 @@ class CoordinationState(BaseModel):
     pressureAdjustment: PressureAdjustment
     coachingSignal: str
     cartesia: CartesiaCoordination
+    responseBreakdown: ResponseBreakdown = "none"
+    likelyCause: LikelyCause = "thinking"
+    stance: ConversationStance = "neutral"
+    pressureLevel: int = 1
+    aiAction: AiAction = "clarify"
+    conversationControl: ConversationControl
 
 
 class ConversationCoordinationService:
     def __init__(self, store: FirestoreService) -> None:
         self.store = store
         self.live_baselines: dict[str, dict] = {}
+        self.stance = ConversationStanceService()
+        self.pressure = PressureEscalationService()
 
     async def start_calibration(self, user_id: str) -> CalibrationStartResponse:
         return CalibrationStartResponse(
@@ -202,6 +237,50 @@ class ConversationCoordinationService:
         elif user_state == "improving":
             pressure = "increase"
 
+        breakdown = responseBreakdownDetector.detect(
+            transcript=payload.transcript,
+            interim_transcript=payload.interimTranscript,
+            silence_ms=payload.silenceMs,
+            speech_duration_ms=payload.speechDurationMs,
+            profile=profile,
+            user_state=user_state,
+            camera_assisted=payload.cameraAssisted,
+            camera_hesitation=payload.cameraHesitation,
+        )
+        stance = self.stance.choose_stance(
+            mode=payload.mode,
+            response_breakdown=breakdown.responseBreakdown,
+            likely_cause=breakdown.likelyCause,
+            pressure_level=payload.currentPressureLevel,
+            user_state=user_state,
+            turn_count=payload.turnCount,
+            panel_persona=payload.activePanelPersona,
+        )
+        pressure_decision = self.pressure.next_pressure(
+            mode=payload.mode,
+            current_pressure=payload.currentPressureLevel,
+            response_breakdown=breakdown.responseBreakdown,
+            likely_cause=breakdown.likelyCause,
+            user_state=user_state,
+            stance=stance,
+            safety_risk_level=payload.safetyRiskLevel,
+        )
+        control = ConversationControl(
+            mode=payload.mode,
+            stance=stance,
+            pressureLevel=pressure_decision.pressureLevel,
+            responseBreakdown=breakdown.responseBreakdown,
+            likelyCause=breakdown.likelyCause,
+            shouldClarify=pressure_decision.shouldClarify,
+            shouldChallenge=pressure_decision.shouldChallenge,
+            shouldInterrupt=pressure_decision.shouldInterrupt,
+            shouldSupport=pressure_decision.shouldSupport,
+            shouldEscalate=pressure_decision.shouldEscalate,
+            activePanelPersona=payload.activePanelPersona,
+            aiAction=pressure_decision.aiAction,
+            breakdownSignals=breakdown.signals,
+        )
+
         return CoordinationState(
             userState=user_state,
             silenceMs=payload.silenceMs,
@@ -216,6 +295,12 @@ class ConversationCoordinationService:
             pressureAdjustment=pressure,
             coachingSignal=self._coaching_signal(user_state),
             cartesia=self._cartesia(user_state),
+            responseBreakdown=breakdown.responseBreakdown,
+            likelyCause=breakdown.likelyCause,
+            stance=stance,
+            pressureLevel=pressure_decision.pressureLevel,
+            aiAction=pressure_decision.aiAction,
+            conversationControl=control,
         )
 
     def prompt_context(self, state: Optional[CoordinationState]) -> Optional[dict]:
@@ -229,6 +314,12 @@ class ConversationCoordinationService:
             "shouldAiInterrupt": state.shouldAiInterrupt,
             "instruction": self._prompt_instruction(state),
             "cartesia": state.cartesia.model_dump(),
+            "conversationControl": state.conversationControl.model_dump(),
+            "responseBreakdown": state.responseBreakdown,
+            "likelyCause": state.likelyCause,
+            "stance": state.stance,
+            "pressureLevel": state.pressureLevel,
+            "aiAction": state.aiAction,
         }
 
     def _prompt_instruction(self, state: CoordinationState) -> str:
@@ -243,6 +334,22 @@ class ConversationCoordinationService:
         if state.userState == "collapsing":
             return "Give a smaller prompt with one clear next step."
         return "Keep the social timing natural and respond in the recommended tone."
+
+    async def log_dynamics(self, *, user_id: str, session_id: str, turn_id: str, state: CoordinationState) -> dict:
+        record = {
+            "dynamicsId": str(uuid4()),
+            "userId": user_id,
+            "sessionId": session_id,
+            "turnId": turn_id,
+            "mode": state.conversationControl.mode,
+            "stance": state.stance,
+            "pressureLevel": state.pressureLevel,
+            "responseBreakdown": state.responseBreakdown,
+            "likelyCause": state.likelyCause,
+            "aiAction": state.aiAction,
+            "createdAt": utc_now_iso(),
+        }
+        return await self.store.save_conversation_dynamics(record)
 
     def _tone(self, user_state: UserState) -> str:
         return {

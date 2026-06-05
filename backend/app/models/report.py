@@ -22,4 +22,5 @@ class Report(BaseModel):
     drills: list[str]
     nextRecommendation: str
     nerveReport: Optional[dict] = None
+    conversationDynamicsReport: Optional[dict] = None
     createdAt: str

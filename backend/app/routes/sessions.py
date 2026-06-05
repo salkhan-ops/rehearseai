@@ -116,6 +116,14 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
             wordTimings=payload.wordTimings or [],
             sessionId=session_id,
             userId=session.userId,
+            mode=session.difficulty,
+            currentPressureLevel=session.pressureLevel,
+            turnId=user_message.id,
+            turnCount=session.turnCount,
+            activePanelPersona=session.nervePersona,
+            safetyRiskLevel=safety.risk_level,
+            cameraAssisted=bool((payload.coordinationContext or {}).get("cameraAssisted", False)),
+            cameraHesitation=bool((payload.coordinationContext or {}).get("cameraHesitation", False)),
         )
     )
     coordination_context = get_coordination(request).prompt_context(coordination_state)
@@ -132,13 +140,20 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
         }
     if session.difficulty == "Nerve":
         nerve_context = await get_cross_examination(request).build_turn_context(session, history, payload.content, coordination_state)
+        coordination_state.pressureLevel = session.pressureLevel
+        coordination_state.conversationControl.pressureLevel = session.pressureLevel
         coordination_context = {**(coordination_context or {}), "nerve": nerve_context}
+        if coordination_context.get("conversationControl"):
+            coordination_context["conversationControl"]["pressureLevel"] = session.pressureLevel
+    elif session.difficulty in {"Beginner", "Friendly", "Intermediate", "Realistic", "Advanced", "Brutal"}:
+        session.pressureLevel = coordination_state.pressureLevel
     ai_content = await get_ai(request).generate_roleplay_response(session, history, coordination_context)
     hint = await request.app.state.coach.maybe_generate_hint(session, history, payload.content, coordination_state)
     ai_message = await store.add_message(session_id, "ai", ai_content)
     session.turnCount += 1
+    dynamics = await get_coordination(request).log_dynamics(user_id=session.userId, session_id=session_id, turn_id=user_message.id, state=coordination_state)
     await store.update_session(session)
-    return {"userMessage": user_message, "aiMessage": ai_message, "turnCount": session.turnCount, "hint": hint}
+    return {"userMessage": user_message, "aiMessage": ai_message, "turnCount": session.turnCount, "hint": hint, "dynamics": dynamics, "conversationControl": coordination_state.conversationControl.model_dump()}
 
 
 @router.get("/api/sessions/{session_id}/hints")

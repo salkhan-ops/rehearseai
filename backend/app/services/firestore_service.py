@@ -93,6 +93,7 @@ class FirestoreService:
         self.billing_subscriptions: dict[str, dict] = {}
         self.voice_profiles: dict[str, dict] = {}
         self.conversation_states: dict[str, dict] = {}
+        self.conversation_dynamics: dict[str, dict] = {}
         self.conversation_telemetry: dict[str, dict] = {}
         self.local_signal_telemetry: dict[str, dict] = {}
         self.session_outcomes: dict[str, dict] = {}
@@ -428,6 +429,29 @@ class FirestoreService:
             self.client.collection("conversationStates").document(state_id).set(payload, merge=True)
         self.conversation_states[state_id] = payload
         return payload
+
+    async def save_conversation_dynamics(self, record: dict) -> dict:
+        dynamics_id = record["dynamicsId"]
+        if self.client:
+            self.client.collection("conversationDynamics").document(dynamics_id).set(record, merge=True)
+        self.conversation_dynamics[dynamics_id] = record
+        return record
+
+    async def list_conversation_dynamics(self, user_id: Optional[str] = None, session_id: Optional[str] = None, limit_count: int = 100) -> list[dict]:
+        if self.client:
+            query = self.client.collection("conversationDynamics")
+            if user_id:
+                query = query.where("userId", "==", user_id)
+            if session_id:
+                query = query.where("sessionId", "==", session_id)
+            docs = query.order_by("createdAt", direction=firestore.Query.ASCENDING).limit(limit_count).stream()
+            return [doc.to_dict() for doc in docs]
+        records = list(self.conversation_dynamics.values())
+        if user_id:
+            records = [record for record in records if record.get("userId") == user_id]
+        if session_id:
+            records = [record for record in records if record.get("sessionId") == session_id]
+        return sorted(records, key=lambda item: item.get("createdAt", ""))[:limit_count]
 
     async def save_conversation_telemetry(self, record: dict) -> dict:
         telemetry_id = record["telemetryId"]
