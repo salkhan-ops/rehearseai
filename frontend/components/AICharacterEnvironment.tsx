@@ -14,6 +14,8 @@ type Figure = {
   folded?: boolean;
 };
 
+const publicAsset = (path: string) => `${process.env.NEXT_PUBLIC_BASE_PATH || ""}${path}`;
+
 const scenes: Record<EnvironmentMode, { title: string; layout: "interview" | "panel" | "audience" | "board"; figures: Figure[] }> = {
   "AI Orb": { title: "AI Orb", layout: "interview", figures: [] },
   "Single Interviewer": {
@@ -183,7 +185,7 @@ export function AICharacterEnvironment({ mode = "AI Orb", preview = false }: { m
     return (
       <div className={`pointer-events-none ${preview ? "relative h-52 w-full overflow-hidden rounded-[1.5rem] bg-[#07111f] ring-1 ring-slate-200 dark:ring-white/10" : "absolute inset-x-0 top-6 z-[1] mx-auto h-[34rem] max-w-6xl overflow-hidden rounded-[2rem] opacity-100 shadow-[0_34px_120px_rgba(0,0,0,0.28)] ring-1 ring-white/10 [mask-image:linear-gradient(to_bottom,transparent,black_5%,black_88%,transparent)]"}`}>
         <img
-          src="/scenes/panel-room-3d.png"
+          src={publicAsset("/scenes/panel-room-3d.png")}
           alt=""
           className={`absolute inset-0 h-full w-full object-cover ${preview ? "scale-105" : "scale-[1.03]"}`}
           style={{ objectPosition: scene.layout === "audience" ? "center 42%" : "center 48%" }}

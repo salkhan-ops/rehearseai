@@ -15,6 +15,8 @@ const scenes: Record<PracticeType, { label: string; role: string; accent: string
   "Sales Pitch": { label: "Buyer room", role: "Skeptical buyer", accent: "from-amber-400 to-rose-500", prompt: "Raise objections" },
 };
 
+const publicAsset = (path: string) => `${process.env.NEXT_PUBLIC_BASE_PATH || ""}${path}`;
+
 function SignalWave({ active }: { active: boolean }) {
   return (
     <div className="flex h-10 items-center gap-1.5">
@@ -38,7 +40,7 @@ export function ScenarioAvatar({ practiceType, speaking = false }: { practiceTyp
     <div className="overflow-hidden rounded-[2rem] bg-slate-950 p-3 text-white shadow-[0_30px_90px_rgba(20,30,60,0.18)] ring-1 ring-white/10">
       <div className="relative min-h-[420px] overflow-hidden rounded-[1.65rem]">
         <img
-          src="/scenes/panel-room-3d.png"
+          src={publicAsset("/scenes/panel-room-3d.png")}
           alt="Realistic AI rehearsal panel facing the user"
           className={`absolute inset-0 h-full w-full object-cover transition duration-700 ${speaking ? "scale-[1.04] saturate-125" : "scale-100 saturate-105"}`}
         />
