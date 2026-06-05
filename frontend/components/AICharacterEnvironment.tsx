@@ -101,12 +101,12 @@ const scenes: Record<EnvironmentMode, { title: string; layout: "interview" | "pa
   },
 };
 
-const toneStyles: Record<FigureTone, { body: string; face: string; accent: string; delay: number }> = {
-  neutral: { body: "from-cyan-200/22 to-slate-500/18", face: "bg-cyan-100/78", accent: "bg-cyan-200/36", delay: 0 },
-  skeptical: { body: "from-rose-200/24 to-slate-500/18", face: "bg-rose-100/78", accent: "bg-rose-200/40", delay: 0.45 },
-  notes: { body: "from-violet-200/24 to-slate-500/18", face: "bg-violet-100/78", accent: "bg-violet-200/38", delay: 0.8 },
-  forward: { body: "from-emerald-200/24 to-slate-500/18", face: "bg-emerald-100/78", accent: "bg-emerald-200/40", delay: 0.25 },
-  distant: { body: "from-white/20 to-slate-500/16", face: "bg-white/70", accent: "bg-white/26", delay: 1.1 },
+const toneStyles: Record<FigureTone, { jacket: string; shirt: string; skin: string; accent: string; hair: string; delay: number }> = {
+  neutral: { jacket: "from-slate-500 to-slate-800", shirt: "bg-cyan-100", skin: "bg-[#f4c7a1]", accent: "bg-cyan-300", hair: "bg-slate-950", delay: 0 },
+  skeptical: { jacket: "from-rose-900 to-slate-950", shirt: "bg-rose-100", skin: "bg-[#d9a184]", accent: "bg-rose-300", hair: "bg-slate-950", delay: 0.45 },
+  notes: { jacket: "from-violet-800 to-slate-950", shirt: "bg-violet-100", skin: "bg-[#e8b894]", accent: "bg-violet-300", hair: "bg-slate-900", delay: 0.8 },
+  forward: { jacket: "from-emerald-800 to-slate-950", shirt: "bg-emerald-100", skin: "bg-[#f0bc95]", accent: "bg-emerald-300", hair: "bg-slate-950", delay: 0.25 },
+  distant: { jacket: "from-slate-400 to-slate-800", shirt: "bg-white", skin: "bg-[#c9957d]", accent: "bg-white", hair: "bg-slate-800", delay: 1.1 },
 };
 
 function AvatarFigure({ figure, index, compact = false }: { figure: Figure; index: number; compact?: boolean }) {
@@ -114,37 +114,44 @@ function AvatarFigure({ figure, index, compact = false }: { figure: Figure; inde
   return (
     <motion.div
       className="absolute -translate-x-1/2"
-      style={{ left: figure.x, top: figure.y, scale: (figure.scale || 1) * (compact ? 0.82 : 1.9) }}
-      animate={{ y: [0, -4, 1, 0], rotate: [0, index % 2 ? 1.1 : -1.1, 0] }}
+      style={{ left: figure.x, top: figure.y, scale: (figure.scale || 1) * (compact ? 0.84 : 1.55) }}
+      animate={{ y: [0, -3, 1, 0], rotate: [0, index % 2 ? 0.7 : -0.7, 0] }}
       transition={{ duration: 5.4 + index * 0.22, delay: tone.delay, repeat: Infinity, ease: "easeInOut" }}
       aria-hidden="true"
     >
       <motion.div
-        className={`relative h-28 w-24 rounded-t-[2.25rem] bg-gradient-to-b ${tone.body} ring-1 ring-white/25 shadow-[0_24px_80px_rgba(0,0,0,0.34)] backdrop-blur-xl`}
+        className="relative h-40 w-32"
         animate={{ scaleY: [1, 1.015, 1] }}
         transition={{ duration: 3.8, delay: index * 0.18, repeat: Infinity, ease: "easeInOut" }}
       >
+        <div className="absolute bottom-0 left-1/2 h-24 w-32 -translate-x-1/2 rounded-t-[2rem] bg-slate-950/76 ring-2 ring-white/20 shadow-[0_28px_90px_rgba(0,0,0,0.42)]" />
+        <div className="absolute bottom-2 left-1/2 h-14 w-24 -translate-x-1/2 rounded-t-[1.5rem] bg-slate-800/88 ring-1 ring-white/16" />
         <motion.div
-          className={`absolute left-1/2 top-5 h-9 w-10 -translate-x-1/2 rounded-[1.1rem] ${tone.face} shadow-[inset_0_-8px_16px_rgba(15,23,42,0.16)]`}
+          className={`absolute left-1/2 top-0 h-14 w-14 -translate-x-1/2 rounded-[1.4rem] ${tone.skin} shadow-[0_12px_34px_rgba(0,0,0,0.28),inset_0_-8px_16px_rgba(15,23,42,0.12)] ring-2 ring-white/28`}
           animate={{ x: [0, index % 3 === 0 ? -2 : 2, 0] }}
           transition={{ duration: 4.8, delay: 0.35 + index * 0.12, repeat: Infinity, ease: "easeInOut" }}
         >
-          <motion.span className="absolute left-2 top-4 h-1 w-1 rounded-full bg-slate-900/58" animate={{ scaleY: [1, 0.1, 1] }} transition={{ duration: 3.6, delay: 1 + index * 0.37, repeat: Infinity }} />
-          <motion.span className="absolute right-2 top-4 h-1 w-1 rounded-full bg-slate-900/58" animate={{ scaleY: [1, 0.1, 1] }} transition={{ duration: 3.6, delay: 1 + index * 0.37, repeat: Infinity }} />
+          <div className={`absolute -top-2 left-1/2 h-5 w-12 -translate-x-1/2 rounded-t-2xl ${tone.hair}`} />
+          <motion.span className="absolute left-4 top-6 h-1.5 w-1.5 rounded-full bg-slate-950/78" animate={{ scaleY: [1, 0.12, 1] }} transition={{ duration: 3.6, delay: 1 + index * 0.37, repeat: Infinity }} />
+          <motion.span className="absolute right-4 top-6 h-1.5 w-1.5 rounded-full bg-slate-950/78" animate={{ scaleY: [1, 0.12, 1] }} transition={{ duration: 3.6, delay: 1 + index * 0.37, repeat: Infinity }} />
+          <span className="absolute left-1/2 top-9 h-1 w-6 -translate-x-1/2 rounded-full bg-slate-950/34" />
         </motion.div>
-        <div className={`absolute bottom-7 left-1/2 h-7 w-14 -translate-x-1/2 rounded-full ${tone.accent}`} />
+        <div className={`absolute left-1/2 top-12 h-24 w-24 -translate-x-1/2 rounded-t-[2rem] bg-gradient-to-b ${tone.jacket} ring-2 ring-white/24 shadow-[0_22px_50px_rgba(0,0,0,0.32)]`} />
+        <div className={`absolute left-1/2 top-[4.2rem] h-16 w-10 -translate-x-1/2 rounded-t-xl ${tone.shirt}`} />
+        <div className={`absolute left-1/2 top-[4.15rem] h-2 w-12 -translate-x-1/2 rounded-full ${tone.accent} opacity-80`} />
         {figure.folded ? (
           <>
-            <div className="absolute bottom-8 left-3 h-1.5 w-12 rotate-12 rounded-full bg-white/38" />
-            <div className="absolute bottom-8 right-3 h-1.5 w-12 -rotate-12 rounded-full bg-white/38" />
+            <div className="absolute left-5 top-[6.4rem] h-3 w-20 rotate-12 rounded-full bg-[#d9a184] ring-1 ring-white/16" />
+            <div className="absolute right-5 top-[6.4rem] h-3 w-20 -rotate-12 rounded-full bg-[#d9a184] ring-1 ring-white/16" />
           </>
         ) : (
           <>
-            <div className="absolute bottom-7 left-4 h-9 w-2 -rotate-12 rounded-full bg-white/28" />
-            <div className="absolute bottom-7 right-4 h-9 w-2 rotate-12 rounded-full bg-white/28" />
+            <div className="absolute left-3 top-[5.7rem] h-14 w-4 -rotate-12 rounded-full bg-[#e8b894] ring-1 ring-white/16" />
+            <div className="absolute right-3 top-[5.7rem] h-14 w-4 rotate-12 rounded-full bg-[#e8b894] ring-1 ring-white/16" />
           </>
         )}
-        {(figure.tone === "notes" || index % 5 === 0) && <div className="absolute -bottom-2 left-1/2 h-4 w-12 -translate-x-1/2 rounded bg-white/38 ring-1 ring-white/20" />}
+        {(figure.tone === "notes" || index % 5 === 0) && <div className="absolute bottom-3 left-1/2 h-5 w-16 -translate-x-1/2 rounded bg-white/88 ring-1 ring-white/30 shadow-[0_8px_20px_rgba(0,0,0,0.2)]" />}
+        <div className="absolute -bottom-1 left-1/2 h-4 w-40 -translate-x-1/2 rounded-full bg-slate-950/68 ring-1 ring-white/12" />
       </motion.div>
     </motion.div>
   );
