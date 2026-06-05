@@ -114,7 +114,7 @@ function AvatarFigure({ figure, index, compact = false }: { figure: Figure; inde
   return (
     <motion.div
       className="absolute -translate-x-1/2"
-      style={{ left: figure.x, top: figure.y, scale: (figure.scale || 1) * (compact ? 0.72 : 1) }}
+      style={{ left: figure.x, top: figure.y, scale: (figure.scale || 1) * (compact ? 0.82 : 1.9) }}
       animate={{ y: [0, -4, 1, 0], rotate: [0, index % 2 ? 1.1 : -1.1, 0] }}
       transition={{ duration: 5.4 + index * 0.22, delay: tone.delay, repeat: Infinity, ease: "easeInOut" }}
       aria-hidden="true"

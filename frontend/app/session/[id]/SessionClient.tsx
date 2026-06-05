@@ -5,7 +5,6 @@ import { ArrowLeft, BrainCircuit, Clock3, Mic, MicOff, Send, Square, UsersRound,
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { AIPresenceOrb } from "@/components/AIPresenceOrb";
 import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
 import { AnimatedMessage, AnimatedPage, TypingIndicator } from "@/components/animations";
 import { BeginnerBriefing } from "@/components/learning/BeginnerBriefing";
@@ -30,6 +29,7 @@ const voiceOptions = [
 ];
 
 const durationOptions = [5, 10, 15, 30, 45, 60];
+const characterEnvironmentModes = environmentModes.filter((mode) => mode !== "AI Orb") as EnvironmentMode[];
 
 const listeningPrompts: Record<string, string> = {
   en: "I am listening. Start your answer when you are ready.",
@@ -107,7 +107,7 @@ export default function SessionPage() {
   const [durationMinutes, setDurationMinutes] = useState(10);
   const [customDuration, setCustomDuration] = useState(false);
   const [selectedVoiceId, setSelectedVoiceId] = useState(voiceOptions[0].id);
-  const [visualMode, setVisualMode] = useState<EnvironmentMode>("AI Orb");
+  const [visualMode, setVisualMode] = useState<EnvironmentMode>("Single Interviewer");
   const [voiceMode, setVoiceMode] = useState(false);
   const [latestHint, setLatestHint] = useState<SessionHint | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
@@ -129,7 +129,7 @@ export default function SessionPage() {
       .then((token: string | null) => getSession(id, token))
       .then((data: { session: Session; messages: Message[] }) => {
         setSession(data.session);
-        setVisualMode(data.session.environmentMode || "AI Orb");
+        setVisualMode(data.session.environmentMode && data.session.environmentMode !== "AI Orb" ? data.session.environmentMode : "Single Interviewer");
         if (data.session.durationPreference) setDurationMinutes(data.session.durationPreference);
         setMessages(data.messages);
       })
@@ -320,7 +320,7 @@ export default function SessionPage() {
                 className="max-w-44 bg-transparent text-white outline-none [color-scheme:dark]"
                 aria-label="Visual room"
               >
-                {environmentModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+                {characterEnvironmentModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
               </select>
             </label>
             <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl md:flex">
@@ -384,12 +384,12 @@ export default function SessionPage() {
               className="max-w-[62vw] bg-transparent text-right text-white outline-none [color-scheme:dark]"
               aria-label="Visual room"
             >
-              {environmentModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+              {characterEnvironmentModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
             </select>
           </label>
         </div>
 
-        <section className="relative grid flex-1 place-items-center py-8">
+        <section className={`relative grid flex-1 place-items-center py-8 ${visualMode !== "AI Orb" ? "min-h-[680px]" : ""}`}>
           <AICharacterEnvironment mode={visualMode} />
           <div className="absolute left-0 top-8 hidden max-w-xs space-y-3 lg:block">
             <MicroMetric label="Confidence" value={voice.isListening ? 74 : 68} tone="bg-cyan-300 text-cyan-300" />
@@ -400,11 +400,10 @@ export default function SessionPage() {
             <MicroMetric label="Recovery" value={voice.isSpeaking ? 78 : 71} tone="bg-emerald-300 text-emerald-300" />
           </div>
 
-          <div className="relative z-10 w-full max-w-4xl text-center">
+          <div className={`relative z-10 w-full max-w-4xl text-center ${visualMode !== "AI Orb" ? "pt-[29rem]" : ""}`}>
             <div className="mx-auto mb-3 w-fit rounded-full bg-white/[0.08] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/76 ring-1 ring-white/12 backdrop-blur-2xl">
               {voice.provider === "deepgram" ? "Deepgram live" : "Browser fallback"} · {practiceLanguage.nativeName} · {session?.difficulty || "Realistic"}{session?.difficulty === "Nerve" ? ` · pressure ${session.pressureLevel || 1}/10` : ""}
             </div>
-            <AIPresenceOrb state={orbMode} intensity={(session?.turnCount || 0) / 8} />
             <h1 className="mx-auto -mt-3 max-w-3xl text-4xl font-semibold leading-[0.98] tracking-[-0.055em] text-white sm:text-6xl">
               {session?.practiceType || "Cognitive simulation"}
             </h1>
