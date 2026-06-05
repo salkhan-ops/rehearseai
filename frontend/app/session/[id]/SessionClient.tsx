@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, BrainCircuit, Clock3, Mic, MicOff, Send, Square, Volume2 } from "lucide-react";
+import { ArrowLeft, BrainCircuit, Clock3, Mic, MicOff, Send, Square, UsersRound, Volume2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -19,7 +19,8 @@ import { useAuth } from "@/lib/auth";
 import { getLanguage, isRtlLanguage } from "@/lib/languages";
 import { reportHref } from "@/lib/routes";
 import { outcomeFromReport, sendSessionOutcome, sendTurnTelemetry } from "@/lib/telemetry";
-import type { Message, Session, SessionHint } from "@/lib/types";
+import { environmentModes } from "@/lib/types";
+import type { EnvironmentMode, Message, Session, SessionHint } from "@/lib/types";
 
 type OrbMode = "idle" | "listening" | "thinking" | "speaking" | "pressure" | "error";
 
@@ -106,6 +107,7 @@ export default function SessionPage() {
   const [durationMinutes, setDurationMinutes] = useState(10);
   const [customDuration, setCustomDuration] = useState(false);
   const [selectedVoiceId, setSelectedVoiceId] = useState(voiceOptions[0].id);
+  const [visualMode, setVisualMode] = useState<EnvironmentMode>("AI Orb");
   const [voiceMode, setVoiceMode] = useState(false);
   const [latestHint, setLatestHint] = useState<SessionHint | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
@@ -127,6 +129,7 @@ export default function SessionPage() {
       .then((token: string | null) => getSession(id, token))
       .then((data: { session: Session; messages: Message[] }) => {
         setSession(data.session);
+        setVisualMode(data.session.environmentMode || "AI Orb");
         if (data.session.durationPreference) setDurationMinutes(data.session.durationPreference);
         setMessages(data.messages);
       })
@@ -309,6 +312,17 @@ export default function SessionPage() {
             <BrainCircuit size={16} /> {session?.practiceType || "Loading"} · elapsed {time}
           </div>
           <div className="flex items-center gap-2">
+            <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl lg:flex">
+              <UsersRound size={14} />
+              <select
+                value={visualMode}
+                onChange={(event) => setVisualMode(event.target.value as EnvironmentMode)}
+                className="max-w-44 bg-transparent text-white outline-none [color-scheme:dark]"
+                aria-label="Visual room"
+              >
+                {environmentModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+              </select>
+            </label>
             <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl md:flex">
               <Volume2 size={14} />
               <select
@@ -361,8 +375,22 @@ export default function SessionPage() {
           </div>
         </header>
 
+        <div className="mt-3 grid gap-2 text-xs font-semibold text-white/70 lg:hidden">
+          <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/12 backdrop-blur-2xl">
+            <span className="inline-flex items-center gap-2"><UsersRound size={14} /> Room</span>
+            <select
+              value={visualMode}
+              onChange={(event) => setVisualMode(event.target.value as EnvironmentMode)}
+              className="max-w-[62vw] bg-transparent text-right text-white outline-none [color-scheme:dark]"
+              aria-label="Visual room"
+            >
+              {environmentModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+            </select>
+          </label>
+        </div>
+
         <section className="relative grid flex-1 place-items-center py-8">
-          <AICharacterEnvironment mode={session?.environmentMode || "AI Orb"} />
+          <AICharacterEnvironment mode={visualMode} />
           <div className="absolute left-0 top-8 hidden max-w-xs space-y-3 lg:block">
             <MicroMetric label="Confidence" value={voice.isListening ? 74 : 68} tone="bg-cyan-300 text-cyan-300" />
             <MicroMetric label="Reasoning stability" value={loading ? 61 : 82} tone="bg-violet-300 text-violet-300" />

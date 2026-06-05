@@ -178,7 +178,7 @@ export function AICharacterEnvironment({ mode = "AI Orb", preview = false }: { m
       {(scene.layout === "board" || scene.layout === "panel") && <div className={`absolute left-1/2 ${preview ? "top-32" : "top-48"} h-20 w-[76%] -translate-x-1/2 rounded-[100%] bg-slate-950/44 ring-1 ring-white/14`} />}
       {scene.layout === "audience" && <div className={`absolute left-1/2 ${preview ? "top-32" : "top-48"} h-24 w-[82%] -translate-x-1/2 rounded-[100%] bg-slate-950/34 ring-1 ring-white/12`} />}
       {scene.figures.map((figure, index) => <AvatarFigure key={`${figure.label}-${index}`} figure={figure} index={index} compact={preview} />)}
-      <div className={`absolute ${preview ? "bottom-4" : "bottom-12"} left-1/2 -translate-x-1/2 rounded-full bg-white/[0.09] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/64 ring-1 ring-white/14`}>
+      <div className={`absolute ${preview ? "bottom-4" : "top-4"} left-1/2 -translate-x-1/2 rounded-full bg-white/[0.11] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/72 ring-1 ring-white/18`}>
         {scene.title}
       </div>
     </div>
