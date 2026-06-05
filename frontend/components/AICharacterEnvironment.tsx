@@ -14,8 +14,6 @@ type Figure = {
   folded?: boolean;
 };
 
-const publicAsset = (path: string) => `${process.env.NEXT_PUBLIC_BASE_PATH || ""}${path}`;
-
 const scenes: Record<EnvironmentMode, { title: string; layout: "interview" | "panel" | "audience" | "board"; figures: Figure[] }> = {
   "AI Orb": { title: "AI Orb", layout: "interview", figures: [] },
   "Single Interviewer": {
@@ -103,57 +101,77 @@ const scenes: Record<EnvironmentMode, { title: string; layout: "interview" | "pa
   },
 };
 
-const toneStyles: Record<FigureTone, { jacket: string; shirt: string; skin: string; accent: string; hair: string; delay: number }> = {
-  neutral: { jacket: "from-slate-500 to-slate-800", shirt: "bg-cyan-100", skin: "bg-[#f4c7a1]", accent: "bg-cyan-300", hair: "bg-slate-950", delay: 0 },
-  skeptical: { jacket: "from-rose-900 to-slate-950", shirt: "bg-rose-100", skin: "bg-[#d9a184]", accent: "bg-rose-300", hair: "bg-slate-950", delay: 0.45 },
-  notes: { jacket: "from-violet-800 to-slate-950", shirt: "bg-violet-100", skin: "bg-[#e8b894]", accent: "bg-violet-300", hair: "bg-slate-900", delay: 0.8 },
-  forward: { jacket: "from-emerald-800 to-slate-950", shirt: "bg-emerald-100", skin: "bg-[#f0bc95]", accent: "bg-emerald-300", hair: "bg-slate-950", delay: 0.25 },
-  distant: { jacket: "from-slate-400 to-slate-800", shirt: "bg-white", skin: "bg-[#c9957d]", accent: "bg-white", hair: "bg-slate-800", delay: 1.1 },
+const toneStyles: Record<FigureTone, { jacket: string; jacketDark: string; shirt: string; skin: string; accent: string; hair: string; delay: number }> = {
+  neutral: { jacket: "#314158", jacketDark: "#111827", shirt: "#cffafe", skin: "#f0bd8e", accent: "#67e8f9", hair: "#111827", delay: 0 },
+  skeptical: { jacket: "#4c1d2f", jacketDark: "#111827", shirt: "#ffe4e6", skin: "#d99a73", accent: "#fda4af", hair: "#0f172a", delay: 0.45 },
+  notes: { jacket: "#4c1d95", jacketDark: "#171323", shirt: "#ede9fe", skin: "#e9ad7e", accent: "#c4b5fd", hair: "#1f2937", delay: 0.8 },
+  forward: { jacket: "#065f46", jacketDark: "#111827", shirt: "#d1fae5", skin: "#efb27f", accent: "#6ee7b7", hair: "#101827", delay: 0.25 },
+  distant: { jacket: "#64748b", jacketDark: "#1e293b", shirt: "#f8fafc", skin: "#c98d6c", accent: "#e2e8f0", hair: "#334155", delay: 1.1 },
 };
 
 function AvatarFigure({ figure, index, compact = false }: { figure: Figure; index: number; compact?: boolean }) {
   const tone = toneStyles[figure.tone || "neutral"];
+  const gradientId = `avatar-jacket-${index}-${(figure.tone || "neutral").replace(/\W/g, "")}`;
+  const blinkDelay = 1.2 + index * 0.42;
+  const armGesture = figure.tone === "forward" || (!figure.folded && index % 2 === 0);
   return (
     <motion.div
       className="absolute -translate-x-1/2"
-      style={{ left: figure.x, top: figure.y, scale: (figure.scale || 1) * (compact ? 0.84 : 1.55) }}
-      animate={{ y: [0, -3, 1, 0], rotate: [0, index % 2 ? 0.7 : -0.7, 0] }}
-      transition={{ duration: 5.4 + index * 0.22, delay: tone.delay, repeat: Infinity, ease: "easeInOut" }}
+      style={{ left: figure.x, top: figure.y, scale: (figure.scale || 1) * (compact ? 0.62 : 1.18) }}
+      animate={{ y: [0, -5, 1, 0], rotate: [0, index % 2 ? 0.9 : -0.9, 0] }}
+      transition={{ duration: 5.2 + index * 0.18, delay: tone.delay, repeat: Infinity, ease: "easeInOut" }}
       aria-hidden="true"
     >
       <motion.div
-        className="relative h-40 w-32"
-        animate={{ scaleY: [1, 1.015, 1] }}
-        transition={{ duration: 3.8, delay: index * 0.18, repeat: Infinity, ease: "easeInOut" }}
+        className="relative h-[220px] w-[160px] drop-shadow-[0_28px_42px_rgba(0,0,0,0.36)]"
+        animate={{ scaleY: [1, 1.012, 1] }}
+        transition={{ duration: 4.1, delay: index * 0.18, repeat: Infinity, ease: "easeInOut" }}
       >
-        <div className="absolute bottom-0 left-1/2 h-24 w-32 -translate-x-1/2 rounded-t-[2rem] bg-slate-950/76 ring-2 ring-white/20 shadow-[0_28px_90px_rgba(0,0,0,0.42)]" />
-        <div className="absolute bottom-2 left-1/2 h-14 w-24 -translate-x-1/2 rounded-t-[1.5rem] bg-slate-800/88 ring-1 ring-white/16" />
-        <motion.div
-          className={`absolute left-1/2 top-0 h-14 w-14 -translate-x-1/2 rounded-[1.4rem] ${tone.skin} shadow-[0_12px_34px_rgba(0,0,0,0.28),inset_0_-8px_16px_rgba(15,23,42,0.12)] ring-2 ring-white/28`}
-          animate={{ x: [0, index % 3 === 0 ? -2 : 2, 0] }}
-          transition={{ duration: 4.8, delay: 0.35 + index * 0.12, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <div className={`absolute -top-2 left-1/2 h-5 w-12 -translate-x-1/2 rounded-t-2xl ${tone.hair}`} />
-          <motion.span className="absolute left-4 top-6 h-1.5 w-1.5 rounded-full bg-slate-950/78" animate={{ scaleY: [1, 0.12, 1] }} transition={{ duration: 3.6, delay: 1 + index * 0.37, repeat: Infinity }} />
-          <motion.span className="absolute right-4 top-6 h-1.5 w-1.5 rounded-full bg-slate-950/78" animate={{ scaleY: [1, 0.12, 1] }} transition={{ duration: 3.6, delay: 1 + index * 0.37, repeat: Infinity }} />
-          <span className="absolute left-1/2 top-9 h-1 w-6 -translate-x-1/2 rounded-full bg-slate-950/34" />
-        </motion.div>
-        <div className={`absolute left-1/2 top-12 h-24 w-24 -translate-x-1/2 rounded-t-[2rem] bg-gradient-to-b ${tone.jacket} ring-2 ring-white/24 shadow-[0_22px_50px_rgba(0,0,0,0.32)]`} />
-        <div className={`absolute left-1/2 top-[4.2rem] h-16 w-10 -translate-x-1/2 rounded-t-xl ${tone.shirt}`} />
-        <div className={`absolute left-1/2 top-[4.15rem] h-2 w-12 -translate-x-1/2 rounded-full ${tone.accent} opacity-80`} />
-        {figure.folded ? (
-          <>
-            <div className="absolute left-5 top-[6.4rem] h-3 w-20 rotate-12 rounded-full bg-[#d9a184] ring-1 ring-white/16" />
-            <div className="absolute right-5 top-[6.4rem] h-3 w-20 -rotate-12 rounded-full bg-[#d9a184] ring-1 ring-white/16" />
-          </>
-        ) : (
-          <>
-            <div className="absolute left-3 top-[5.7rem] h-14 w-4 -rotate-12 rounded-full bg-[#e8b894] ring-1 ring-white/16" />
-            <div className="absolute right-3 top-[5.7rem] h-14 w-4 rotate-12 rounded-full bg-[#e8b894] ring-1 ring-white/16" />
-          </>
-        )}
-        {(figure.tone === "notes" || index % 5 === 0) && <div className="absolute bottom-3 left-1/2 h-5 w-16 -translate-x-1/2 rounded bg-white/88 ring-1 ring-white/30 shadow-[0_8px_20px_rgba(0,0,0,0.2)]" />}
-        <div className="absolute -bottom-1 left-1/2 h-4 w-40 -translate-x-1/2 rounded-full bg-slate-950/68 ring-1 ring-white/12" />
+        <svg viewBox="0 0 160 220" className="h-full w-full overflow-visible">
+          <defs>
+            <linearGradient id={gradientId} x1="32" x2="130" y1="78" y2="178" gradientUnits="userSpaceOnUse">
+              <stop stopColor={tone.jacket} />
+              <stop offset="1" stopColor={tone.jacketDark} />
+            </linearGradient>
+          </defs>
+          <ellipse cx="80" cy="206" rx="66" ry="13" fill="rgba(2,6,23,0.52)" />
+          <rect x="26" y="100" width="108" height="88" rx="29" fill="rgba(15,23,42,0.86)" stroke="rgba(255,255,255,0.16)" strokeWidth="2" />
+          <motion.g
+            animate={{ x: [0, index % 2 ? 2 : -2, 0], rotate: [0, index % 2 ? 1.4 : -1.4, 0] }}
+            transition={{ duration: 5, delay: tone.delay, repeat: Infinity, ease: "easeInOut" }}
+            style={{ transformOrigin: "80px 52px" }}
+          >
+            <path d="M54 34c0-21 13-30 29-30 18 0 31 12 31 33v20c0 20-13 35-31 35S54 77 54 57V34Z" fill={tone.skin} stroke="rgba(255,255,255,0.28)" strokeWidth="2" />
+            <path d="M51 34c4-22 17-32 35-32 17 0 29 11 30 29-11-8-29-8-45-4-3 12-8 18-20 7Z" fill={tone.hair} />
+            <path d="M54 41c4 3 8 5 14 5l2-18c-6 3-12 7-16 13Z" fill={tone.hair} />
+            <path d="M68 54c6-4 12-4 18-1" stroke="#111827" strokeWidth="4" strokeLinecap="round" opacity="0.85" />
+            <path d="M96 53c6-4 12-4 17 0" stroke="#111827" strokeWidth="4" strokeLinecap="round" opacity="0.85" />
+            <motion.ellipse cx="77" cy="66" rx="3" ry="4" fill="#111827" animate={{ scaleY: [1, 0.08, 1] }} transition={{ duration: 3.7, delay: blinkDelay, repeat: Infinity, ease: "easeInOut" }} />
+            <motion.ellipse cx="104" cy="66" rx="3" ry="4" fill="#111827" animate={{ scaleY: [1, 0.08, 1] }} transition={{ duration: 3.7, delay: blinkDelay, repeat: Infinity, ease: "easeInOut" }} />
+            <path d={figure.tone === "skeptical" ? "M72 81c8 5 18 5 28 0" : "M73 81c7 7 18 7 27 0"} stroke="#7c2d12" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.62" />
+          </motion.g>
+          <path d="M45 93c11-12 58-12 70 0 11 12 16 46 14 88H31c-2-42 3-76 14-88Z" fill={`url(#${gradientId})`} stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
+          <path d="M67 93h26l9 86H58l9-86Z" fill={tone.shirt} opacity="0.96" />
+          <path d="M66 94l14 18 14-18" fill="none" stroke={tone.accent} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+          {figure.folded ? (
+            <>
+              <path d="M37 122c28 22 57 25 88 3" stroke={tone.skin} strokeWidth="15" strokeLinecap="round" />
+              <path d="M37 121c29 18 58 20 88 1" stroke="rgba(15,23,42,0.28)" strokeWidth="5" strokeLinecap="round" />
+            </>
+          ) : (
+            <>
+              <motion.path d="M45 118c-13 19-18 37-14 56" stroke={tone.skin} strokeWidth="16" strokeLinecap="round" fill="none" animate={armGesture ? { d: ["M45 118c-13 19-18 37-14 56", "M45 118c-5 20-1 37 13 51", "M45 118c-13 19-18 37-14 56"] } : undefined} transition={{ duration: 3.6, delay: tone.delay, repeat: Infinity, ease: "easeInOut" }} />
+              <motion.path d="M116 118c14 19 18 38 14 56" stroke={tone.skin} strokeWidth="16" strokeLinecap="round" fill="none" animate={armGesture ? { d: ["M116 118c14 19 18 38 14 56", "M116 118c3 20-1 36-16 50", "M116 118c14 19 18 38 14 56"] } : undefined} transition={{ duration: 3.8, delay: tone.delay + 0.2, repeat: Infinity, ease: "easeInOut" }} />
+            </>
+          )}
+          {(figure.tone === "notes" || index % 5 === 0) && (
+            <motion.g animate={{ y: [0, -2, 0], rotate: [0, 1.2, 0] }} transition={{ duration: 2.8, delay: 0.4 + index * 0.1, repeat: Infinity, ease: "easeInOut" }}>
+              <rect x="52" y="164" width="58" height="32" rx="5" fill="#f8fafc" opacity="0.95" />
+              <path d="M61 174h37M61 183h28" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
+            </motion.g>
+          )}
+          <path d="M41 181h78" stroke={tone.accent} strokeWidth="4" strokeLinecap="round" opacity="0.65" />
+        </svg>
       </motion.div>
     </motion.div>
   );
@@ -179,33 +197,6 @@ function MiniOrb() {
 export function AICharacterEnvironment({ mode = "AI Orb", preview = false }: { mode?: EnvironmentMode; preview?: boolean }) {
   const scene = scenes[mode] || scenes["AI Orb"];
   if (mode === "AI Orb" && !preview) return null;
-  if (mode !== "AI Orb") {
-    const participantCount = Math.max(1, scene.figures.length);
-    const descriptor = participantCount === 1 ? "Interviewer present" : `${participantCount}-person room`;
-    return (
-      <div className={`pointer-events-none ${preview ? "relative h-52 w-full overflow-hidden rounded-[1.5rem] bg-[#07111f] ring-1 ring-slate-200 dark:ring-white/10" : "absolute inset-x-0 top-6 z-[1] mx-auto h-[34rem] max-w-6xl overflow-hidden rounded-[2rem] opacity-100 shadow-[0_34px_120px_rgba(0,0,0,0.28)] ring-1 ring-white/10 [mask-image:linear-gradient(to_bottom,transparent,black_5%,black_88%,transparent)]"}`}>
-        <img
-          src={publicAsset("/scenes/panel-room-3d.png")}
-          alt=""
-          className={`absolute inset-0 h-full w-full object-cover ${preview ? "scale-105" : "scale-[1.03]"}`}
-          style={{ objectPosition: scene.layout === "audience" ? "center 42%" : "center 48%" }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#07111f]/28 via-[#07111f]/12 to-[#07111f]/76" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(103,232,249,0.22),transparent_32%),linear-gradient(90deg,rgba(7,17,31,0.74),transparent_28%,transparent_72%,rgba(49,46,129,0.58))]" />
-        <motion.div
-          className="absolute left-1/2 top-[54%] h-32 w-[78%] -translate-x-1/2 rounded-[100%] border border-cyan-100/38 bg-cyan-100/5 shadow-[0_0_70px_rgba(56,189,248,0.16)]"
-          animate={{ opacity: [0.44, 0.72, 0.48], scaleX: [0.98, 1.03, 0.98] }}
-          transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <div className={`absolute ${preview ? "bottom-4" : "top-4"} left-1/2 -translate-x-1/2 rounded-full bg-slate-950/58 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/86 ring-1 ring-cyan-100/22 backdrop-blur-xl`}>
-          {scene.title}
-        </div>
-        <div className={`absolute left-1/2 ${preview ? "bottom-4 hidden" : "bottom-16"} -translate-x-1/2 rounded-full bg-slate-950/62 px-4 py-2 text-xs font-semibold text-cyan-50/86 ring-1 ring-white/14 backdrop-blur-xl`}>
-          {descriptor}
-        </div>
-      </div>
-    );
-  }
   return (
     <div className={`pointer-events-none ${preview ? "relative h-52 w-full overflow-hidden rounded-[1.5rem] bg-[#07111f] ring-1 ring-slate-200 dark:ring-white/10" : "absolute inset-x-0 top-6 z-[1] mx-auto h-[34rem] max-w-6xl overflow-hidden rounded-[2rem] opacity-100 [mask-image:linear-gradient(to_bottom,transparent,black_5%,black_82%,transparent)]"}`}>
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.045)_1px,transparent_1px)] bg-[size:48px_48px] opacity-35" />
