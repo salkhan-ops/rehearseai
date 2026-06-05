@@ -21,7 +21,7 @@ import { useAuth } from "@/lib/auth";
 import { getLanguage, isRtlLanguage } from "@/lib/languages";
 import { pauseFusionEngine } from "@/lib/local-signals/pauseFusionEngine";
 import { reportHref } from "@/lib/routes";
-import { outcomeFromReport, saveLocalSignalTelemetry, sendSessionOutcome, sendTurnTelemetry, updateTelemetryConsent } from "@/lib/telemetry";
+import { getTelemetryConsent, outcomeFromReport, saveLocalSignalTelemetry, sendSessionOutcome, sendTurnTelemetry, type PrivacySettings, updateTelemetryConsent } from "@/lib/telemetry";
 import { environmentModes } from "@/lib/types";
 import type { EnvironmentMode, Message, Session, SessionHint } from "@/lib/types";
 import type { PauseFusionDecision } from "@/lib/local-signals/types";
@@ -34,6 +34,19 @@ const voiceOptions = [
 ];
 
 const durationOptions = [5, 10, 15, 30, 45, 60];
+
+const defaultPrivacySettings: PrivacySettings = {
+  allowTelemetry: true,
+  allowModelImprovement: true,
+  allowRawAudioStorage: false,
+  allowCameraAssistedTiming: false,
+  allowLocalSignalTelemetry: false,
+  allowRawVideoStorage: false,
+};
+
+function normalizePrivacySettings(settings?: Partial<PrivacySettings> | null): PrivacySettings {
+  return { ...defaultPrivacySettings, ...(settings || {}), allowRawVideoStorage: false };
+}
 
 const listeningPrompts: Record<string, string> = {
   en: "I am listening. Start your answer when you are ready.",
@@ -102,6 +115,7 @@ export default function SessionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = params?.id || searchParams.get("id") || "";
+  const { getToken, profile, userId } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -114,23 +128,37 @@ export default function SessionPage() {
   const [visualMode, setVisualMode] = useState<EnvironmentMode>("AI Orb");
   const [voiceMode, setVoiceMode] = useState(false);
   const [cameraAssistedTiming, setCameraAssistedTiming] = useState(false);
+  const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(profile?.privacySettings || defaultPrivacySettings);
   const [latestHint, setLatestHint] = useState<SessionHint | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
   const [autoSubmitNotice, setAutoSubmitNotice] = useState("");
   const [pauseDecision, setPauseDecision] = useState<PauseFusionDecision | null>(null);
   const autoEndingRef = useRef(false);
   const heldVoiceTurnRef = useRef<{ content: string; speechDurationMs: number; silenceMs: number } | null>(null);
-  const { getToken, profile, userId } = useAuth();
   const practiceLanguage = getLanguage(session?.practiceLanguage);
   const beginnerMode = session?.difficulty === "Beginner" || session?.difficulty === "Friendly";
   const coordination = useConversationCoordination({ userId, sessionId: id, enabled: voiceMode });
   const { analyze: analyzeCoordination } = coordination;
   const voice = useRealtimeVoice({ browserSpeechCode: practiceLanguage.browserSpeechCode, deepgramCode: practiceLanguage.deepgramCode, longPauseMs: coordination.longPauseMs || 3400 });
-  const cameraSignals = useLocalCameraSignals({ enabled: cameraAssistedTiming && voiceMode });
+  const cameraSignals = useLocalCameraSignals({ enabled: cameraAssistedTiming });
 
   useEffect(() => {
-    setCameraAssistedTiming(Boolean(profile?.privacySettings?.allowCameraAssistedTiming));
-  }, [profile?.privacySettings?.allowCameraAssistedTiming]);
+    if (!profile?.privacySettings) return;
+    setPrivacySettings(normalizePrivacySettings(profile.privacySettings));
+    setCameraAssistedTiming(Boolean(profile.privacySettings.allowCameraAssistedTiming));
+  }, [profile?.privacySettings]);
+
+  useEffect(() => {
+    if (!userId || userId === "guest") return;
+    getToken()
+      .then((token) => getTelemetryConsent(userId, token))
+      .then((settings) => {
+        const nextSettings = normalizePrivacySettings(settings);
+        setPrivacySettings(nextSettings);
+        setCameraAssistedTiming(Boolean(nextSettings.allowCameraAssistedTiming));
+      })
+      .catch(() => undefined);
+  }, [getToken, userId]);
 
   useEffect(() => {
     if (!id) {
@@ -233,7 +261,7 @@ export default function SessionPage() {
         coordination.profile || undefined,
       );
       setPauseDecision(localDecision);
-      if (profile?.privacySettings?.allowLocalSignalTelemetry) {
+      if (privacySettings.allowLocalSignalTelemetry) {
         const token = await getToken();
         saveLocalSignalTelemetry({
           userId,
@@ -359,16 +387,12 @@ export default function SessionPage() {
   async function updateCameraAssistance(enabled: boolean) {
     setCameraAssistedTiming(enabled);
     if (!enabled) cameraSignals.stop();
-    const current = profile?.privacySettings || {
-      allowTelemetry: true,
-      allowModelImprovement: true,
-      allowRawAudioStorage: false,
-      allowCameraAssistedTiming: false,
-      allowLocalSignalTelemetry: false,
-      allowRawVideoStorage: false as const,
-    };
+    const current = privacySettings || defaultPrivacySettings;
+    const nextSettings = normalizePrivacySettings({ ...current, allowCameraAssistedTiming: enabled });
+    setPrivacySettings(nextSettings);
     const token = await getToken();
-    await updateTelemetryConsent(userId, { ...current, allowCameraAssistedTiming: enabled, allowRawVideoStorage: false }, token).catch(() => undefined);
+    const saved = await updateTelemetryConsent(userId, nextSettings, token).catch(() => null);
+    if (saved) setPrivacySettings(normalizePrivacySettings(saved));
   }
 
   async function finish() {

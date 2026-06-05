@@ -72,6 +72,16 @@ export function useLocalCameraSignals({ enabled, sampleMs = 240 }: Options): {
   const [error, setError] = useState("");
   const [previewVisible, setPreviewVisible] = useState(false);
 
+  const attachStream = useCallback(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream) return;
+    if (video.srcObject !== stream) video.srcObject = stream;
+    video.muted = true;
+    video.playsInline = true;
+    video.play().catch(() => undefined);
+  }, []);
+
   const stop = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = null;
@@ -80,9 +90,10 @@ export function useLocalCameraSignals({ enabled, sampleMs = 240 }: Options): {
     lastDataRef.current = null;
     setSignals(defaultCameraSignals);
     setState("disabled");
-  }, []);
+  }, [attachStream]);
 
   const sample = useCallback(async () => {
+    attachStream();
     const video = videoRef.current;
     if (!video || video.readyState < 2) return;
     const width = 160;
@@ -187,12 +198,8 @@ export function useLocalCameraSignals({ enabled, sampleMs = 240 }: Options): {
           return;
         }
         streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.muted = true;
-          videoRef.current.playsInline = true;
-          videoRef.current.play().catch(() => undefined);
-        }
+        attachStream();
+        window.setTimeout(attachStream, 0);
         timerRef.current = setInterval(() => sample().catch(() => undefined), sampleMs);
       })
       .catch((err) => {
@@ -203,7 +210,7 @@ export function useLocalCameraSignals({ enabled, sampleMs = 240 }: Options): {
       cancelled = true;
       stop();
     };
-  }, [enabled, sample, sampleMs, stop]);
+  }, [attachStream, enabled, sample, sampleMs, stop]);
 
   return useMemo(() => ({
     videoRef,
