@@ -42,6 +42,14 @@ TELEMETRY_EXPORT_FIELDS = [
     "responseLatencyMs",
     "aiWaitedMs",
     "aiResponseLength",
+    "cameraEnabled",
+    "faceDetected",
+    "mouthMovementActivity",
+    "visualStillnessMs",
+    "lookingAwayScore",
+    "headMovementIntensity",
+    "pauseDecision",
+    "decisionConfidence",
     "recommendedAiTone",
     "recommendedResponseLength",
     "detectedUserState",
@@ -145,6 +153,14 @@ class TelemetryService:
             "responseLatencyMs": self._int(payload.get("responseLatencyMs")),
             "aiWaitedMs": self._int(payload.get("aiWaitedMs")),
             "aiResponseLength": len(self._words(ai_response)) if ai_response else self._int(payload.get("aiResponseLength")),
+            "cameraEnabled": bool(payload.get("cameraEnabled", False)),
+            "faceDetected": bool(payload.get("faceDetected", False)),
+            "mouthMovementActivity": float(payload.get("mouthMovementActivity") or 0),
+            "visualStillnessMs": self._int(payload.get("visualStillnessMs")),
+            "lookingAwayScore": float(payload.get("lookingAwayScore") or 0),
+            "headMovementIntensity": float(payload.get("headMovementIntensity") or 0),
+            "pauseDecision": payload.get("pauseDecision"),
+            "decisionConfidence": payload.get("decisionConfidence"),
             "recommendedAiTone": payload.get("recommendedAiTone") or payload.get("aiActionTaken") or timing_action,
             "recommendedResponseLength": payload.get("recommendedResponseLength") or self._recommended_response_length(user_state),
             "detectedUserState": user_state,
@@ -198,6 +214,93 @@ class TelemetryService:
         }
         saved = await self.store.save_conversation_telemetry(record)
         return saved
+
+    async def save_local_signal_telemetry(self, payload: dict) -> Optional[dict]:
+        user_id = str(payload.get("userId") or "guest")
+        settings = await self.store.get_user_privacy_settings(user_id)
+        if not settings.get("allowCameraAssistedTiming", False) or not settings.get("allowLocalSignalTelemetry", False):
+            return None
+        telemetry_id = str(payload.get("telemetryId") or uuid4())
+        record = {
+            "telemetryId": telemetry_id,
+            "userId": user_id,
+            "sessionId": payload.get("sessionId", ""),
+            "timestamp": payload.get("timestamp") or utc_now_iso(),
+            "cameraEnabled": bool(payload.get("cameraEnabled", False)),
+            "faceDetected": bool(payload.get("faceDetected", False)),
+            "mouthMovementActivity": float(payload.get("mouthMovementActivity") or 0),
+            "visualStillnessMs": self._int(payload.get("visualStillnessMs")),
+            "lookingAwayScore": float(payload.get("lookingAwayScore") or 0),
+            "headMovementIntensity": float(payload.get("headMovementIntensity") or 0),
+            "silenceMs": self._int(payload.get("silenceMs")),
+            "speechDurationMs": self._int(payload.get("speechDurationMs")),
+            "pauseDecision": payload.get("pauseDecision", ""),
+            "decisionConfidence": float(payload.get("decisionConfidence") or 0),
+            "userContinuedAfterDecision": bool(payload.get("userContinuedAfterDecision", False)),
+            "aiInterruptedTooEarly": bool(payload.get("aiInterruptedTooEarly", False)),
+            "createdAt": utc_now_iso(),
+            "expiresAt": payload.get("expiresAt") or self._expires_at(days=30),
+        }
+        saved = await self.store.save_local_signal_telemetry(record)
+        await self.update_local_signal_profile(user_id, record)
+        return saved
+
+    async def update_local_signal_profile(self, user_id: str, telemetry: dict) -> dict:
+        if user_id == "guest":
+            return await self.get_personal_speech_profile(user_id)
+        current = await self.get_personal_speech_profile(user_id)
+        sample_count = int(current.get("localSignalSampleCount") or 0)
+        alpha = 1 if sample_count == 0 else 0.18
+
+        def ema(key: str, next_value: float) -> float:
+            previous = float(current.get(key) or 0)
+            return round((previous * (1 - alpha)) + (next_value * alpha), 4)
+
+        next_profile = {
+            **current,
+            "cameraAssistedTimingEnabled": True,
+            "localSignalSampleCount": sample_count + 1,
+            "adjustedLongPauseThresholdMs": max(1800, min(9000, int((current.get("longPauseThresholdMs") or 3400) * 1.05))),
+            "averageVisualThinkingPauseMs": int(ema("averageVisualThinkingPauseMs", float(telemetry.get("visualStillnessMs") or 0))),
+            "typicalMouthActivityBeforeContinue": ema("typicalMouthActivityBeforeContinue", float(telemetry.get("mouthMovementActivity") or 0)),
+            "typicalGazeShiftDuringThinking": ema("typicalGazeShiftDuringThinking", float(telemetry.get("lookingAwayScore") or 0)),
+            "updatedAt": utc_now_iso(),
+        }
+        return await self.store.save_voice_profile(next_profile)
+
+    async def get_local_signal_diagnostics(self) -> dict:
+        records = await self.store.list_local_signal_telemetry(limit_count=1000)
+        decisions: dict[str, int] = {}
+        for record in records:
+            decision = str(record.get("pauseDecision") or "unknown")
+            decisions[decision] = decisions.get(decision, 0) + 1
+
+        def avg(key: str) -> float:
+            values = [float(record.get(key) or 0) for record in records]
+            return round(sum(values) / max(1, len(values)), 4)
+
+        continued = sum(1 for record in records if record.get("userContinuedAfterDecision"))
+        early = sum(1 for record in records if record.get("aiInterruptedTooEarly"))
+        return {
+            "totalRecords": len(records),
+            "cameraEnabledRecords": sum(1 for record in records if record.get("cameraEnabled")),
+            "faceDetectedRecords": sum(1 for record in records if record.get("faceDetected")),
+            "optOutCount": await self.store.count_local_signal_opt_outs(),
+            "decisionCounts": decisions,
+            "averages": {
+                "mouthMovementActivity": avg("mouthMovementActivity"),
+                "visualStillnessMs": avg("visualStillnessMs"),
+                "lookingAwayScore": avg("lookingAwayScore"),
+                "headMovementIntensity": avg("headMovementIntensity"),
+                "silenceMs": avg("silenceMs"),
+                "speechDurationMs": avg("speechDurationMs"),
+                "decisionConfidence": avg("decisionConfidence"),
+            },
+            "accuracyProxy": {
+                "continuedAfterWaitRate": round(continued / max(1, len(records)), 4),
+                "possibleEarlyInterruptRate": round(early / max(1, len(records)), 4),
+            },
+        }
 
     async def save_session_outcome(self, payload: dict) -> Optional[dict]:
         user_id = str(payload.get("userId") or "guest")
@@ -268,6 +371,12 @@ class TelemetryService:
             "overExplainWordThreshold": int(profile.get("overExplainWordThreshold") or profile.get("overexplainingWordCountThreshold") or 140),
             "overexplainingWordCountThreshold": int(profile.get("overexplainingWordCountThreshold") or profile.get("overExplainWordThreshold") or 140),
             "preferredAiWaitMs": int(profile.get("preferredAiWaitMs") or 900),
+            "cameraAssistedTimingEnabled": bool(profile.get("cameraAssistedTimingEnabled", False)),
+            "adjustedLongPauseThresholdMs": int(profile.get("adjustedLongPauseThresholdMs") or profile.get("longPauseThresholdMs") or 3200),
+            "averageVisualThinkingPauseMs": int(profile.get("averageVisualThinkingPauseMs") or 0),
+            "typicalMouthActivityBeforeContinue": float(profile.get("typicalMouthActivityBeforeContinue") or 0),
+            "typicalGazeShiftDuringThinking": float(profile.get("typicalGazeShiftDuringThinking") or 0),
+            "localSignalSampleCount": int(profile.get("localSignalSampleCount") or 0),
             "sessionCount": int(profile.get("sessionCount") or 0),
             "createdAt": profile.get("createdAt") or now,
             "updatedAt": profile.get("updatedAt") or now,

@@ -7,12 +7,14 @@ import { FormEvent, useEffect, useState } from "react";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { CameraSignalControls } from "@/components/local-signals/CameraSignalControls";
 import { Nav } from "@/components/Nav";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { createPracticeSchedule, createSession, generateRandomScenario } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canUsePracticeType, getUserEntitlements } from "@/lib/entitlements";
 import { sessionHref } from "@/lib/routes";
+import { updateTelemetryConsent } from "@/lib/telemetry";
 import type { LanguageCode } from "@/lib/languages";
 import { difficulties, Difficulty, environmentModes, nerveEntryTypes, nervePersonas, practiceTypes, PracticeType } from "@/lib/types";
 import type { EnvironmentMode, NerveEntryType, NervePersona } from "@/lib/types";
@@ -81,6 +83,7 @@ function SetupForm() {
   const { getToken, profile, updateLanguagePreferences, userId } = useAuth();
   const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>(profile?.preferredPracticeLanguage || "en");
   const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>(profile?.preferredFeedbackLanguage || "en");
+  const [cameraAssistedTiming, setCameraAssistedTiming] = useState(Boolean(profile?.privacySettings?.allowCameraAssistedTiming));
 
   useEffect(() => {
     getUserEntitlements(userId).then(setEntitlements).catch(() => undefined);
@@ -89,7 +92,22 @@ function SetupForm() {
   useEffect(() => {
     if (profile?.preferredPracticeLanguage) setPracticeLanguage(profile.preferredPracticeLanguage);
     if (profile?.preferredFeedbackLanguage) setFeedbackLanguage(profile.preferredFeedbackLanguage);
-  }, [profile?.preferredFeedbackLanguage, profile?.preferredPracticeLanguage]);
+    setCameraAssistedTiming(Boolean(profile?.privacySettings?.allowCameraAssistedTiming));
+  }, [profile?.preferredFeedbackLanguage, profile?.preferredPracticeLanguage, profile?.privacySettings?.allowCameraAssistedTiming]);
+
+  async function updateCameraAssistedTiming(enabled: boolean) {
+    setCameraAssistedTiming(enabled);
+    const token = await getToken();
+    const current = profile?.privacySettings || {
+      allowTelemetry: true,
+      allowModelImprovement: true,
+      allowRawAudioStorage: false,
+      allowCameraAssistedTiming: false,
+      allowLocalSignalTelemetry: false,
+      allowRawVideoStorage: false as const,
+    };
+    await updateTelemetryConsent(userId, { ...current, allowCameraAssistedTiming: enabled, allowRawVideoStorage: false }, token).catch(() => undefined);
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -385,6 +403,13 @@ function SetupForm() {
                 </div>
               )}
             </section>
+
+            <div className="mt-5">
+              <CameraSignalControls
+                enabled={cameraAssistedTiming}
+                onEnabledChange={(enabled) => updateCameraAssistedTiming(enabled).catch(() => undefined)}
+              />
+            </div>
 
             <label className="mt-5 block text-sm font-semibold text-slate-700 dark:text-white/75">Optional coaching style
               <textarea value={optionalNotes} onChange={(event) => setOptionalNotes(event.target.value)} rows={2} className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white" placeholder="Example: interrupt me if I ramble, challenge weak evidence, stay professional" />

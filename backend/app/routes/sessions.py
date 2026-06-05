@@ -119,6 +119,17 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
         )
     )
     coordination_context = get_coordination(request).prompt_context(coordination_state)
+    if payload.coordinationContext:
+        coordination_context = {
+            **(coordination_context or {}),
+            "pauseDecision": payload.coordinationContext.get("pauseDecision"),
+            "userStateApprox": payload.coordinationContext.get("userStateApprox"),
+            "adjustedWaitMs": payload.coordinationContext.get("adjustedWaitMs"),
+            "cameraAssisted": bool(payload.coordinationContext.get("cameraAssisted", False)),
+            "instruction": "User appears to need longer thinking pauses. Wait before follow-up questions and avoid cutting in too early."
+            if payload.coordinationContext.get("pauseDecision") in {"wait", "keep_listening", "gentle_prompt"}
+            else (coordination_context or {}).get("instruction"),
+        }
     if session.difficulty == "Nerve":
         nerve_context = await get_cross_examination(request).build_turn_context(session, history, payload.content, coordination_state)
         coordination_context = {**(coordination_context or {}), "nerve": nerve_context}

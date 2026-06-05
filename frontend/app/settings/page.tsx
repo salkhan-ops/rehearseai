@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AnimatedPage } from "@/components/animations";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Footer } from "@/components/content/Footer";
+import { CameraSignalControls } from "@/components/local-signals/CameraSignalControls";
 import { Nav } from "@/components/Nav";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection";
@@ -19,6 +20,9 @@ const defaultPrivacySettings: PrivacySettings = {
   allowTelemetry: true,
   allowModelImprovement: true,
   allowRawAudioStorage: false,
+  allowCameraAssistedTiming: false,
+  allowLocalSignalTelemetry: false,
+  allowRawVideoStorage: false,
 };
 
 export default function SettingsPage() {
@@ -110,6 +114,13 @@ export default function SettingsPage() {
               </div>
             )}
             <div className="mt-5 space-y-3">
+              <CameraSignalControls
+                enabled={Boolean(privacySettings.allowCameraAssistedTiming)}
+                telemetryEnabled={Boolean(privacySettings.allowLocalSignalTelemetry)}
+                showTelemetry
+                onEnabledChange={(enabled) => updatePrivacy({ ...privacySettings, allowCameraAssistedTiming: enabled, allowRawVideoStorage: false })}
+                onTelemetryChange={(enabled) => updatePrivacy({ ...privacySettings, allowLocalSignalTelemetry: enabled, allowRawVideoStorage: false })}
+              />
               {[
                 ["allowTelemetry", "Improve conversation timing using anonymized practice signals"],
                 ["allowModelImprovement", "Allow my data to improve personalization"],
@@ -128,6 +139,11 @@ export default function SettingsPage() {
                   />
                 </label>
               ))}
+              <div className="rounded-2xl bg-white/60 p-4 ring-1 ring-[var(--border-soft)] dark:bg-white/[0.04]">
+                <span className="block font-semibold">Raw video storage</span>
+                <span className="mt-1 block text-sm font-medium text-secondary-token">Not supported. RehearseAI does not record, upload, or store camera video/images.</span>
+                <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100">Always off</span>
+              </div>
             </div>
             {privacySaving && <p className="mt-3 text-sm font-semibold text-secondary-token">Saving privacy settings...</p>}
           </section>

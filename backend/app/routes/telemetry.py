@@ -32,6 +32,14 @@ async def save_session_outcome(payload: dict, request: Request, current_user_id:
     return {"saved": bool(outcome), "outcome": outcome}
 
 
+@router.post("/api/telemetry/local-signals")
+async def save_local_signal_telemetry(payload: dict, request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
+    if current_user_id:
+        payload["userId"] = current_user_id
+    record = await get_telemetry(request).save_local_signal_telemetry(payload)
+    return {"saved": bool(record), "telemetry": record}
+
+
 @router.get("/api/telemetry/user-summary/{user_id}")
 async def get_user_telemetry_summary(user_id: str, request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
     resolved_user_id = current_user_id or user_id
@@ -82,6 +90,12 @@ async def admin_telemetry_samples(request: Request, limit: int = 50):
     await require_admin_mvp()
     records = await request.app.state.store.list_conversation_telemetry(limit_count=limit)
     return [get_telemetry(request).anonymize_telemetry_record(record) | {"telemetryId": record.get("telemetryId"), "createdAt": record.get("createdAt")} for record in records]
+
+
+@router.get("/api/admin/local-signals")
+async def admin_local_signal_diagnostics(request: Request):
+    await require_admin_mvp()
+    return await get_telemetry(request).get_local_signal_diagnostics()
 
 
 @router.post("/api/admin/telemetry-labels")

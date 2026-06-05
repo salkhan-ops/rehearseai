@@ -9,6 +9,7 @@ class MessageCreate(BaseModel):
     speechDurationMs: int = 0
     silenceMs: int = 0
     wordTimings: Optional[list[dict]] = None
+    coordinationContext: Optional[dict] = None
 
 
 class Message(BaseModel):

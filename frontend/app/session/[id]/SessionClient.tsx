@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, BrainCircuit, Clock3, Mic, MicOff, Send, Square, UsersRound, Volume2 } from "lucide-react";
+import { ArrowLeft, BrainCircuit, Camera, Clock3, Eye, EyeOff, Mic, MicOff, Send, ShieldCheck, Square, UsersRound, Volume2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -12,15 +12,19 @@ import { BeginnerBriefing } from "@/components/learning/BeginnerBriefing";
 import { CoachPanel } from "@/components/learning/CoachPanel";
 import { ConversationMap } from "@/components/learning/ConversationMap";
 import { FloatingHint } from "@/components/learning/FloatingHint";
+import { CameraPrivacyNotice } from "@/components/local-signals/CameraPrivacyNotice";
 import { useConversationCoordination } from "@/hooks/useConversationCoordination";
+import { useLocalCameraSignals } from "@/hooks/useLocalCameraSignals";
 import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
 import { completeCourseSession, endSession, generateReport, getSession, sendMessage, updateSessionHint } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { getLanguage, isRtlLanguage } from "@/lib/languages";
+import { pauseFusionEngine } from "@/lib/local-signals/pauseFusionEngine";
 import { reportHref } from "@/lib/routes";
-import { outcomeFromReport, sendSessionOutcome, sendTurnTelemetry } from "@/lib/telemetry";
+import { outcomeFromReport, saveLocalSignalTelemetry, sendSessionOutcome, sendTurnTelemetry, updateTelemetryConsent } from "@/lib/telemetry";
 import { environmentModes } from "@/lib/types";
 import type { EnvironmentMode, Message, Session, SessionHint } from "@/lib/types";
+import type { PauseFusionDecision } from "@/lib/local-signals/types";
 
 type OrbMode = "idle" | "listening" | "thinking" | "speaking" | "pressure" | "error";
 
@@ -109,16 +113,24 @@ export default function SessionPage() {
   const [selectedVoiceId, setSelectedVoiceId] = useState(voiceOptions[0].id);
   const [visualMode, setVisualMode] = useState<EnvironmentMode>("AI Orb");
   const [voiceMode, setVoiceMode] = useState(false);
+  const [cameraAssistedTiming, setCameraAssistedTiming] = useState(false);
   const [latestHint, setLatestHint] = useState<SessionHint | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
   const [autoSubmitNotice, setAutoSubmitNotice] = useState("");
+  const [pauseDecision, setPauseDecision] = useState<PauseFusionDecision | null>(null);
   const autoEndingRef = useRef(false);
-  const { getToken, userId } = useAuth();
+  const heldVoiceTurnRef = useRef<{ content: string; speechDurationMs: number; silenceMs: number } | null>(null);
+  const { getToken, profile, userId } = useAuth();
   const practiceLanguage = getLanguage(session?.practiceLanguage);
   const beginnerMode = session?.difficulty === "Beginner" || session?.difficulty === "Friendly";
   const coordination = useConversationCoordination({ userId, sessionId: id, enabled: voiceMode });
   const { analyze: analyzeCoordination } = coordination;
   const voice = useRealtimeVoice({ browserSpeechCode: practiceLanguage.browserSpeechCode, deepgramCode: practiceLanguage.deepgramCode, longPauseMs: coordination.longPauseMs || 3400 });
+  const cameraSignals = useLocalCameraSignals({ enabled: cameraAssistedTiming && voiceMode });
+
+  useEffect(() => {
+    setCameraAssistedTiming(Boolean(profile?.privacySettings?.allowCameraAssistedTiming));
+  }, [profile?.privacySettings?.allowCameraAssistedTiming]);
 
   useEffect(() => {
     if (!id) {
@@ -191,7 +203,7 @@ export default function SessionPage() {
   async function submitContent(content: string, fromVoice = false, voiceMetrics?: { speechDurationMs: number; silenceMs: number }) {
     if (!content.trim()) return;
     setError("");
-    setAutoSubmitNotice(fromVoice ? "Auto-sending your turn..." : "");
+    setAutoSubmitNotice(fromVoice ? "Checking whether to wait..." : "");
     if (session?.status === "completed") {
       setVoiceMode(false);
       voice.stopListening();
@@ -199,20 +211,85 @@ export default function SessionPage() {
       setError("This session is already completed. Start a new practice session for hands-free voice.");
       return;
     }
+    let outboundContent = content.trim();
+    let metrics = voiceMetrics || { speechDurationMs: 0, silenceMs: 0 };
+    let localDecision: PauseFusionDecision | null = null;
+    if (fromVoice) {
+      const held = heldVoiceTurnRef.current;
+      outboundContent = [held?.content, content.trim()].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+      metrics = {
+        speechDurationMs: (held?.speechDurationMs || 0) + (voiceMetrics?.speechDurationMs || 0),
+        silenceMs: Math.max(held?.silenceMs || 0, voiceMetrics?.silenceMs || 0),
+      };
+      localDecision = pauseFusionEngine(
+        {
+          finalTranscript: outboundContent,
+          interimTranscript: voice.interimTranscript,
+          speechDurationMs: metrics.speechDurationMs,
+          silenceMs: metrics.silenceMs,
+          deepgramEndpointing: voice.provider === "deepgram",
+        },
+        cameraAssistedTiming ? cameraSignals.signals : null,
+        coordination.profile || undefined,
+      );
+      setPauseDecision(localDecision);
+      if (profile?.privacySettings?.allowLocalSignalTelemetry) {
+        const token = await getToken();
+        saveLocalSignalTelemetry({
+          userId,
+          sessionId: id,
+          cameraEnabled: cameraAssistedTiming,
+          faceDetected: cameraSignals.signals.faceDetected,
+          mouthMovementActivity: cameraSignals.signals.mouthMovementIntensity,
+          visualStillnessMs: cameraSignals.signals.visualStillnessMs,
+          lookingAwayScore: cameraSignals.signals.lookingAwayScore,
+          headMovementIntensity: cameraSignals.signals.headMovementIntensity,
+          silenceMs: metrics.silenceMs,
+          speechDurationMs: metrics.speechDurationMs,
+          pauseDecision: localDecision.pauseDecision,
+          decisionConfidence: localDecision.confidence,
+          userContinuedAfterDecision: localDecision.pauseDecision !== "respond",
+        }, token).catch(() => undefined);
+      }
+      if (localDecision.pauseDecision === "wait" || localDecision.pauseDecision === "keep_listening") {
+        heldVoiceTurnRef.current = { content: outboundContent, ...metrics };
+        setDraft(outboundContent);
+        setAutoSubmitNotice(localDecision.reason === "visual_preparing_to_continue" ? "Still listening. Take your time." : "Waiting a little longer.");
+        window.setTimeout(() => {
+          if (voiceMode && !loading && session?.status !== "completed") voice.startListening();
+        }, Math.min(1400, Math.max(500, Math.round(localDecision.adjustedWaitMs * 0.22))));
+        return;
+      }
+      if (localDecision.pauseDecision === "gentle_prompt") {
+        heldVoiceTurnRef.current = { content: outboundContent, ...metrics };
+        setDraft(outboundContent);
+        setAutoSubmitNotice("Take your time — when you’re ready, continue.");
+        window.setTimeout(() => {
+          if (voiceMode && !loading && session?.status !== "completed") voice.startListening();
+        }, 1300);
+        return;
+      }
+    }
+    heldVoiceTurnRef.current = null;
     setDraft("");
     voice.resetTranscript();
     setLoading(true);
     try {
       const token = await getToken();
-      const metrics = voiceMetrics || { speechDurationMs: 0, silenceMs: 0 };
       const requestStartedAt = Date.now();
-      const result = await sendMessage(id, content.trim(), userId, token, {
-        transcript: content.trim(),
+      const result = await sendMessage(id, outboundContent, userId, token, {
+        transcript: outboundContent,
         interimTranscript: "",
         speechDurationMs: metrics.speechDurationMs,
         silenceMs: metrics.silenceMs,
         sessionId: id,
         userId,
+        coordinationContext: localDecision ? {
+          pauseDecision: localDecision.pauseDecision,
+          userStateApprox: localDecision.userStateApprox,
+          adjustedWaitMs: localDecision.adjustedWaitMs,
+          cameraAssisted: localDecision.cameraAssisted,
+        } : undefined,
       });
       const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
@@ -231,7 +308,7 @@ export default function SessionPage() {
           practiceType: session.practiceType,
           difficulty: session.difficulty,
           language: session.practiceLanguage || "en",
-          transcript: content.trim(),
+          transcript: outboundContent,
           speechDurationMs: metrics.speechDurationMs,
           silenceBeforeMs: metrics.silenceMs,
           silenceAfterMs: metrics.silenceMs,
@@ -245,7 +322,15 @@ export default function SessionPage() {
           detectedUserState: coordination.state?.userState,
           detectedPressureState: coordination.state?.pressureAdjustment,
           userInterruptedAi: false,
-          aiInterruptedUser: Boolean(coordination.state?.shouldAiInterrupt),
+          aiInterruptedUser: localDecision ? localDecision.pauseDecision === "respond" && localDecision.reason !== "user_finished" : Boolean(coordination.state?.shouldAiInterrupt),
+          cameraEnabled: cameraAssistedTiming,
+          faceDetected: cameraSignals.signals.faceDetected,
+          mouthMovementActivity: cameraSignals.signals.mouthMovementIntensity,
+          visualStillnessMs: cameraSignals.signals.visualStillnessMs,
+          lookingAwayScore: cameraSignals.signals.lookingAwayScore,
+          headMovementIntensity: cameraSignals.signals.headMovementIntensity,
+          pauseDecision: localDecision?.pauseDecision,
+          decisionConfidence: localDecision?.confidence,
         }, token).catch(() => undefined);
       }
       await voice.speak(result.aiMessage.content, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode);
@@ -269,6 +354,21 @@ export default function SessionPage() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await submitContent(draft);
+  }
+
+  async function updateCameraAssistance(enabled: boolean) {
+    setCameraAssistedTiming(enabled);
+    if (!enabled) cameraSignals.stop();
+    const current = profile?.privacySettings || {
+      allowTelemetry: true,
+      allowModelImprovement: true,
+      allowRawAudioStorage: false,
+      allowCameraAssistedTiming: false,
+      allowLocalSignalTelemetry: false,
+      allowRawVideoStorage: false as const,
+    };
+    const token = await getToken();
+    await updateTelemetryConsent(userId, { ...current, allowCameraAssistedTiming: enabled, allowRawVideoStorage: false }, token).catch(() => undefined);
   }
 
   async function finish() {
@@ -312,6 +412,16 @@ export default function SessionPage() {
             <BrainCircuit size={16} /> {session?.practiceType || "Loading"} · elapsed {time}
           </div>
           <div className="flex items-center gap-2">
+            <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl xl:flex">
+              <Camera size={14} />
+              <span>Camera-assisted timing</span>
+              <input
+                type="checkbox"
+                checked={cameraAssistedTiming}
+                onChange={(event) => updateCameraAssistance(event.target.checked).catch(() => undefined)}
+                className="size-4 accent-cyan-200"
+              />
+            </label>
             <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl lg:flex">
               <UsersRound size={14} />
               <select
@@ -408,6 +518,21 @@ export default function SessionPage() {
             <div className="mx-auto mb-3 w-fit rounded-full bg-white/[0.08] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/76 ring-1 ring-white/12 backdrop-blur-2xl">
               {voice.provider === "deepgram" ? "Deepgram live" : "Browser fallback"} · {practiceLanguage.nativeName} · {session?.difficulty || "Realistic"}{session?.difficulty === "Nerve" ? ` · pressure ${session.pressureLevel || 1}/10` : ""}
             </div>
+            <div className="mx-auto mb-4 flex w-fit flex-wrap items-center justify-center gap-2">
+              <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ring-1 backdrop-blur-2xl ${cameraAssistedTiming ? "bg-emerald-300/12 text-emerald-50 ring-emerald-200/20" : "bg-white/[0.08] text-white/50 ring-white/12"}`}>
+                <ShieldCheck size={14} /> {cameraAssistedTiming ? cameraSignals.message : "Camera assistance is off."} {cameraAssistedTiming && <span className="rounded-full bg-white/10 px-2 py-0.5">local only</span>}
+              </div>
+              {cameraAssistedTiming && (
+                <button type="button" onClick={() => cameraSignals.setPreviewVisible(!cameraSignals.previewVisible)} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-1.5 text-xs font-bold text-white/64 ring-1 ring-white/12">
+                  {cameraSignals.previewVisible ? <EyeOff size={14} /> : <Eye size={14} />} Preview
+                </button>
+              )}
+            </div>
+            {cameraAssistedTiming && (
+              <div className={cameraSignals.previewVisible ? "mx-auto mb-4 w-44 overflow-hidden rounded-2xl bg-black/50 ring-1 ring-white/15" : "sr-only"}>
+                <video ref={cameraSignals.videoRef} className="aspect-video w-full object-cover opacity-80" muted playsInline />
+              </div>
+            )}
             <h1 className="mx-auto -mt-3 max-w-3xl text-4xl font-semibold leading-[0.98] tracking-[-0.055em] text-white sm:text-6xl">
               {session?.practiceType || "Cognitive simulation"}
             </h1>
@@ -465,6 +590,18 @@ export default function SessionPage() {
           </div>
 
           <div className="rounded-[2rem] bg-white/[0.08] p-3 ring-1 ring-white/12 backdrop-blur-2xl">
+            <div className="mb-3 grid gap-2 text-xs font-semibold text-white/70 xl:hidden">
+              <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/12 backdrop-blur-2xl">
+                <span className="inline-flex items-center gap-2"><Camera size={14} /> Camera-assisted timing</span>
+                <input
+                  type="checkbox"
+                  checked={cameraAssistedTiming}
+                  onChange={(event) => updateCameraAssistance(event.target.checked).catch(() => undefined)}
+                  className="size-4 accent-cyan-200"
+                />
+              </label>
+            </div>
+            {cameraAssistedTiming && <CameraPrivacyNotice compact className="mb-3 bg-white/[0.08] text-white/70 ring-white/12 dark:bg-white/[0.08] dark:text-white/70 dark:ring-white/12" />}
             <form onSubmit={onSubmit} className="flex items-end gap-2">
               <button
                 type="button"

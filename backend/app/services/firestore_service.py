@@ -94,6 +94,7 @@ class FirestoreService:
         self.voice_profiles: dict[str, dict] = {}
         self.conversation_states: dict[str, dict] = {}
         self.conversation_telemetry: dict[str, dict] = {}
+        self.local_signal_telemetry: dict[str, dict] = {}
         self.session_outcomes: dict[str, dict] = {}
         self.telemetry_labels: dict[str, dict] = {}
         self.safety_events: dict[str, dict] = {}
@@ -249,6 +250,9 @@ class FirestoreService:
                 "allowTelemetry": True,
                 "allowModelImprovement": True,
                 "allowRawAudioStorage": False,
+                "allowCameraAssistedTiming": False,
+                "allowLocalSignalTelemetry": False,
+                "allowRawVideoStorage": False,
             }),
             "ageConfirmed": (existing or {}).get("ageConfirmed", False),
             "minorConsentAcknowledged": (existing or {}).get("minorConsentAcknowledged", False),
@@ -272,6 +276,9 @@ class FirestoreService:
             "allowTelemetry": True,
             "allowModelImprovement": True,
             "allowRawAudioStorage": False,
+            "allowCameraAssistedTiming": False,
+            "allowLocalSignalTelemetry": False,
+            "allowRawVideoStorage": False,
         }
         profile = await self.get_user_profile(uid) or {}
         return {**defaults, **(profile.get("privacySettings") or {})}
@@ -282,6 +289,9 @@ class FirestoreService:
             "allowTelemetry": bool(settings["allowTelemetry"]) if "allowTelemetry" in settings else current["allowTelemetry"],
             "allowModelImprovement": bool(settings["allowModelImprovement"]) if "allowModelImprovement" in settings else current["allowModelImprovement"],
             "allowRawAudioStorage": bool(settings["allowRawAudioStorage"]) if "allowRawAudioStorage" in settings else current["allowRawAudioStorage"],
+            "allowCameraAssistedTiming": bool(settings["allowCameraAssistedTiming"]) if "allowCameraAssistedTiming" in settings else current["allowCameraAssistedTiming"],
+            "allowLocalSignalTelemetry": bool(settings["allowLocalSignalTelemetry"]) if "allowLocalSignalTelemetry" in settings else current["allowLocalSignalTelemetry"],
+            "allowRawVideoStorage": False,
         }
         payload = {"privacySettings": next_settings, "updatedAt": utc_now_iso()}
         if self.client:
@@ -441,6 +451,29 @@ class FirestoreService:
         if session_id:
             records = [record for record in records if record.get("sessionId") == session_id]
         return sorted(records, key=lambda item: item.get("createdAt", ""), reverse=True)[:limit_count]
+
+    async def save_local_signal_telemetry(self, record: dict) -> dict:
+        telemetry_id = record["telemetryId"]
+        if self.client:
+            self.client.collection("localSignalTelemetry").document(telemetry_id).set(record, merge=True)
+        self.local_signal_telemetry[telemetry_id] = record
+        return record
+
+    async def list_local_signal_telemetry(self, limit_count: int = 500) -> list[dict]:
+        if self.client:
+            docs = self.client.collection("localSignalTelemetry").order_by("createdAt", direction=firestore.Query.DESCENDING).limit(limit_count).stream()
+            return [doc.to_dict() for doc in docs]
+        return sorted(self.local_signal_telemetry.values(), key=lambda item: item.get("createdAt", ""), reverse=True)[:limit_count]
+
+    async def count_local_signal_opt_outs(self) -> int:
+        if self.client:
+            docs = self.client.collection("users").where("privacySettings.allowLocalSignalTelemetry", "==", False).stream()
+            return sum(1 for _ in docs)
+        return sum(
+            1
+            for profile in self.admin_users.values()
+            if not (profile.get("privacySettings") or {}).get("allowLocalSignalTelemetry", False)
+        )
 
     async def cleanup_expired_conversation_telemetry(self, now_iso: Optional[str] = None, limit_count: int = 500) -> int:
         cutoff = now_iso or utc_now_iso()

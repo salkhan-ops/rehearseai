@@ -31,6 +31,9 @@ export type AppUserProfile = {
     allowTelemetry: boolean;
     allowModelImprovement: boolean;
     allowRawAudioStorage: boolean;
+    allowCameraAssistedTiming: boolean;
+    allowLocalSignalTelemetry: boolean;
+    allowRawVideoStorage: false;
   };
   ageConfirmed: boolean;
   minorConsentAcknowledged: boolean;
@@ -85,6 +88,9 @@ function fallbackProfile(user: User): AppUserProfile {
       allowTelemetry: true,
       allowModelImprovement: true,
       allowRawAudioStorage: false,
+      allowCameraAssistedTiming: false,
+      allowLocalSignalTelemetry: false,
+      allowRawVideoStorage: false,
     },
     ageConfirmed: false,
     minorConsentAcknowledged: false,
@@ -136,6 +142,9 @@ async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, fe
         allowTelemetry: true,
         allowModelImprovement: true,
         allowRawAudioStorage: false,
+        allowCameraAssistedTiming: false,
+        allowLocalSignalTelemetry: false,
+        allowRawVideoStorage: false,
       },
       ageConfirmed: existingData.ageConfirmed || Boolean(compliance?.ageConfirmed),
       minorConsentAcknowledged: existingData.minorConsentAcknowledged || Boolean(compliance?.minorConsentAcknowledged),

@@ -6,6 +6,9 @@ export type PrivacySettings = {
   allowTelemetry: boolean;
   allowModelImprovement: boolean;
   allowRawAudioStorage: boolean;
+  allowCameraAssistedTiming: boolean;
+  allowLocalSignalTelemetry: boolean;
+  allowRawVideoStorage: false;
 };
 
 export type TurnTelemetryPayload = {
@@ -33,6 +36,16 @@ export type TurnTelemetryPayload = {
   detectedPauseType?: string;
   userInterruptedAi?: boolean;
   aiInterruptedUser?: boolean;
+  cameraEnabled?: boolean;
+  faceDetected?: boolean;
+  mouthMovementActivity?: number;
+  visualStillnessMs?: number;
+  lookingAwayScore?: number;
+  headMovementIntensity?: number;
+  pauseDecision?: string;
+  decisionConfidence?: number;
+  userContinuedAfterDecision?: boolean;
+  aiInterruptedTooEarly?: boolean;
 };
 
 export type SessionOutcomePayload = {
@@ -84,6 +97,38 @@ export function getPersonalSpeechProfile(userId: string, token?: string | null) 
 
 export function updateTelemetryConsent(userId: string, settings: PrivacySettings, token?: string | null) {
   return telemetryRequest<PrivacySettings>("/api/telemetry/privacy-settings", { userId, ...settings }, token);
+}
+
+export function saveLocalSignalTelemetry(payload: {
+  userId: string;
+  sessionId: string;
+  timestamp?: string;
+  cameraEnabled: boolean;
+  faceDetected: boolean;
+  mouthMovementActivity: number;
+  visualStillnessMs: number;
+  lookingAwayScore: number;
+  headMovementIntensity: number;
+  silenceMs: number;
+  speechDurationMs: number;
+  pauseDecision: string;
+  decisionConfidence: number;
+  userContinuedAfterDecision: boolean;
+  aiInterruptedTooEarly?: boolean;
+}, token?: string | null) {
+  return telemetryRequest<{ saved: boolean }>("/api/telemetry/local-signals", payload, token);
+}
+
+export function getLocalSignalDiagnostics(token?: string | null) {
+  return telemetryRequest<{
+    totalRecords: number;
+    cameraEnabledRecords: number;
+    faceDetectedRecords: number;
+    optOutCount: number;
+    decisionCounts: Record<string, number>;
+    averages: Record<string, number>;
+    accuracyProxy: Record<string, number>;
+  }>("/api/admin/local-signals", undefined, token);
 }
 
 export function outcomeFromReport(session: Session, report: Report, elapsedSeconds: number): SessionOutcomePayload {

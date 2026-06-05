@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Box, CreditCard, FileText, LayoutDashboard, ListChecks, LogOut, RefreshCw, Settings, ShieldCheck, Users } from "lucide-react";
+import { BookOpen, Box, Camera, CreditCard, FileText, LayoutDashboard, ListChecks, LogOut, RefreshCw, Settings, ShieldCheck, Users } from "lucide-react";
 import { AdminRoute } from "./AdminRoute";
 import { useAuth } from "@/lib/auth";
 
@@ -19,6 +19,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     ["/admin/course-templates", "Course Templates", BookOpen],
     ["/admin/billing", "Billing", CreditCard],
     ["/admin/logs", "Logs", FileText],
+    ["/admin/local-signals", "Local Signals", Camera],
     ["/admin/settings", "Settings", Settings],
   ] as const;
   return (

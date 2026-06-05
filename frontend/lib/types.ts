@@ -406,9 +406,13 @@ export type VoiceProfile = {
   longPauseThresholdMs: number;
   shortPauseThresholdMs?: number;
   fillerWordRate: number;
+  hesitationMarkerRate?: number;
   averageSilenceAfterMs?: number;
   averageSpeechDurationMs?: number;
   averageTurnWordCount?: number;
+  averageVisualThinkingPauseMs?: number;
+  typicalMouthActivityBeforeContinue?: number;
+  typicalGazeShiftDuringThinking?: number;
   confusionMarkerRate?: number;
   defensivenessMarkerRate?: number;
   rushingWordsPerMinuteThreshold?: number;
@@ -454,6 +458,12 @@ export type ConversationAnalyzePayload = {
   wordTimings?: Array<{ word: string; startMs?: number; endMs?: number }>;
   sessionId?: string;
   userId: string;
+  coordinationContext?: {
+    pauseDecision?: string;
+    userStateApprox?: string;
+    adjustedWaitMs?: number;
+    cameraAssisted?: boolean;
+  };
 };
 
 export type CalibrationStart = {

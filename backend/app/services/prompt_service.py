@@ -44,6 +44,10 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
 - recommendedAiTone: {coordination_context.get("recommendedAiTone")}
 - recommendedResponseLength: {coordination_context.get("recommendedResponseLength")}
 - shouldAiInterrupt: {coordination_context.get("shouldAiInterrupt")}
+- pauseDecision: {coordination_context.get("pauseDecision")}
+- userStateApprox: {coordination_context.get("userStateApprox")}
+- adjustedWaitMs: {coordination_context.get("adjustedWaitMs")}
+- cameraAssisted: {coordination_context.get("cameraAssisted")}
 - instruction: {coordination_context.get("instruction")}
 - future Cartesia delivery: {coordination_context.get("cartesia")}
 - nerve cross-examination: {coordination_context.get("nerve")}
