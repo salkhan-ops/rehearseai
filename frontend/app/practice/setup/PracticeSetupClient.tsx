@@ -26,8 +26,6 @@ const frequencyOptions = [
   ["custom", "Mon / Wed / Fri"],
 ] as const;
 
-const characterEnvironmentModes = environmentModes.filter((mode) => mode !== "AI Orb") as EnvironmentMode[];
-
 const templates: Record<PracticeType, Array<{ label: string; topic: string; context: string; goal: string; notes: string }>> = {
   "Job Interview": [
     { label: "Final-round PM interview", topic: "Senior product manager interview", context: "I am meeting a skeptical VP in a final round. They care about judgment, prioritization, leadership, and handling ambiguity.", goal: "Sound clear, calm, senior, and evidence-backed under pressure.", notes: "Push me when I become generic or vague." },
@@ -70,7 +68,7 @@ function SetupForm() {
   const [goal, setGoal] = useState("");
   const [optionalNotes, setOptionalNotes] = useState("");
   const [durationPreference, setDurationPreference] = useState(10);
-  const [environmentMode, setEnvironmentMode] = useState<EnvironmentMode>("Single Interviewer");
+  const [environmentMode, setEnvironmentMode] = useState<EnvironmentMode>("AI Orb");
   const [nerveEntryType, setNerveEntryType] = useState<NerveEntryType>("Topic");
   const [nervePersona, setNervePersona] = useState<NervePersona>("Mixed Panel");
   const [nerveMaterialName, setNerveMaterialName] = useState("");
@@ -255,7 +253,7 @@ function SetupForm() {
               </div>
               <AICharacterEnvironment mode={environmentMode} preview />
               <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-                {characterEnvironmentModes.map((mode) => (
+                {environmentModes.map((mode) => (
                   <button
                     key={mode}
                     type="button"

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
+import { AIPresenceOrb } from "@/components/AIPresenceOrb";
 import { AnimatedMessage, AnimatedPage, TypingIndicator } from "@/components/animations";
 import { BeginnerBriefing } from "@/components/learning/BeginnerBriefing";
 import { CoachPanel } from "@/components/learning/CoachPanel";
@@ -29,7 +30,6 @@ const voiceOptions = [
 ];
 
 const durationOptions = [5, 10, 15, 30, 45, 60];
-const characterEnvironmentModes = environmentModes.filter((mode) => mode !== "AI Orb") as EnvironmentMode[];
 
 const listeningPrompts: Record<string, string> = {
   en: "I am listening. Start your answer when you are ready.",
@@ -107,7 +107,7 @@ export default function SessionPage() {
   const [durationMinutes, setDurationMinutes] = useState(10);
   const [customDuration, setCustomDuration] = useState(false);
   const [selectedVoiceId, setSelectedVoiceId] = useState(voiceOptions[0].id);
-  const [visualMode, setVisualMode] = useState<EnvironmentMode>("Single Interviewer");
+  const [visualMode, setVisualMode] = useState<EnvironmentMode>("AI Orb");
   const [voiceMode, setVoiceMode] = useState(false);
   const [latestHint, setLatestHint] = useState<SessionHint | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
@@ -129,7 +129,7 @@ export default function SessionPage() {
       .then((token: string | null) => getSession(id, token))
       .then((data: { session: Session; messages: Message[] }) => {
         setSession(data.session);
-        setVisualMode(data.session.environmentMode && data.session.environmentMode !== "AI Orb" ? data.session.environmentMode : "Single Interviewer");
+        setVisualMode(data.session.environmentMode || "AI Orb");
         if (data.session.durationPreference) setDurationMinutes(data.session.durationPreference);
         setMessages(data.messages);
       })
@@ -320,7 +320,7 @@ export default function SessionPage() {
                 className="max-w-44 bg-transparent text-white outline-none [color-scheme:dark]"
                 aria-label="Visual room"
               >
-                {characterEnvironmentModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+                {environmentModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
               </select>
             </label>
             <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl md:flex">
@@ -384,13 +384,17 @@ export default function SessionPage() {
               className="max-w-[62vw] bg-transparent text-right text-white outline-none [color-scheme:dark]"
               aria-label="Visual room"
             >
-              {characterEnvironmentModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+              {environmentModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
             </select>
           </label>
         </div>
 
         <section className={`relative grid flex-1 place-items-center py-8 ${visualMode !== "AI Orb" ? "min-h-[680px]" : ""}`}>
-          <AICharacterEnvironment mode={visualMode} />
+          {visualMode === "AI Orb" ? (
+            <AIPresenceOrb state={orbMode} intensity={(session?.turnCount || 0) / 8} />
+          ) : (
+            <AICharacterEnvironment mode={visualMode} />
+          )}
           <div className="absolute left-0 top-8 hidden max-w-xs space-y-3 lg:block">
             <MicroMetric label="Confidence" value={voice.isListening ? 74 : 68} tone="bg-cyan-300 text-cyan-300" />
             <MicroMetric label="Reasoning stability" value={loading ? 61 : 82} tone="bg-violet-300 text-violet-300" />
