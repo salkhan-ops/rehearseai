@@ -177,6 +177,33 @@ function MiniOrb() {
 export function AICharacterEnvironment({ mode = "AI Orb", preview = false }: { mode?: EnvironmentMode; preview?: boolean }) {
   const scene = scenes[mode] || scenes["AI Orb"];
   if (mode === "AI Orb" && !preview) return null;
+  if (mode !== "AI Orb") {
+    const participantCount = Math.max(1, scene.figures.length);
+    const descriptor = participantCount === 1 ? "Interviewer present" : `${participantCount}-person room`;
+    return (
+      <div className={`pointer-events-none ${preview ? "relative h-52 w-full overflow-hidden rounded-[1.5rem] bg-[#07111f] ring-1 ring-slate-200 dark:ring-white/10" : "absolute inset-x-0 top-6 z-[1] mx-auto h-[34rem] max-w-6xl overflow-hidden rounded-[2rem] opacity-100 shadow-[0_34px_120px_rgba(0,0,0,0.28)] ring-1 ring-white/10 [mask-image:linear-gradient(to_bottom,transparent,black_5%,black_88%,transparent)]"}`}>
+        <img
+          src="/scenes/panel-room-3d.png"
+          alt=""
+          className={`absolute inset-0 h-full w-full object-cover ${preview ? "scale-105" : "scale-[1.03]"}`}
+          style={{ objectPosition: scene.layout === "audience" ? "center 42%" : "center 48%" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#07111f]/28 via-[#07111f]/12 to-[#07111f]/76" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(103,232,249,0.22),transparent_32%),linear-gradient(90deg,rgba(7,17,31,0.74),transparent_28%,transparent_72%,rgba(49,46,129,0.58))]" />
+        <motion.div
+          className="absolute left-1/2 top-[54%] h-32 w-[78%] -translate-x-1/2 rounded-[100%] border border-cyan-100/38 bg-cyan-100/5 shadow-[0_0_70px_rgba(56,189,248,0.16)]"
+          animate={{ opacity: [0.44, 0.72, 0.48], scaleX: [0.98, 1.03, 0.98] }}
+          transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <div className={`absolute ${preview ? "bottom-4" : "top-4"} left-1/2 -translate-x-1/2 rounded-full bg-slate-950/58 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/86 ring-1 ring-cyan-100/22 backdrop-blur-xl`}>
+          {scene.title}
+        </div>
+        <div className={`absolute left-1/2 ${preview ? "bottom-4 hidden" : "bottom-16"} -translate-x-1/2 rounded-full bg-slate-950/62 px-4 py-2 text-xs font-semibold text-cyan-50/86 ring-1 ring-white/14 backdrop-blur-xl`}>
+          {descriptor}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={`pointer-events-none ${preview ? "relative h-52 w-full overflow-hidden rounded-[1.5rem] bg-[#07111f] ring-1 ring-slate-200 dark:ring-white/10" : "absolute inset-x-0 top-6 z-[1] mx-auto h-[34rem] max-w-6xl overflow-hidden rounded-[2rem] opacity-100 [mask-image:linear-gradient(to_bottom,transparent,black_5%,black_82%,transparent)]"}`}>
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.045)_1px,transparent_1px)] bg-[size:48px_48px] opacity-35" />
