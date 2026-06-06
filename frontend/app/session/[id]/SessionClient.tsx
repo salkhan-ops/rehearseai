@@ -612,6 +612,35 @@ export default function SessionPage() {
   }, [voiceMode, naturalModeActive, loading, voice.isSpeaking, voice.voiceState, voice.interimTranscript, voice.transcript, naturalConversation.state, cameraAssistedTiming, cameraSignals.signals]);
 
   useEffect(() => {
+    if (!voiceMode || !naturalModeActive || loading || voice.isSpeaking || naturalConversation.state === "paused") return;
+    if (!cameraAssistedTiming || cameraSignals.conversationSignal.recommendedAction !== "send_now") return;
+    if (!cameraSignals.conversationSignal.faceDetected) return;
+    const transcript = (naturalTranscriptRef.current || voice.transcript || heldVoiceTurnRef.current?.content || "").replace(/\s+/g, " ").trim();
+    if (!meaningfulTurn(transcript)) return;
+    const now = Date.now();
+    const stableMs = naturalLastTranscriptUpdateAtRef.current ? now - naturalLastTranscriptUpdateAtRef.current : 0;
+    const silentEnough = !voice.interimTranscript && !["connecting", "user_speaking"].includes(voice.voiceState);
+    if (!silentEnough || stableMs < 900 || isFinalizingTurnRef.current) return;
+    naturalMetricsRef.current = {
+      speechDurationMs: naturalMetricsRef.current.speechDurationMs || heldVoiceTurnRef.current?.speechDurationMs || 0,
+      silenceMs: Math.max(naturalMetricsRef.current.silenceMs || 0, stableMs),
+    };
+    setAutoSubmitNotice("Camera timing: moving forward...");
+    finalizeAndSendTurn("mediapipe_likely_finished").catch(() => undefined);
+  }, [
+    cameraAssistedTiming,
+    cameraSignals.conversationSignal,
+    loading,
+    naturalConversation.state,
+    naturalModeActive,
+    voice.interimTranscript,
+    voice.isSpeaking,
+    voice.transcript,
+    voice.voiceState,
+    voiceMode,
+  ]);
+
+  useEffect(() => {
     if (!debugTurnTaking || !naturalModeActive) return undefined;
     const interval = setInterval(() => {
       const transcript = naturalTranscriptRef.current || voice.transcript || "";
@@ -1102,7 +1131,7 @@ export default function SessionPage() {
                   <UsersRound size={14} /> Panel mode
                 </div>
               )}
-              <CameraTimingStatus enabled={cameraAssistedTiming} state={cameraSignals.state} message={cameraSignals.message} />
+              <CameraTimingStatus enabled={cameraAssistedTiming} state={cameraSignals.state} message={cameraSignals.message} conversationSignal={cameraSignals.conversationSignal} />
               {cameraAssistedTiming && (
                 <button type="button" onClick={() => cameraSignals.setPreviewVisible(!cameraSignals.previewVisible)} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-1.5 text-xs font-bold text-white/64 ring-1 ring-white/12">
                   {cameraSignals.previewVisible ? <EyeOff size={14} /> : <Eye size={14} />} Preview

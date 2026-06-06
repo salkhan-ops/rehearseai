@@ -65,11 +65,12 @@ export function faceSignalRuleEngine(
 
   if (
     context.hasTranscript &&
-    (context.transcriptStableMs || 0) > 1300 &&
-    face.mouthStillnessMs > 1200 &&
-    face.visualStillnessMs > 1000 &&
-    face.mouthOpenScore < 0.24 &&
-    face.lipMovementScore < 0.12
+    (context.transcriptStableMs || 0) > 900 &&
+    face.mouthStillnessMs > 900 &&
+    face.visualStillnessMs > 800 &&
+    face.mouthOpenScore < 0.28 &&
+    face.lipMovementScore < 0.16 &&
+    face.headMovementIntensity < 0.12
   ) {
     return {
       cameraAvailable: true,
