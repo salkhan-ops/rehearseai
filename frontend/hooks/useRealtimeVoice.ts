@@ -190,21 +190,33 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
       setProvider("deepgram");
 
       socket.onopen = async () => {
-        const mimeType = getMimeType();
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-        setDiagnostics((current) => ({ ...current, micPermission: "granted", deepgramConnected: true }));
-        streamRef.current = stream;
-        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-        recorderRef.current = recorder;
-        recorder.ondataavailable = (event) => {
-          if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
-            socket.send(event.data);
-            setDiagnostics((current) => ({ ...current, audioChunksStreaming: current.audioChunksStreaming + 1 }));
-          }
-        };
-        recorder.start(250);
-        setVoiceState("listening");
-        maxTimerRef.current = setTimeout(finalizeTurn, DEEPGRAM_MAX_TURN_MS);
+        try {
+          const mimeType = getMimeType();
+          setDiagnostics((current) => ({ ...current, micPermission: "prompt" }));
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+          setDiagnostics((current) => ({ ...current, micPermission: "granted", deepgramConnected: true }));
+          streamRef.current = stream;
+          const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+          recorderRef.current = recorder;
+          recorder.ondataavailable = (event) => {
+            if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+              socket.send(event.data);
+              setDiagnostics((current) => ({ ...current, audioChunksStreaming: current.audioChunksStreaming + 1 }));
+            }
+          };
+          recorder.start(250);
+          setVoiceState("listening");
+          maxTimerRef.current = setTimeout(finalizeTurn, DEEPGRAM_MAX_TURN_MS);
+        } catch (error) {
+          cleanupDeepgram();
+          setVoiceState("error");
+          setDiagnostics((current) => ({
+            ...current,
+            micPermission: error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") ? "denied" : "error",
+            deepgramConnected: false,
+          }));
+          startMock(error instanceof Error ? error.message : "Microphone permission failed. Voice-only fallback could not start.");
+        }
       };
 
       socket.onmessage = (event) => {

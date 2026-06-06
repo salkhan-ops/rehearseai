@@ -161,7 +161,6 @@ export default function SessionPage() {
   const isFinalizingTurnRef = useRef(false);
   const sessionActiveRef = useRef(true);
   const debugTurnTaking = process.env.NEXT_PUBLIC_DEBUG_TURN_TAKING === "true";
-  const showVoiceDebug = process.env.NODE_ENV === "development" || debugTurnTaking;
   const naturalTimerRefs = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const naturalIntervalRefs = useRef<Array<ReturnType<typeof setInterval>>>([]);
   const naturalGentlePromptShownRef = useRef(false);
@@ -1131,7 +1130,7 @@ export default function SessionPage() {
 
           <LiveTranscriptPanel transcript={voice.transcript} interimTranscript={voice.interimTranscript} />
 
-          {showVoiceDebug && naturalModeActive && (
+          {naturalModeActive && (
             <div className="mb-3 rounded-xl bg-black/45 p-3 text-left text-[11px] font-semibold leading-5 text-cyan-50/75 ring-1 ring-cyan-100/15">
               <div className="mb-1 text-cyan-100">Voice debug</div>
               <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
