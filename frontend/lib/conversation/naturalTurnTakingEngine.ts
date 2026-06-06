@@ -1,5 +1,6 @@
 import { pauseFusionEngine } from "@/lib/local-signals/pauseFusionEngine";
 import type { LocalCameraSignals, PauseFusionDecision, PersonalTimingBaseline } from "@/lib/local-signals/types";
+import type { FaceConversationSignal } from "@/lib/mediapipe/faceSignalTypes";
 
 export type NaturalTurnDecision =
   | "keep_listening"
@@ -34,6 +35,7 @@ export type NaturalTurnTakingInput = {
   hardTimeoutAt?: number;
   deepgramEndpointing?: boolean;
   cameraSignals?: LocalCameraSignals | null;
+  cameraConversationSignal?: FaceConversationSignal | null;
   personalBaseline?: PersonalTimingBaseline;
   aiSpeaking?: boolean;
 };
@@ -109,12 +111,17 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
   const shortSilenceMs = SHORT_PAUSE_MS;
   const longSilenceMs = Math.max(THINKING_PAUSE_MS, Math.min(FORCE_DECISION_MS, baseline.longPauseThresholdMs || THINKING_PAUSE_MS));
   const transcriptStableMs = input.lastTranscriptUpdateMs ? Date.now() - input.lastTranscriptUpdateMs : 0;
+  const cameraConversationSignal = input.cameraConversationSignal;
+  const cameraRecommendedAction = cameraConversationSignal?.recommendedAction || "ignore_camera";
+  const cameraCanAssist = Boolean(cameraConversationSignal?.cameraAvailable && cameraConversationSignal.faceDetected);
   const cameraThinking =
-    Boolean(input.cameraSignals?.faceDetected) &&
+    cameraCanAssist &&
     ((input.cameraSignals?.mouthMovementIntensity || 0) > 0.14 ||
       (input.cameraSignals?.headMovementIntensity || 0) > 0.12 ||
       (input.cameraSignals?.gazeShiftFrequency || 0) > 0.1 ||
-      (input.cameraSignals?.lookingAwayScore || 0) > 0.42);
+      (input.cameraSignals?.lookingAwayScore || 0) > 0.42 ||
+      cameraRecommendedAction === "wait_longer" ||
+      cameraRecommendedAction === "continue_listening");
 
   if (input.aiSpeaking && hasText(input)) {
     return {
@@ -124,7 +131,7 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
       reason: "user_started_speaking_over_ai",
       confidence: 0.92,
       adjustedWaitMs: longSilenceMs,
-      cameraAssisted: Boolean(input.cameraSignals?.faceDetected),
+      cameraAssisted: cameraCanAssist,
     };
   }
 
@@ -136,7 +143,7 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
       reason: transcript ? "hard_timeout_with_transcript" : "hard_timeout_empty_transcript",
       confidence: 1,
       adjustedWaitMs: HARD_TIMEOUT_MS,
-      cameraAssisted: Boolean(input.cameraSignals?.faceDetected),
+      cameraAssisted: cameraCanAssist,
     };
   }
 
@@ -148,7 +155,7 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
       reason: transcript ? "force_resolution_with_transcript" : "force_resolution_empty_transcript",
       confidence: 0.96,
       adjustedWaitMs: FORCE_DECISION_MS,
-      cameraAssisted: Boolean(input.cameraSignals?.faceDetected),
+      cameraAssisted: cameraCanAssist,
     };
   }
 
@@ -161,7 +168,7 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
         reason: "empty_transcript_soft_prompt",
         confidence: 0.86,
         adjustedWaitMs: SOFT_PROMPT_MS,
-        cameraAssisted: Boolean(input.cameraSignals?.faceDetected),
+        cameraAssisted: cameraCanAssist,
       };
     }
     return {
@@ -171,7 +178,7 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
       reason: "empty_transcript",
       confidence: 0.72,
       adjustedWaitMs: longSilenceMs,
-      cameraAssisted: Boolean(input.cameraSignals?.faceDetected),
+      cameraAssisted: cameraCanAssist,
     };
   }
 
@@ -183,7 +190,19 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
       reason: "explicit_wait_phrase",
       confidence: 0.95,
       adjustedWaitMs: longSilenceMs,
-      cameraAssisted: Boolean(input.cameraSignals?.faceDetected),
+      cameraAssisted: cameraCanAssist,
+    };
+  }
+
+  if (input.silenceMs >= SOFT_PROMPT_MS) {
+    return {
+      decision: "send_now",
+      pauseDecision: "send_now",
+      pauseState: "send_now",
+      reason: "meaningful_transcript_soft_limit",
+      confidence: 0.95,
+      adjustedWaitMs: SOFT_PROMPT_MS,
+      cameraAssisted: cameraCanAssist,
     };
   }
 
@@ -195,7 +214,19 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
       reason: "short_silence",
       confidence: 0.8,
       adjustedWaitMs: longSilenceMs,
-      cameraAssisted: Boolean(input.cameraSignals?.faceDetected),
+      cameraAssisted: cameraCanAssist,
+    };
+  }
+
+  if (cameraCanAssist && cameraRecommendedAction === "send_now" && transcriptStableMs >= 1000 && input.silenceMs >= SHORT_PAUSE_MS) {
+    return {
+      decision: "send_now",
+      pauseDecision: "send_now",
+      pauseState: "probably_finished",
+      reason: cameraConversationSignal?.reason || "camera_recommends_send",
+      confidence: cameraConversationSignal?.confidence || 0.78,
+      adjustedWaitMs: shortSilenceMs,
+      cameraAssisted: true,
     };
   }
 
@@ -207,19 +238,7 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
       reason: "thinking_pause_window",
       confidence: 0.78,
       adjustedWaitMs: longSilenceMs,
-      cameraAssisted: Boolean(input.cameraSignals?.faceDetected),
-    };
-  }
-
-  if (input.silenceMs >= SOFT_PROMPT_MS) {
-    return {
-      decision: "gentle_prompt",
-      pauseDecision: "gentle_prompt",
-      pauseState: "gentle_prompt",
-      reason: cameraThinking ? "soft_prompt_camera_thinking" : "soft_prompt_uncertain",
-      confidence: 0.82,
-      adjustedWaitMs: SOFT_PROMPT_MS,
-      cameraAssisted: Boolean(input.cameraSignals?.faceDetected),
+      cameraAssisted: cameraCanAssist,
     };
   }
 
@@ -231,7 +250,7 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
       reason: "stable_transcript_no_visual_continue",
       confidence: 0.86,
       adjustedWaitMs: longSilenceMs,
-      cameraAssisted: Boolean(input.cameraSignals?.faceDetected),
+      cameraAssisted: cameraCanAssist,
     };
   }
 

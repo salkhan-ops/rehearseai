@@ -12,8 +12,8 @@ export function CameraPrivacyNotice({ className = "", compact = false }: Props) 
         <ShieldCheck className="mt-0.5 shrink-0" size={18} />
         <p>
           {compact
-            ? "Your camera video is processed locally in your browser. We do not record, upload, or store video/images."
-            : "Your camera video is processed locally in your browser. We do not record, upload, or store video/images. Only optional numeric timing signals may be stored if you allow telemetry."}
+            ? "Your camera video is processed locally in your browser. We do not record, upload, store video/images, or identify faces."
+            : "Your camera video is processed locally in your browser with MediaPipe. We do not record, upload, store video/images, identify faces, or perform emotion or mental-health diagnosis. Only optional numeric timing signals may be stored if you allow telemetry."}
         </p>
       </div>
     </div>

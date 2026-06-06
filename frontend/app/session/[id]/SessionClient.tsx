@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, BrainCircuit, Camera, Clock3, Eye, EyeOff, Mic, MicOff, Send, ShieldCheck, Square, UsersRound, Volume2 } from "lucide-react";
+import { ArrowLeft, BrainCircuit, Camera, Clock3, Eye, EyeOff, Mic, MicOff, Send, Square, UsersRound, Volume2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +13,9 @@ import { CoachPanel } from "@/components/learning/CoachPanel";
 import { ConversationMap } from "@/components/learning/ConversationMap";
 import { FloatingHint } from "@/components/learning/FloatingHint";
 import { CameraPrivacyNotice } from "@/components/local-signals/CameraPrivacyNotice";
+import { CameraAssistedTimingToggle } from "@/components/session/CameraAssistedTimingToggle";
+import { CameraDebugPanel } from "@/components/session/CameraDebugPanel";
+import { CameraTimingStatus } from "@/components/session/CameraTimingStatus";
 import { ConversationModeToggle } from "@/components/session/ConversationModeToggle";
 import { LiveTranscriptPanel } from "@/components/session/LiveTranscriptPanel";
 import { NaturalConversationControls } from "@/components/session/NaturalConversationControls";
@@ -171,7 +174,13 @@ export default function SessionPage() {
   const coordination = useConversationCoordination({ userId, sessionId: id, enabled: voiceMode });
   const { analyze: analyzeCoordination } = coordination;
   const voice = useRealtimeVoice({ browserSpeechCode: practiceLanguage.browserSpeechCode, deepgramCode: practiceLanguage.deepgramCode, longPauseMs: coordination.longPauseMs || 3400 });
-  const cameraSignals = useLocalCameraSignals({ enabled: cameraAssistedTiming });
+  const naturalTranscriptForCamera = (naturalTranscriptRef.current || voice.transcript || heldVoiceTurnRef.current?.content || "").replace(/\s+/g, " ").trim();
+  const cameraSignals = useLocalCameraSignals({
+    enabled: cameraAssistedTiming,
+    transcriptStableMs: naturalLastTranscriptUpdateAtRef.current ? Date.now() - naturalLastTranscriptUpdateAtRef.current : 0,
+    silenceMs: naturalMetricsRef.current.silenceMs || 0,
+    hasTranscript: naturalTranscriptForCamera.length >= 12 || naturalTranscriptForCamera.split(" ").filter(Boolean).length >= 2,
+  });
   const naturalConversation = useNaturalConversation();
   const naturalModeActive = conversationMode === "natural";
 
@@ -198,6 +207,8 @@ export default function SessionPage() {
 
   function cameraTurnSignal() {
     if (!cameraAssistedTiming) return "no_signal";
+    if (cameraSignals.conversationSignal.recommendedAction === "send_now") return "likely_finished";
+    if (cameraSignals.conversationSignal.recommendedAction === "continue_listening" || cameraSignals.conversationSignal.recommendedAction === "wait_longer") return "likely_thinking";
     if (!cameraSignals.signals.faceDetected) return "face_not_detected";
     const likelyThinking =
       cameraSignals.signals.mouthMovementIntensity > 0.14 ||
@@ -371,7 +382,7 @@ export default function SessionPage() {
           userStateApprox: "finished",
           adjustedWaitMs: metrics.silenceMs,
           cameraAssisted: cameraSignal !== "no_signal" && cameraSignal !== "face_not_detected",
-          cameraHesitation: cameraSignal === "likely_thinking",
+          cameraHesitation: cameraSignals.conversationSignal.recommendedAction === "wait_longer" || cameraSignals.conversationSignal.recommendedAction === "continue_listening",
         },
       });
       const responseLatencyMs = Date.now() - requestStartedAt;
@@ -612,6 +623,19 @@ export default function SessionPage() {
         ttsError: voice.diagnostics?.ttsError || "",
         cameraEnabled: cameraAssistedTiming,
         cameraPermission: cameraSignals.state,
+        mediaPipeLoaded: cameraSignals.mediaPipeLoaded,
+        mediaPipeCameraPermission: cameraSignals.cameraPermission,
+        faceDetected: cameraSignals.faceSignalState.faceDetected,
+        mouthOpenScore: Number(cameraSignals.faceSignalState.mouthOpenScore.toFixed(3)),
+        lipMovementScore: Number(cameraSignals.faceSignalState.lipMovementScore.toFixed(3)),
+        blinkRateApprox: Number(cameraSignals.faceSignalState.blinkRateApprox.toFixed(3)),
+        lookingAway: cameraSignals.faceSignalState.lookingAway,
+        lookDirection: cameraSignals.faceSignalState.lookDirection,
+        headMovementIntensity: Number(cameraSignals.faceSignalState.headMovementIntensity.toFixed(3)),
+        visualStillnessMs: Math.round(cameraSignals.faceSignalState.visualStillnessMs),
+        engagement: cameraSignals.faceSignalState.engagement,
+        userStateEstimate: cameraSignals.conversationSignal.userStateEstimate,
+        recommendedAction: cameraSignals.conversationSignal.recommendedAction,
         cameraDecision: cameraTurnSignal(),
         cameraSignalState: cameraSignals.state,
         pauseDecision: pauseDecision?.pauseDecision || "",
@@ -624,7 +648,7 @@ export default function SessionPage() {
       console.debug("[turn-taking]", snapshot);
     }, 500);
     return () => clearInterval(interval);
-  }, [debugTurnTaking, naturalModeActive, naturalConversation.state, voice.transcript, voice.interimTranscript, voice.diagnostics, cameraAssistedTiming, cameraSignals.state, pauseDecision]);
+  }, [debugTurnTaking, naturalModeActive, naturalConversation.state, voice.transcript, voice.interimTranscript, voice.diagnostics, cameraAssistedTiming, cameraSignals, pauseDecision]);
 
   useEffect(() => {
     if (!session || session.status === "completed" || loading || autoEndingRef.current) return;
@@ -674,6 +698,7 @@ export default function SessionPage() {
         silenceMs: metrics.silenceMs,
         deepgramEndpointing: voice.provider === "deepgram",
         cameraSignals: cameraAssistedTiming ? cameraSignals.signals : null,
+        cameraConversationSignal: cameraAssistedTiming ? cameraSignals.conversationSignal : null,
         personalBaseline: coordination.profile || undefined,
         aiSpeaking: voice.isSpeaking,
       });
@@ -956,16 +981,9 @@ export default function SessionPage() {
             <BrainCircuit size={16} /> {session?.practiceType || "Loading"} · elapsed {time}
           </div>
           <div className="flex items-center gap-2">
-            <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl xl:flex">
-              <Camera size={14} />
-              <span>Camera-assisted timing</span>
-              <input
-                type="checkbox"
-                checked={cameraAssistedTiming}
-                onChange={(event) => updateCameraAssistance(event.target.checked).catch(() => undefined)}
-                className="size-4 accent-cyan-200"
-              />
-            </label>
+            <div className="hidden max-w-sm xl:block">
+              <CameraAssistedTimingToggle enabled={cameraAssistedTiming} onChange={(enabled) => updateCameraAssistance(enabled).catch(() => undefined)} />
+            </div>
             <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl lg:flex">
               <UsersRound size={14} />
               <select
@@ -1072,9 +1090,7 @@ export default function SessionPage() {
                   <UsersRound size={14} /> Panel mode
                 </div>
               )}
-              <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ring-1 backdrop-blur-2xl ${cameraAssistedTiming ? "bg-emerald-300/12 text-emerald-50 ring-emerald-200/20" : "bg-white/[0.08] text-white/50 ring-white/12"}`}>
-                <ShieldCheck size={14} /> {cameraAssistedTiming ? cameraSignals.message : "Camera assistance is off."} {cameraAssistedTiming && <span className="rounded-full bg-white/10 px-2 py-0.5">local only</span>}
-              </div>
+              <CameraTimingStatus enabled={cameraAssistedTiming} state={cameraSignals.state} message={cameraSignals.message} />
               {cameraAssistedTiming && (
                 <button type="button" onClick={() => cameraSignals.setPreviewVisible(!cameraSignals.previewVisible)} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-1.5 text-xs font-bold text-white/64 ring-1 ring-white/12">
                   {cameraSignals.previewVisible ? <EyeOff size={14} /> : <Eye size={14} />} Preview
@@ -1154,6 +1170,17 @@ export default function SessionPage() {
             </div>
           )}
 
+          <CameraDebugPanel
+            visible={debugTurnTaking && naturalModeActive}
+            mediaPipeLoaded={cameraSignals.mediaPipeLoaded}
+            cameraPermission={cameraSignals.cameraPermission}
+            faceSignalState={cameraSignals.faceSignalState}
+            conversationSignal={cameraSignals.conversationSignal}
+            finalPauseDecision={pauseDecision}
+            autoSendTriggered={isFinalizingTurnRef.current}
+            blockedReason={!meaningfulTurn(naturalTranscriptRef.current || voice.transcript || "") ? "empty_or_too_short" : latestLoadingRef.current ? "loading" : !latestVoiceModeRef.current ? "voice_mode_off" : ""}
+          />
+
           <div className="mb-3 grid gap-2 text-xs font-semibold text-white/70 md:hidden">
             <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/12 backdrop-blur-2xl">
               <span className="inline-flex items-center gap-2"><Volume2 size={14} /> AI voice</span>
@@ -1184,15 +1211,7 @@ export default function SessionPage() {
               />
             </div>
             <div className="mb-3 grid gap-2 text-xs font-semibold text-white/70 xl:hidden">
-              <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/12 backdrop-blur-2xl">
-                <span className="inline-flex items-center gap-2"><Camera size={14} /> Camera-assisted timing</span>
-                <input
-                  type="checkbox"
-                  checked={cameraAssistedTiming}
-                  onChange={(event) => updateCameraAssistance(event.target.checked).catch(() => undefined)}
-                  className="size-4 accent-cyan-200"
-                />
-              </label>
+              <CameraAssistedTimingToggle enabled={cameraAssistedTiming} onChange={(enabled) => updateCameraAssistance(enabled).catch(() => undefined)} />
             </div>
             {cameraAssistedTiming && <CameraPrivacyNotice compact className="mb-3 bg-white/[0.08] text-white/70 ring-white/12 dark:bg-white/[0.08] dark:text-white/70 dark:ring-white/12" />}
             {naturalModeActive ? (
