@@ -73,11 +73,15 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   const finalBufferRef = useRef("");
   const interimBufferRef = useRef("");
   const finalizingRef = useRef(false);
+  const listeningActiveRef = useRef(false);
+  const listeningRunRef = useRef(0);
+  const speakingRef = useRef(false);
   const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speechStartedAtRef = useRef<number | null>(null);
   const lastSpeechAtRef = useRef<number | null>(null);
+  const lastFinalTextRef = useRef("");
   const [provider, setProvider] = useState<Provider>("mock");
   const [providerReason, setProviderReason] = useState("");
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
@@ -108,6 +112,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   );
 
   const cleanupDeepgram = useCallback(() => {
+    listeningActiveRef.current = false;
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
     if (maxTimerRef.current) clearTimeout(maxTimerRef.current);
     if (connectionTimerRef.current) clearTimeout(connectionTimerRef.current);
@@ -132,6 +137,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     finalBufferRef.current = "";
     interimBufferRef.current = "";
     finalizingRef.current = false;
+    lastFinalTextRef.current = "";
     speechStartedAtRef.current = null;
     lastSpeechAtRef.current = null;
     setTranscript("");
@@ -166,6 +172,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   }, [finalizeTurn, longPauseMs]);
 
   const startMock = useCallback((reason: string) => {
+      if (speakingRef.current) return;
       setProvider("mock");
       setProviderReason(reason);
       setDiagnostics((current) => ({ ...current, deepgramConnected: false }));
@@ -173,6 +180,9 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     }, [fallback]);
 
   const startListening = useCallback(async () => {
+    if (speakingRef.current || listeningActiveRef.current) return;
+    listeningActiveRef.current = true;
+    const runId = ++listeningRunRef.current;
     resetTranscript();
     setDiagnostics((current) => ({
       ...current,
@@ -187,15 +197,20 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
 
     setVoiceState("connecting");
     setProviderReason("");
+    setProvider("deepgram");
     try {
       setDiagnostics((current) => ({ ...current, micPermission: "prompt", deepgramConnected: false }));
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      if (runId !== listeningRunRef.current || speakingRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        listeningActiveRef.current = false;
+        return;
+      }
       streamRef.current = stream;
       setDiagnostics((current) => ({ ...current, micPermission: "granted" }));
 
       const socket = new WebSocket(getVoiceWebSocketUrl(deepgramCode));
       wsRef.current = socket;
-      setProvider("deepgram");
       connectionTimerRef.current = setTimeout(() => {
         if (socket.readyState !== WebSocket.OPEN) {
           cleanupDeepgram();
@@ -206,6 +221,10 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
 
       socket.onopen = async () => {
         try {
+          if (runId !== listeningRunRef.current || speakingRef.current) {
+            cleanupDeepgram();
+            return;
+          }
           if (connectionTimerRef.current) clearTimeout(connectionTimerRef.current);
           connectionTimerRef.current = null;
           const mimeType = getMimeType();
@@ -253,6 +272,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
           return;
         }
         const text = payload.channel?.alternatives?.[0]?.transcript?.trim();
+        if (runId !== listeningRunRef.current || speakingRef.current) return;
         if (!text) return;
         setDiagnostics((current) => ({ ...current, transcriptReceived: true }));
         finalizingRef.current = false;
@@ -260,7 +280,10 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         lastSpeechAtRef.current = Date.now();
         setVoiceState("user_speaking");
         if (payload.is_final) {
-          finalBufferRef.current = `${finalBufferRef.current} ${text}`.replace(/\s+/g, " ").trim();
+          if (text !== lastFinalTextRef.current && !finalBufferRef.current.endsWith(text)) {
+            finalBufferRef.current = `${finalBufferRef.current} ${text}`.replace(/\s+/g, " ").trim();
+            lastFinalTextRef.current = text;
+          }
           interimBufferRef.current = "";
           setTranscript(finalBufferRef.current);
           setInterimTranscript("");
@@ -274,15 +297,18 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
       };
 
       socket.onerror = () => {
+        if (runId !== listeningRunRef.current) return;
         cleanupDeepgram();
         setVoiceState("error");
         startMock("Deepgram connection failed. Falling back to browser speech.");
       };
 
       socket.onclose = () => {
-        if (!finalizingRef.current && voiceState !== "processing") setVoiceState("idle");
+        if (runId === listeningRunRef.current) listeningActiveRef.current = false;
+        if (!finalizingRef.current && voiceState !== "processing" && !speakingRef.current) setVoiceState("idle");
       };
     } catch (error) {
+      if (runId !== listeningRunRef.current) return;
       cleanupDeepgram();
       setVoiceState("error");
       setDiagnostics((current) => ({
@@ -295,6 +321,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   }, [cleanupDeepgram, deepgramCode, fallback, finalizeTurn, resetTranscript, schedulePause, startMock, voiceState]);
 
   const stopListening = useCallback(() => {
+    listeningRunRef.current += 1;
+    listeningActiveRef.current = false;
     cleanupDeepgram();
     fallback.stopListening();
     setVoiceState("idle");
@@ -302,6 +330,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
 
   const speak = useCallback((text: string, voiceId?: string, speechCode = browserSpeechCode): Promise<void> => {
     const runId = ++speakRunRef.current;
+    speakingRef.current = true;
+    listeningRunRef.current += 1;
     cleanupDeepgram();
     fallback.stopListening();
     setVoiceState("ai_speaking");
@@ -311,12 +341,14 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
       const playBrowserFallback = () => {
         if (runId !== speakRunRef.current) {
           setVoiceState("idle");
+          speakingRef.current = false;
           resolve();
           return;
         }
         if (typeof window === "undefined" || !window.speechSynthesis) {
           setDiagnostics((current) => ({ ...current, ttsError: "Browser speech synthesis unavailable." }));
           setVoiceState("idle");
+          speakingRef.current = false;
           resolve();
           return;
         }
@@ -330,11 +362,13 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         utterance.onend = () => {
           if (runId !== speakRunRef.current) return;
           setVoiceState("idle");
+          speakingRef.current = false;
           resolve();
         };
         utterance.onerror = () => {
           if (runId !== speakRunRef.current) return;
           setVoiceState("idle");
+          speakingRef.current = false;
           resolve();
         };
         setDiagnostics((current) => ({ ...current, ttsStarted: true }));
@@ -347,6 +381,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         const blob = await synthesizeSpeech(cleanText, voiceId);
         if (runId !== speakRunRef.current) {
           setVoiceState("idle");
+          speakingRef.current = false;
           resolve();
           return;
         }
@@ -358,6 +393,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         audio.onended = () => {
           if (runId !== speakRunRef.current) return;
           setVoiceState("idle");
+          speakingRef.current = false;
           URL.revokeObjectURL(audioUrl);
           if (audioUrlRef.current === audioUrl) audioUrlRef.current = null;
           resolve();
@@ -382,6 +418,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
 
   const stopSpeaking = useCallback(() => {
     speakRunRef.current += 1;
+    speakingRef.current = false;
     audioRef.current?.pause();
     audioRef.current = null;
     if (audioUrlRef.current) {
@@ -395,6 +432,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
 
   useEffect(() => () => {
     speakRunRef.current += 1;
+    speakingRef.current = false;
     cleanupDeepgram();
     fallbackRef.current.stopListening();
     fallbackRef.current.stopSpeaking();
@@ -413,16 +451,17 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   }, []);
 
   const activeMock = provider === "mock";
+  const realtimeBusy = speakingRef.current || ["connecting", "listening", "user_speaking", "silence_detected", "processing", "ai_speaking"].includes(voiceState);
   return {
     supported,
     provider,
     providerReason,
-    voiceState: activeMock ? fallback.voiceState : voiceState,
-    isListening: activeMock ? fallback.isListening : ["connecting", "listening", "user_speaking", "silence_detected"].includes(voiceState),
-    isSpeaking: activeMock ? fallback.isSpeaking : voiceState === "ai_speaking",
-    isProcessing: activeMock ? fallback.isProcessing : voiceState === "processing",
-    transcript: activeMock ? fallback.transcript : transcript,
-    interimTranscript: activeMock ? fallback.interimTranscript : interimTranscript,
+    voiceState: activeMock && !realtimeBusy ? fallback.voiceState : voiceState,
+    isListening: activeMock && !realtimeBusy ? fallback.isListening : ["connecting", "listening", "user_speaking", "silence_detected"].includes(voiceState),
+    isSpeaking: activeMock && !realtimeBusy ? fallback.isSpeaking : speakingRef.current || voiceState === "ai_speaking",
+    isProcessing: activeMock && !realtimeBusy ? fallback.isProcessing : voiceState === "processing",
+    transcript: activeMock && !realtimeBusy ? fallback.transcript : transcript,
+    interimTranscript: activeMock && !realtimeBusy ? fallback.interimTranscript : interimTranscript,
     diagnostics,
     startListening,
     stopListening,
