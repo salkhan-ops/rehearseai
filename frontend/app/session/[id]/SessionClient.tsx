@@ -466,6 +466,36 @@ export default function SessionPage() {
   }, [voiceMode, naturalModeActive, loading, voice.isSpeaking, voice.supported, voice.voiceState, voice.startListening, voice.stopListening, naturalConversation.state]);
 
   useEffect(() => {
+    if (!voiceMode || !naturalModeActive || loading || voice.isSpeaking || naturalConversation.state === "paused") return undefined;
+    const interval = setInterval(() => {
+      if (!sessionActiveRef.current || isFinalizingTurnRef.current || latestLoadingRef.current || !latestVoiceModeRef.current) return;
+      const transcript = (naturalTranscriptRef.current || voice.transcript || heldVoiceTurnRef.current?.content || "").replace(/\s+/g, " ").trim();
+      if (!meaningfulTurn(transcript)) return;
+
+      const now = Date.now();
+      if (!naturalLastTranscriptUpdateAtRef.current) naturalLastTranscriptUpdateAtRef.current = now;
+      const lastUpdateAt = naturalLastTranscriptUpdateAtRef.current;
+      const stableMs = now - lastUpdateAt;
+      const cameraSignal = cameraTurnSignal();
+      const voiceLooksSilent = voice.voiceState === "silence_detected" || voice.voiceState === "processing" || !voice.interimTranscript;
+      const thresholdMs =
+        cameraSignal === "likely_finished" ? 1200 :
+        cameraSignal === "likely_thinking" ? 6500 :
+        2500;
+
+      if (voiceLooksSilent && stableMs >= thresholdMs) {
+        naturalMetricsRef.current = {
+          speechDurationMs: naturalMetricsRef.current.speechDurationMs || heldVoiceTurnRef.current?.speechDurationMs || 0,
+          silenceMs: Math.max(naturalMetricsRef.current.silenceMs || 0, stableMs),
+        };
+        setAutoSubmitNotice("Moving forward...");
+        finalizeAndSendTurn(cameraSignal === "likely_thinking" ? "camera_delay_elapsed" : "stable_transcript_watchdog").catch(() => undefined);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [voiceMode, naturalModeActive, loading, voice.isSpeaking, voice.voiceState, voice.interimTranscript, voice.transcript, naturalConversation.state, cameraAssistedTiming, cameraSignals.signals]);
+
+  useEffect(() => {
     if (!debugTurnTaking || !naturalModeActive) return undefined;
     const interval = setInterval(() => {
       const transcript = naturalTranscriptRef.current || voice.transcript || "";
