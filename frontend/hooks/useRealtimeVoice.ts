@@ -8,6 +8,15 @@ type VoiceState = "idle" | "connecting" | "listening" | "user_speaking" | "silen
 type Provider = "deepgram" | "mock";
 export type VoiceTurnMetrics = { speechDurationMs: number; silenceMs: number };
 type FinalTranscriptCallback = (transcript: string, metrics?: VoiceTurnMetrics) => void | Promise<void>;
+export type VoiceDiagnostics = {
+  micPermission: "unknown" | "granted" | "denied" | "prompt" | "error";
+  deepgramConnected: boolean;
+  audioChunksStreaming: number;
+  transcriptReceived: boolean;
+  aiResponseReceived: boolean;
+  ttsStarted: boolean;
+  ttsError: string;
+};
 
 const DEEPGRAM_LONG_PAUSE_MS = 3400;
 const DEEPGRAM_MAX_TURN_MS = 60000;
@@ -53,6 +62,7 @@ function humanizeSpeech(text: string) {
 
 export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "en", longPauseMs = DEEPGRAM_LONG_PAUSE_MS } = {}) {
   const fallback = useContinuousVoice(browserSpeechCode);
+  const fallbackRef = useRef(fallback);
   const callbackRef = useRef<FinalTranscriptCallback | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -73,6 +83,19 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [supported, setSupported] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<VoiceDiagnostics>({
+    micPermission: "unknown",
+    deepgramConnected: false,
+    audioChunksStreaming: 0,
+    transcriptReceived: false,
+    aiResponseReceived: false,
+    ttsStarted: false,
+    ttsError: "",
+  });
+
+  useEffect(() => {
+    fallbackRef.current = fallback;
+  }, [fallback]);
 
   useEffect(() => {
     setSupported(Boolean(navigator.mediaDevices?.getUserMedia) || fallback.supported);
@@ -99,6 +122,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
       }
     }
     wsRef.current = null;
+    setDiagnostics((current) => ({ ...current, deepgramConnected: false }));
   }, []);
 
   const resetTranscript = useCallback(() => {
@@ -110,6 +134,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     setTranscript("");
     setInterimTranscript("");
     fallback.resetTranscript();
+    setDiagnostics((current) => ({ ...current, transcriptReceived: false }));
   }, [fallback]);
 
   const finalizeTurn = useCallback(() => {
@@ -138,13 +163,20 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   }, [finalizeTurn, longPauseMs]);
 
   const startMock = useCallback((reason: string) => {
-    setProvider("mock");
-    setProviderReason(reason);
-    fallback.startListening();
-  }, [fallback]);
+      setProvider("mock");
+      setProviderReason(reason);
+      setDiagnostics((current) => ({ ...current, deepgramConnected: false }));
+      fallback.startListening();
+    }, [fallback]);
 
   const startListening = useCallback(async () => {
     resetTranscript();
+    setDiagnostics((current) => ({
+      ...current,
+      audioChunksStreaming: 0,
+      transcriptReceived: false,
+      ttsError: "",
+    }));
     if (!navigator.mediaDevices?.getUserMedia || typeof WebSocket === "undefined" || typeof MediaRecorder === "undefined") {
       startMock("Microphone streaming is not supported in this browser. Using browser speech fallback.");
       return;
@@ -160,11 +192,15 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
       socket.onopen = async () => {
         const mimeType = getMimeType();
         const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+        setDiagnostics((current) => ({ ...current, micPermission: "granted", deepgramConnected: true }));
         streamRef.current = stream;
         const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
         recorderRef.current = recorder;
         recorder.ondataavailable = (event) => {
-          if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) socket.send(event.data);
+          if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+            socket.send(event.data);
+            setDiagnostics((current) => ({ ...current, audioChunksStreaming: current.audioChunksStreaming + 1 }));
+          }
         };
         recorder.start(250);
         setVoiceState("listening");
@@ -190,6 +226,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         }
         const text = payload.channel?.alternatives?.[0]?.transcript?.trim();
         if (!text) return;
+        setDiagnostics((current) => ({ ...current, transcriptReceived: true }));
         finalizingRef.current = false;
         if (!speechStartedAtRef.current) speechStartedAtRef.current = Date.now();
         lastSpeechAtRef.current = Date.now();
@@ -220,6 +257,11 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     } catch (error) {
       cleanupDeepgram();
       setVoiceState("error");
+      setDiagnostics((current) => ({
+        ...current,
+        micPermission: error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") ? "denied" : "error",
+        deepgramConnected: false,
+      }));
       startMock(error instanceof Error ? error.message : "Could not start Deepgram proxy. Using browser speech fallback.");
     }
   }, [cleanupDeepgram, deepgramCode, fallback, finalizeTurn, resetTranscript, schedulePause, startMock, voiceState]);
@@ -235,6 +277,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     cleanupDeepgram();
     fallback.stopListening();
     setVoiceState("ai_speaking");
+    setDiagnostics((current) => ({ ...current, aiResponseReceived: Boolean(text.trim()), ttsStarted: false, ttsError: "" }));
     const cleanText = humanizeSpeech(text);
     return new Promise(async (resolve) => {
       const playBrowserFallback = () => {
@@ -244,6 +287,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
           return;
         }
         if (typeof window === "undefined" || !window.speechSynthesis) {
+          setDiagnostics((current) => ({ ...current, ttsError: "Browser speech synthesis unavailable." }));
           setVoiceState("idle");
           resolve();
           return;
@@ -265,6 +309,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
           setVoiceState("idle");
           resolve();
         };
+        setDiagnostics((current) => ({ ...current, ttsStarted: true }));
         window.speechSynthesis.speak(utterance);
         window.speechSynthesis.resume();
       };
@@ -281,6 +326,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
         audioUrlRef.current = audioUrl;
+        audio.onplay = () => setDiagnostics((current) => ({ ...current, ttsStarted: true }));
         audio.onended = () => {
           if (runId !== speakRunRef.current) return;
           setVoiceState("idle");
@@ -293,12 +339,14 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
           URL.revokeObjectURL(audioUrl);
           if (audioUrlRef.current === audioUrl) audioUrlRef.current = null;
           audioRef.current = null;
+          setDiagnostics((current) => ({ ...current, ttsError: "Cartesia audio failed. Using browser speech fallback." }));
           playBrowserFallback();
         };
         await audio.play();
         return;
       } catch {
         audioRef.current = null;
+        setDiagnostics((current) => ({ ...current, ttsError: "TTS request failed. Using browser speech fallback." }));
         playBrowserFallback();
       }
     });
@@ -320,14 +368,14 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   useEffect(() => () => {
     speakRunRef.current += 1;
     cleanupDeepgram();
-    fallback.stopListening();
-    fallback.stopSpeaking();
+    fallbackRef.current.stopListening();
+    fallbackRef.current.stopSpeaking();
     audioRef.current?.pause();
     if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
     audioUrlRef.current = null;
     audioRef.current = null;
     window.speechSynthesis?.cancel();
-  }, [cleanupDeepgram, fallback]);
+  }, [cleanupDeepgram]);
 
   const onFinalTranscript = useCallback((callback: FinalTranscriptCallback) => {
     callbackRef.current = callback;
@@ -347,6 +395,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     isProcessing: activeMock ? fallback.isProcessing : voiceState === "processing",
     transcript: activeMock ? fallback.transcript : transcript,
     interimTranscript: activeMock ? fallback.interimTranscript : interimTranscript,
+    diagnostics,
     startListening,
     stopListening,
     resetTranscript,

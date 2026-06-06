@@ -161,6 +161,7 @@ export default function SessionPage() {
   const isFinalizingTurnRef = useRef(false);
   const sessionActiveRef = useRef(true);
   const debugTurnTaking = process.env.NEXT_PUBLIC_DEBUG_TURN_TAKING === "true";
+  const showVoiceDebug = process.env.NODE_ENV === "development" || debugTurnTaking;
   const naturalTimerRefs = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const naturalIntervalRefs = useRef<Array<ReturnType<typeof setInterval>>>([]);
   const naturalGentlePromptShownRef = useRef(false);
@@ -381,16 +382,9 @@ export default function SessionPage() {
   useEffect(() => {
     sessionActiveRef.current = true;
     const handlePageHide = () => stopChamberMedia();
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        stopChamberMedia();
-      }
-    };
     window.addEventListener("pagehide", handlePageHide);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       window.removeEventListener("pagehide", handlePageHide);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       stopChamberMedia();
     };
   }, []);
@@ -483,8 +477,17 @@ export default function SessionPage() {
         finalTranscript: voice.transcript,
         lastTranscriptUpdateAt: naturalLastTranscriptUpdateAtRef.current,
         deepgramFinalReceived: naturalDeepgramFinalReceivedRef.current,
+        micPermission: voice.diagnostics?.micPermission || "unknown",
+        deepgramConnected: Boolean(voice.diagnostics?.deepgramConnected),
+        audioChunksStreaming: voice.diagnostics?.audioChunksStreaming || 0,
+        transcriptReceived: Boolean(voice.diagnostics?.transcriptReceived),
+        aiResponseReceived: Boolean(voice.diagnostics?.aiResponseReceived),
+        ttsStarted: Boolean(voice.diagnostics?.ttsStarted),
+        ttsError: voice.diagnostics?.ttsError || "",
         cameraEnabled: cameraAssistedTiming,
+        cameraPermission: cameraSignals.state,
         cameraDecision: cameraTurnSignal(),
+        cameraSignalState: cameraSignals.state,
         pauseDecision: pauseDecision?.pauseDecision || "",
         forceTimeoutMs: HARD_TIMEOUT_MS,
         autoSendEligible: meaningfulTurn(transcript),
@@ -495,7 +498,7 @@ export default function SessionPage() {
       console.debug("[turn-taking]", snapshot);
     }, 500);
     return () => clearInterval(interval);
-  }, [debugTurnTaking, naturalModeActive, naturalConversation.state, voice.transcript, voice.interimTranscript, cameraAssistedTiming, pauseDecision]);
+  }, [debugTurnTaking, naturalModeActive, naturalConversation.state, voice.transcript, voice.interimTranscript, voice.diagnostics, cameraAssistedTiming, cameraSignals.state, pauseDecision]);
 
   useEffect(() => {
     if (!session || session.status === "completed" || loading || autoEndingRef.current) return;
@@ -1001,11 +1004,21 @@ export default function SessionPage() {
 
           <LiveTranscriptPanel transcript={voice.transcript} interimTranscript={voice.interimTranscript} />
 
-          {debugTurnTaking && naturalModeActive && (
+          {showVoiceDebug && naturalModeActive && (
             <div className="mb-3 rounded-xl bg-black/45 p-3 text-left text-[11px] font-semibold leading-5 text-cyan-50/75 ring-1 ring-cyan-100/15">
-              <div className="mb-1 text-cyan-100">Turn-taking debug</div>
+              <div className="mb-1 text-cyan-100">Voice debug</div>
               <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-                {Object.entries(turnDebug).map(([key, value]) => (
+                {Object.entries(Object.keys(turnDebug).length ? turnDebug : {
+                  micPermission: voice.diagnostics?.micPermission || "unknown",
+                  cameraPermission: cameraSignals.state,
+                  deepgramConnected: Boolean(voice.diagnostics?.deepgramConnected),
+                  audioChunksStreaming: voice.diagnostics?.audioChunksStreaming || 0,
+                  transcriptReceived: Boolean(voice.diagnostics?.transcriptReceived),
+                  aiResponseReceived: Boolean(voice.diagnostics?.aiResponseReceived),
+                  ttsStarted: Boolean(voice.diagnostics?.ttsStarted),
+                  ttsError: voice.diagnostics?.ttsError || "",
+                  cameraSignalState: cameraSignals.state,
+                }).map(([key, value]) => (
                   <div key={key} className="flex justify-between gap-3">
                     <span className="text-white/38">{key}</span>
                     <span className="truncate text-right">{String(value)}</span>
