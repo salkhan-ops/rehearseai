@@ -78,6 +78,7 @@ export function useMediaPipeFaceSignals({
       timerRef.current = setInterval(sample, intervalMs);
       sample();
     } catch (err) {
+      faceLandmarkerService.stopCamera();
       setError(err instanceof Error ? err.message : "Camera-assisted timing failed.");
       setConversationSignal({ ...defaultFaceConversationSignal, reason: "camera_failed_voice_only_fallback" });
     }

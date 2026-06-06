@@ -28,6 +28,7 @@ import { useAuth } from "@/lib/auth";
 import { FORCE_DECISION_MS, HARD_TIMEOUT_MS, SOFT_PROMPT_MS } from "@/lib/conversation/naturalTurnTakingEngine";
 import { getLanguage, isRtlLanguage } from "@/lib/languages";
 import { pauseFusionEngine } from "@/lib/local-signals/pauseFusionEngine";
+import { stopCamera as stopMediaPipeCamera } from "@/lib/mediapipe/faceLandmarkerService";
 import { reportHref } from "@/lib/routes";
 import { getTelemetryConsent, outcomeFromReport, saveLocalSignalTelemetry, sendSessionOutcome, sendTurnTelemetry, type PrivacySettings, updateTelemetryConsent } from "@/lib/telemetry";
 import { environmentModes } from "@/lib/types";
@@ -169,6 +170,7 @@ export default function SessionPage() {
   const naturalGentlePromptShownRef = useRef(false);
   const latestVoiceModeRef = useRef(false);
   const latestLoadingRef = useRef(false);
+  const stopChamberMediaRef = useRef<() => void>(() => undefined);
   const practiceLanguage = getLanguage(session?.practiceLanguage);
   const beginnerMode = session?.difficulty === "Beginner" || session?.difficulty === "Friendly";
   const coordination = useConversationCoordination({ userId, sessionId: id, enabled: voiceMode });
@@ -340,8 +342,11 @@ export default function SessionPage() {
     voice.stopSpeaking();
     voice.resetTranscript();
     cameraSignals.stop();
+    stopMediaPipeCamera();
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
   }
+
+  stopChamberMediaRef.current = stopChamberMedia;
 
   async function sendNaturalTurnDirect(content: string, reason: string) {
     const outboundContent = content.replace(/\s+/g, " ").trim();
@@ -488,11 +493,11 @@ export default function SessionPage() {
 
   useEffect(() => {
     sessionActiveRef.current = true;
-    const handlePageHide = () => stopChamberMedia();
+    const handlePageHide = () => stopChamberMediaRef.current();
     window.addEventListener("pagehide", handlePageHide);
     return () => {
       window.removeEventListener("pagehide", handlePageHide);
-      stopChamberMedia();
+      stopChamberMediaRef.current();
     };
   }, []);
 
@@ -923,6 +928,8 @@ export default function SessionPage() {
     clearNaturalTimers();
     voice.stopListening();
     voice.stopSpeaking();
+    cameraSignals.stop();
+    stopMediaPipeCamera();
   }
 
   async function updateCameraAssistance(enabled: boolean) {
@@ -942,6 +949,7 @@ export default function SessionPage() {
     voice.stopListening();
     voice.stopSpeaking();
     cameraSignals.stop();
+    stopMediaPipeCamera();
     naturalConversation.reset();
     setVoiceMode(false);
     setLoading(true);

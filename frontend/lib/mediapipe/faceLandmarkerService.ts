@@ -19,6 +19,7 @@ class FaceLandmarkerService {
   private landmarker: FaceLandmarker | null = null;
   private initPromise: Promise<FaceLandmarker> | null = null;
   private stream: MediaStream | null = null;
+  private attachedVideos = new Set<HTMLVideoElement>();
   private status: MediaPipeFaceStatus = "idle";
   private cameraPermission: FaceLandmarkerServiceSnapshot["cameraPermission"] = "unknown";
   private error = "";
@@ -104,6 +105,7 @@ class FaceLandmarkerService {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       this.stream = stream;
+      this.attachedVideos.add(videoElement);
       videoElement.srcObject = stream;
       videoElement.muted = true;
       videoElement.playsInline = true;
@@ -124,6 +126,13 @@ class FaceLandmarkerService {
   stopCamera() {
     this.stream?.getTracks().forEach((track) => track.stop());
     this.stream = null;
+    this.attachedVideos.forEach((video) => {
+      video.pause();
+      video.srcObject = null;
+      video.removeAttribute("src");
+      video.load();
+    });
+    this.attachedVideos.clear();
     this.setSnapshot({ status: this.landmarker ? "idle" : "idle" });
   }
 
