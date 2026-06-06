@@ -22,6 +22,7 @@ import { useNaturalConversation } from "@/hooks/useNaturalConversation";
 import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
 import { completeCourseSession, endSession, generateReport, getSession, sendMessage, updateSessionHint } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { FORCE_DECISION_MS, HARD_TIMEOUT_MS, SOFT_PROMPT_MS } from "@/lib/conversation/naturalTurnTakingEngine";
 import { getLanguage, isRtlLanguage } from "@/lib/languages";
 import { pauseFusionEngine } from "@/lib/local-signals/pauseFusionEngine";
 import { reportHref } from "@/lib/routes";
@@ -148,9 +149,15 @@ export default function SessionPage() {
   const [hintVisible, setHintVisible] = useState(false);
   const [latestControl, setLatestControl] = useState<ConversationControl | null>(null);
   const [autoSubmitNotice, setAutoSubmitNotice] = useState("");
+  const [naturalCountdown, setNaturalCountdown] = useState<number | null>(null);
   const [pauseDecision, setPauseDecision] = useState<PauseFusionDecision | null>(null);
   const autoEndingRef = useRef(false);
   const heldVoiceTurnRef = useRef<{ content: string; speechDurationMs: number; silenceMs: number } | null>(null);
+  const naturalTimerRefs = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const naturalIntervalRefs = useRef<Array<ReturnType<typeof setInterval>>>([]);
+  const naturalGentlePromptShownRef = useRef(false);
+  const latestVoiceModeRef = useRef(false);
+  const latestLoadingRef = useRef(false);
   const practiceLanguage = getLanguage(session?.practiceLanguage);
   const beginnerMode = session?.difficulty === "Beginner" || session?.difficulty === "Friendly";
   const coordination = useConversationCoordination({ userId, sessionId: id, enabled: voiceMode });
@@ -159,6 +166,104 @@ export default function SessionPage() {
   const cameraSignals = useLocalCameraSignals({ enabled: cameraAssistedTiming });
   const naturalConversation = useNaturalConversation();
   const naturalModeActive = conversationMode === "natural";
+
+  useEffect(() => {
+    latestVoiceModeRef.current = voiceMode;
+  }, [voiceMode]);
+
+  useEffect(() => {
+    latestLoadingRef.current = loading;
+  }, [loading]);
+
+  function clearNaturalTimers() {
+    naturalTimerRefs.current.forEach((timer) => clearTimeout(timer));
+    naturalIntervalRefs.current.forEach((timer) => clearInterval(timer));
+    naturalTimerRefs.current = [];
+    naturalIntervalRefs.current = [];
+    setNaturalCountdown(null);
+  }
+
+  function naturalTimeoutPrompt(kind: "soft" | "hard") {
+    const difficulty = session?.difficulty || "Intermediate";
+    if (difficulty === "Beginner" || difficulty === "Friendly") {
+      return kind === "hard" ? "Let me reframe the question. What evidence supports your point?" : "Take your time — you can think out loud.";
+    }
+    if (difficulty === "Brutal") {
+      return kind === "hard" ? "You’re hesitating. Give me a direct answer." : "";
+    }
+    if (difficulty === "Nerve") {
+      return kind === "hard" ? "Panelist: You’ve had enough time. What is your answer?" : "You’ve had some time. Defend your answer.";
+    }
+    if (difficulty === "Advanced") return kind === "hard" ? "Give me your strongest point first." : "Whenever you’re ready, continue.";
+    return kind === "hard" ? "Start with one reason." : "Whenever you’re ready, continue.";
+  }
+
+  function startCountdown(fromMs: number, totalMs: number) {
+    const secondsLeft = Math.max(1, Math.ceil((totalMs - fromMs) / 1000));
+    setNaturalCountdown(Math.min(3, secondsLeft));
+    const interval = setInterval(() => {
+      setNaturalCountdown((current) => {
+        if (!current || current <= 1) return null;
+        return current - 1;
+      });
+    }, 1000);
+    naturalIntervalRefs.current.push(interval);
+  }
+
+  function forceResolveNaturalTurn(reason: "send_now" | "force_resolution" | "hard_timeout" = "force_resolution") {
+    const held = heldVoiceTurnRef.current;
+    const content = (held?.content || draft || voice.transcript || "").trim();
+    const meaningful = content.replace(/\s+/g, " ").split(" ").filter(Boolean).length >= 2 || content.length >= 12;
+    clearNaturalTimers();
+    if (meaningful) {
+      submitContent(content, true, {
+        speechDurationMs: held?.speechDurationMs || 0,
+        silenceMs: reason === "hard_timeout" ? HARD_TIMEOUT_MS : FORCE_DECISION_MS,
+      }, {
+        forceNaturalSend: true,
+        forceResolutionTriggered: reason !== "send_now",
+        hardTimeoutTriggered: reason === "hard_timeout",
+        gentlePromptShown: naturalGentlePromptShownRef.current,
+        decisionOverride: reason,
+      }).catch(() => undefined);
+      return;
+    }
+    heldVoiceTurnRef.current = null;
+    naturalGentlePromptShownRef.current = true;
+    setDraft("");
+    voice.resetTranscript();
+    setAutoSubmitNotice(naturalTimeoutPrompt("hard") || "I didn’t catch that. Would you like to try again?");
+    naturalConversation.dispatch("listening_started");
+    if (latestVoiceModeRef.current && session?.status !== "completed") {
+      window.setTimeout(() => voice.startListening(), 900);
+    }
+  }
+
+  function scheduleNaturalBoundedWait(elapsedSilenceMs: number, hasContent: boolean) {
+    clearNaturalTimers();
+    if (!naturalModeActive) return;
+    const softDelay = Math.max(0, SOFT_PROMPT_MS - elapsedSilenceMs);
+    const forceDelay = Math.max(0, FORCE_DECISION_MS - elapsedSilenceMs);
+    const hardDelay = Math.max(0, HARD_TIMEOUT_MS - elapsedSilenceMs);
+
+    if (!naturalGentlePromptShownRef.current && softDelay <= hardDelay) {
+      const softTimer = setTimeout(() => {
+        naturalGentlePromptShownRef.current = true;
+        const prompt = naturalTimeoutPrompt("soft");
+        if (prompt) setAutoSubmitNotice(prompt);
+        startCountdown(SOFT_PROMPT_MS, hasContent ? FORCE_DECISION_MS : HARD_TIMEOUT_MS);
+      }, softDelay);
+      naturalTimerRefs.current.push(softTimer);
+    }
+
+    if (hasContent) {
+      const forceTimer = setTimeout(() => forceResolveNaturalTurn("force_resolution"), forceDelay);
+      naturalTimerRefs.current.push(forceTimer);
+    }
+
+    const hardTimer = setTimeout(() => forceResolveNaturalTurn("hard_timeout"), hardDelay);
+    naturalTimerRefs.current.push(hardTimer);
+  }
 
   useEffect(() => {
     if (!profile?.privacySettings) return;
@@ -200,6 +305,8 @@ export default function SessionPage() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => () => clearNaturalTimers(), []);
+
   const time = useMemo(() => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`, [seconds]);
   const remainingSeconds = Math.max(durationMinutes * 60 - seconds, 0);
   const remainingTime = useMemo(() => `${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, "0")}`, [remainingSeconds]);
@@ -226,6 +333,7 @@ export default function SessionPage() {
         naturalConversation.dispatch("interrupt");
         setAutoSubmitNotice("You interrupted the AI");
       } else if (naturalModeActive) {
+        clearNaturalTimers();
         naturalConversation.dispatch("speech_detected");
       }
     }
@@ -244,7 +352,10 @@ export default function SessionPage() {
 
   useEffect(() => {
     if (!voiceMode || !naturalModeActive || loading || voice.isSpeaking || naturalConversation.state === "paused") return;
-    if (voice.supported && voice.voiceState === "idle") voice.startListening();
+    if (voice.supported && voice.voiceState === "idle") {
+      voice.startListening();
+      scheduleNaturalBoundedWait(0, Boolean((heldVoiceTurnRef.current?.content || draft).trim()));
+    }
     return () => {
       if (!voiceMode) voice.stopListening();
     };
@@ -258,7 +369,18 @@ export default function SessionPage() {
     finish();
   }, [durationMinutes, loading, seconds, session]);
 
-  async function submitContent(content: string, fromVoice = false, voiceMetrics?: { speechDurationMs: number; silenceMs: number }) {
+  async function submitContent(
+    content: string,
+    fromVoice = false,
+    voiceMetrics?: { speechDurationMs: number; silenceMs: number },
+    naturalOptions: {
+      forceNaturalSend?: boolean;
+      forceResolutionTriggered?: boolean;
+      hardTimeoutTriggered?: boolean;
+      gentlePromptShown?: boolean;
+      decisionOverride?: string;
+    } = {},
+  ) {
     if (!content.trim()) return;
     setError("");
     setAutoSubmitNotice(fromVoice ? "Checking whether to wait..." : "");
@@ -280,7 +402,7 @@ export default function SessionPage() {
         speechDurationMs: (held?.speechDurationMs || 0) + (voiceMetrics?.speechDurationMs || 0),
         silenceMs: Math.max(held?.silenceMs || 0, voiceMetrics?.silenceMs || 0),
       };
-      const naturalDecision = naturalConversation.evaluateTurn({
+      const naturalDecision = naturalOptions.forceNaturalSend ? null : naturalConversation.evaluateTurn({
         finalTranscript: outboundContent,
         interimTranscript: voice.interimTranscript,
         speechDurationMs: metrics.speechDurationMs,
@@ -290,7 +412,7 @@ export default function SessionPage() {
         personalBaseline: coordination.profile || undefined,
         aiSpeaking: voice.isSpeaking,
       });
-      localDecision = naturalDecision.sourceDecision || pauseFusionEngine(
+      localDecision = naturalDecision?.sourceDecision || pauseFusionEngine(
           {
             finalTranscript: outboundContent,
             interimTranscript: voice.interimTranscript,
@@ -320,26 +442,31 @@ export default function SessionPage() {
           userContinuedAfterDecision: localDecision.pauseDecision !== "respond",
         }, token).catch(() => undefined);
       }
-      if (naturalDecision.decision === "wait_longer" || naturalDecision.decision === "keep_listening") {
+      if (naturalDecision && (naturalDecision.decision === "wait_longer" || naturalDecision.decision === "keep_listening")) {
         heldVoiceTurnRef.current = { content: outboundContent, ...metrics };
         setDraft(outboundContent);
-        setAutoSubmitNotice(localDecision.reason === "visual_preparing_to_continue" ? "Still listening. Take your time." : "Waiting a little longer.");
+        setAutoSubmitNotice(localDecision.reason === "visual_preparing_to_continue" || naturalDecision.pauseState === "probably_thinking" ? "I’m waiting while you think..." : "Still with you...");
+        scheduleNaturalBoundedWait(metrics.silenceMs, Boolean(outboundContent.trim()));
         window.setTimeout(() => {
           if (voiceMode && !loading && session?.status !== "completed") voice.startListening();
         }, Math.min(1400, Math.max(500, Math.round(localDecision.adjustedWaitMs * 0.22))));
         return;
       }
-      if (naturalDecision.decision === "gentle_prompt") {
+      if (naturalDecision?.decision === "gentle_prompt") {
         heldVoiceTurnRef.current = { content: outboundContent, ...metrics };
         setDraft(outboundContent);
-        setAutoSubmitNotice("Take your time — when you’re ready, continue.");
+        naturalGentlePromptShownRef.current = true;
+        setAutoSubmitNotice(naturalTimeoutPrompt("soft") || "Still with you...");
+        scheduleNaturalBoundedWait(metrics.silenceMs, Boolean(outboundContent.trim()));
         window.setTimeout(() => {
           if (voiceMode && !loading && session?.status !== "completed") voice.startListening();
         }, 1300);
         return;
       }
     }
+    clearNaturalTimers();
     heldVoiceTurnRef.current = null;
+    naturalGentlePromptShownRef.current = false;
     setDraft("");
     voice.resetTranscript();
     if (fromVoice && naturalModeActive) naturalConversation.dispatch("ai_processing");
@@ -360,8 +487,11 @@ export default function SessionPage() {
           speechDurationMs: metrics.speechDurationMs,
           autoSubmitted: Boolean(fromVoice && naturalModeActive),
           cameraAssisted: Boolean(localDecision?.cameraAssisted),
-          pauseDecision: localDecision?.pauseDecision,
+          pauseDecision: naturalOptions.decisionOverride || localDecision?.pauseDecision,
           interruptionDetected: naturalConversation.state === "user_interrupting",
+          gentlePromptShown: Boolean(naturalOptions.gentlePromptShown),
+          forceResolutionTriggered: Boolean(naturalOptions.forceResolutionTriggered),
+          hardTimeoutTriggered: Boolean(naturalOptions.hardTimeoutTriggered),
         },
         coordinationContext: localDecision ? {
           pauseDecision: localDecision.pauseDecision,
@@ -420,7 +550,10 @@ export default function SessionPage() {
       if (fromVoice && naturalModeActive) naturalConversation.dispatch("ai_speaking");
       await voice.speak(result.aiMessage.content, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode);
       if (fromVoice && naturalModeActive) naturalConversation.dispatch("ai_finished");
-      if (fromVoice && voiceMode && naturalModeActive) voice.startListening();
+      if (fromVoice && voiceMode && naturalModeActive) {
+        voice.startListening();
+        scheduleNaturalBoundedWait(0, false);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not send your response.";
       if (message.includes("Session already completed")) {
@@ -459,6 +592,7 @@ export default function SessionPage() {
       .then(() => {
         naturalConversation.dispatch("listening_started");
         voice.startListening();
+        scheduleNaturalBoundedWait(0, false);
       })
       .catch(() => {
         naturalConversation.dispatch("error");
@@ -469,6 +603,7 @@ export default function SessionPage() {
   function pauseNaturalConversation() {
     setVoiceMode(false);
     naturalConversation.dispatch("pause");
+    clearNaturalTimers();
     voice.stopListening();
     voice.stopSpeaking();
   }
@@ -478,12 +613,14 @@ export default function SessionPage() {
     setVoiceMode(true);
     naturalConversation.dispatch("resume");
     voice.startListening();
+    scheduleNaturalBoundedWait(0, Boolean((heldVoiceTurnRef.current?.content || draft).trim()));
   }
 
   function switchToManualMode() {
     setConversationMode("manual");
     setVoiceMode(false);
     naturalConversation.reset();
+    clearNaturalTimers();
     voice.stopListening();
     voice.stopSpeaking();
   }
@@ -765,8 +902,10 @@ export default function SessionPage() {
                 onStart={startNaturalConversation}
                 onPause={pauseNaturalConversation}
                 onResume={resumeNaturalConversation}
+                onSendNow={() => forceResolveNaturalTurn("send_now")}
                 onEnd={finish}
                 onSwitchToManual={switchToManualMode}
+                countdown={naturalCountdown}
               />
             ) : (
               <>

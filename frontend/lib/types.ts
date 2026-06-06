@@ -516,6 +516,9 @@ export type ConversationAnalyzePayload = {
     cameraAssisted?: boolean;
     pauseDecision?: string;
     interruptionDetected?: boolean;
+    gentlePromptShown?: boolean;
+    forceResolutionTriggered?: boolean;
+    hardTimeoutTriggered?: boolean;
   };
 };
 

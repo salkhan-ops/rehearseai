@@ -1,4 +1,5 @@
 from typing import Optional
+from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Request
 from app.models.message import MessageCreate
 from app.models.session import SessionCreate
@@ -105,6 +106,24 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
         "turnTiming": payload.turnTiming,
     } if payload.conversationMode or payload.turnTiming else None
     user_message = await store.add_message(session_id, "user", payload.content, user_metadata)
+    if payload.turnTiming:
+        timing_decision = payload.turnTiming.get("pauseDecision")
+        if not timing_decision and payload.coordinationContext:
+            timing_decision = payload.coordinationContext.get("pauseDecision")
+        await store.save_conversation_turn_timing({
+            "timingId": str(uuid4()),
+            "userId": session.userId,
+            "sessionId": session_id,
+            "turnId": user_message.id,
+            "silenceMs": int(payload.turnTiming.get("silenceMs") or payload.silenceMs or 0),
+            "decision": timing_decision,
+            "cameraAssisted": bool(payload.turnTiming.get("cameraAssisted", False)),
+            "transcriptLength": len(payload.content or ""),
+            "gentlePromptShown": bool(payload.turnTiming.get("gentlePromptShown", False)),
+            "forceResolutionTriggered": bool(payload.turnTiming.get("forceResolutionTriggered", False)),
+            "hardTimeoutTriggered": bool(payload.turnTiming.get("hardTimeoutTriggered", False)),
+            "createdAt": utc_now_iso(),
+        })
     if not safety.allow_response:
         ai_message = await store.add_message(session_id, "ai", safety.redirect_message or "I can help keep this as safe communication practice.")
         session.turnCount += 1

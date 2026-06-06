@@ -14,6 +14,7 @@ export function useNaturalConversation() {
     "idle",
   );
   const lastTranscriptUpdateRef = useRef(0);
+  const lastTranscriptRef = useRef("");
   const lastDecisionRef = useRef<NaturalTurnTakingResult | null>(null);
 
   const dispatch = useCallback((event: NaturalConversationEvent) => {
@@ -22,11 +23,15 @@ export function useNaturalConversation() {
 
   const evaluateTurn = useCallback((input: Omit<NaturalTurnTakingInput, "lastTranscriptUpdateMs">) => {
     const hasTranscript = Boolean(`${input.finalTranscript || ""} ${input.interimTranscript || ""}`.trim());
-    if (hasTranscript) lastTranscriptUpdateRef.current = Date.now();
+    const transcript = `${input.finalTranscript || ""} ${input.interimTranscript || ""}`.replace(/\s+/g, " ").trim();
+    if (hasTranscript && transcript !== lastTranscriptRef.current) {
+      lastTranscriptRef.current = transcript;
+      lastTranscriptUpdateRef.current = Date.now();
+    }
     const decision = naturalTurnTakingEngine({ ...input, lastTranscriptUpdateMs: lastTranscriptUpdateRef.current });
     lastDecisionRef.current = decision;
     if (decision.decision === "interrupt_ai") dispatchBase("interrupt");
-    else if (decision.decision === "send_now") dispatchBase("send_ready");
+    else if (decision.decision === "send_now" || decision.decision === "force_resolution") dispatchBase("send_ready");
     else if (decision.decision === "wait_longer" || decision.decision === "gentle_prompt") dispatchBase("silence_detected");
     else if (hasTranscript) dispatchBase("speech_detected");
     return decision;
@@ -34,6 +39,7 @@ export function useNaturalConversation() {
 
   const reset = useCallback(() => {
     lastTranscriptUpdateRef.current = 0;
+    lastTranscriptRef.current = "";
     lastDecisionRef.current = null;
     dispatchBase("reset");
   }, []);

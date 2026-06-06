@@ -95,6 +95,7 @@ class FirestoreService:
         self.conversation_states: dict[str, dict] = {}
         self.conversation_dynamics: dict[str, dict] = {}
         self.conversation_telemetry: dict[str, dict] = {}
+        self.conversation_turn_timing: dict[str, dict] = {}
         self.local_signal_telemetry: dict[str, dict] = {}
         self.session_outcomes: dict[str, dict] = {}
         self.telemetry_labels: dict[str, dict] = {}
@@ -415,6 +416,13 @@ class FirestoreService:
             doc = self.client.collection("voiceProfiles").document(user_id).get()
             return doc.to_dict() if doc.exists else None
         return None
+
+    async def save_conversation_turn_timing(self, timing: dict) -> dict:
+        timing_id = timing["timingId"]
+        if self.client:
+            self.client.collection("conversationTurnTiming").document(timing_id).set(timing, merge=True)
+        self.conversation_turn_timing[timing_id] = timing
+        return timing
 
     async def save_conversation_state(self, session_id: str, user_id: str, state: dict) -> dict:
         state_id = f"{session_id}_{user_id}"
