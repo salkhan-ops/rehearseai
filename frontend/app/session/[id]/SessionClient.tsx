@@ -13,8 +13,12 @@ import { CoachPanel } from "@/components/learning/CoachPanel";
 import { ConversationMap } from "@/components/learning/ConversationMap";
 import { FloatingHint } from "@/components/learning/FloatingHint";
 import { CameraPrivacyNotice } from "@/components/local-signals/CameraPrivacyNotice";
+import { ConversationModeToggle } from "@/components/session/ConversationModeToggle";
+import { LiveTranscriptPanel } from "@/components/session/LiveTranscriptPanel";
+import { NaturalConversationControls } from "@/components/session/NaturalConversationControls";
 import { useConversationCoordination } from "@/hooks/useConversationCoordination";
 import { useLocalCameraSignals } from "@/hooks/useLocalCameraSignals";
+import { useNaturalConversation } from "@/hooks/useNaturalConversation";
 import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
 import { completeCourseSession, endSession, generateReport, getSession, sendMessage, updateSessionHint } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -23,7 +27,7 @@ import { pauseFusionEngine } from "@/lib/local-signals/pauseFusionEngine";
 import { reportHref } from "@/lib/routes";
 import { getTelemetryConsent, outcomeFromReport, saveLocalSignalTelemetry, sendSessionOutcome, sendTurnTelemetry, type PrivacySettings, updateTelemetryConsent } from "@/lib/telemetry";
 import { environmentModes } from "@/lib/types";
-import type { ConversationControl, EnvironmentMode, Message, Session, SessionHint } from "@/lib/types";
+import type { ConversationControl, ConversationMode, EnvironmentMode, Message, Session, SessionHint } from "@/lib/types";
 import type { PauseFusionDecision } from "@/lib/local-signals/types";
 
 type OrbMode = "idle" | "listening" | "thinking" | "speaking" | "pressure" | "error";
@@ -136,6 +140,7 @@ export default function SessionPage() {
   const [customDuration, setCustomDuration] = useState(false);
   const [selectedVoiceId, setSelectedVoiceId] = useState(voiceOptions[0].id);
   const [visualMode, setVisualMode] = useState<EnvironmentMode>("AI Orb");
+  const [conversationMode, setConversationMode] = useState<ConversationMode>("natural");
   const [voiceMode, setVoiceMode] = useState(false);
   const [cameraAssistedTiming, setCameraAssistedTiming] = useState(false);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(profile?.privacySettings || defaultPrivacySettings);
@@ -152,6 +157,8 @@ export default function SessionPage() {
   const { analyze: analyzeCoordination } = coordination;
   const voice = useRealtimeVoice({ browserSpeechCode: practiceLanguage.browserSpeechCode, deepgramCode: practiceLanguage.deepgramCode, longPauseMs: coordination.longPauseMs || 3400 });
   const cameraSignals = useLocalCameraSignals({ enabled: cameraAssistedTiming });
+  const naturalConversation = useNaturalConversation();
+  const naturalModeActive = conversationMode === "natural";
 
   useEffect(() => {
     if (!profile?.privacySettings) return;
@@ -181,6 +188,7 @@ export default function SessionPage() {
       .then((data: { session: Session; messages: Message[] }) => {
         setSession(data.session);
         setVisualMode(data.session.environmentMode || "AI Orb");
+        setConversationMode(data.session.preferredConversationMode || "natural");
         if (data.session.durationPreference) setDurationMinutes(data.session.durationPreference);
         setMessages(data.messages);
       })
@@ -207,29 +215,40 @@ export default function SessionPage() {
 
   useEffect(() => {
     if (voice.transcript || voice.interimTranscript) {
-      setDraft(`${voice.transcript} ${voice.interimTranscript}`.trim());
+      if (!naturalModeActive) setDraft(`${voice.transcript} ${voice.interimTranscript}`.trim());
       analyzeCoordination({
         transcript: voice.transcript,
         interimTranscript: voice.interimTranscript,
         silenceMs: 0,
       });
+      if (naturalModeActive && voice.isSpeaking) {
+        voice.stopSpeaking();
+        naturalConversation.dispatch("interrupt");
+        setAutoSubmitNotice("You interrupted the AI");
+      } else if (naturalModeActive) {
+        naturalConversation.dispatch("speech_detected");
+      }
     }
-  }, [analyzeCoordination, voice.transcript, voice.interimTranscript]);
+  }, [analyzeCoordination, naturalConversation, naturalModeActive, voice, voice.transcript, voice.interimTranscript]);
 
   useEffect(() => {
     return voice.onFinalTranscript((nextTranscript, metrics) => {
       if (!voiceMode || loading) return;
-      submitContent(nextTranscript, true, metrics);
+      if (naturalModeActive) {
+        submitContent(nextTranscript, true, metrics);
+        return;
+      }
+      setDraft(nextTranscript);
     });
-  }, [voice.onFinalTranscript, voiceMode, loading]);
+  }, [voice.onFinalTranscript, voiceMode, loading, naturalModeActive]);
 
   useEffect(() => {
-    if (!voiceMode || loading || voice.isSpeaking) return;
+    if (!voiceMode || !naturalModeActive || loading || voice.isSpeaking || naturalConversation.state === "paused") return;
     if (voice.supported && voice.voiceState === "idle") voice.startListening();
     return () => {
       if (!voiceMode) voice.stopListening();
     };
-  }, [voiceMode, loading, voice.isSpeaking, voice.supported, voice.voiceState, voice.startListening, voice.stopListening]);
+  }, [voiceMode, naturalModeActive, loading, voice.isSpeaking, voice.supported, voice.voiceState, voice.startListening, voice.stopListening, naturalConversation.state]);
 
   useEffect(() => {
     if (!session || session.status === "completed" || loading || autoEndingRef.current) return;
@@ -254,23 +273,34 @@ export default function SessionPage() {
     let metrics = voiceMetrics || { speechDurationMs: 0, silenceMs: 0 };
     let localDecision: PauseFusionDecision | null = null;
     if (fromVoice) {
+      if (naturalModeActive) naturalConversation.dispatch("silence_detected");
       const held = heldVoiceTurnRef.current;
       outboundContent = [held?.content, content.trim()].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
       metrics = {
         speechDurationMs: (held?.speechDurationMs || 0) + (voiceMetrics?.speechDurationMs || 0),
         silenceMs: Math.max(held?.silenceMs || 0, voiceMetrics?.silenceMs || 0),
       };
-      localDecision = pauseFusionEngine(
-        {
-          finalTranscript: outboundContent,
-          interimTranscript: voice.interimTranscript,
-          speechDurationMs: metrics.speechDurationMs,
-          silenceMs: metrics.silenceMs,
-          deepgramEndpointing: voice.provider === "deepgram",
-        },
-        cameraAssistedTiming ? cameraSignals.signals : null,
-        coordination.profile || undefined,
-      );
+      const naturalDecision = naturalConversation.evaluateTurn({
+        finalTranscript: outboundContent,
+        interimTranscript: voice.interimTranscript,
+        speechDurationMs: metrics.speechDurationMs,
+        silenceMs: metrics.silenceMs,
+        deepgramEndpointing: voice.provider === "deepgram",
+        cameraSignals: cameraAssistedTiming ? cameraSignals.signals : null,
+        personalBaseline: coordination.profile || undefined,
+        aiSpeaking: voice.isSpeaking,
+      });
+      localDecision = naturalDecision.sourceDecision || pauseFusionEngine(
+          {
+            finalTranscript: outboundContent,
+            interimTranscript: voice.interimTranscript,
+            speechDurationMs: metrics.speechDurationMs,
+            silenceMs: metrics.silenceMs,
+            deepgramEndpointing: voice.provider === "deepgram",
+          },
+          cameraAssistedTiming ? cameraSignals.signals : null,
+          coordination.profile || undefined,
+        );
       setPauseDecision(localDecision);
       if (privacySettings.allowLocalSignalTelemetry) {
         const token = await getToken();
@@ -290,7 +320,7 @@ export default function SessionPage() {
           userContinuedAfterDecision: localDecision.pauseDecision !== "respond",
         }, token).catch(() => undefined);
       }
-      if (localDecision.pauseDecision === "wait" || localDecision.pauseDecision === "keep_listening") {
+      if (naturalDecision.decision === "wait_longer" || naturalDecision.decision === "keep_listening") {
         heldVoiceTurnRef.current = { content: outboundContent, ...metrics };
         setDraft(outboundContent);
         setAutoSubmitNotice(localDecision.reason === "visual_preparing_to_continue" ? "Still listening. Take your time." : "Waiting a little longer.");
@@ -299,7 +329,7 @@ export default function SessionPage() {
         }, Math.min(1400, Math.max(500, Math.round(localDecision.adjustedWaitMs * 0.22))));
         return;
       }
-      if (localDecision.pauseDecision === "gentle_prompt") {
+      if (naturalDecision.decision === "gentle_prompt") {
         heldVoiceTurnRef.current = { content: outboundContent, ...metrics };
         setDraft(outboundContent);
         setAutoSubmitNotice("Take your time — when you’re ready, continue.");
@@ -312,6 +342,7 @@ export default function SessionPage() {
     heldVoiceTurnRef.current = null;
     setDraft("");
     voice.resetTranscript();
+    if (fromVoice && naturalModeActive) naturalConversation.dispatch("ai_processing");
     setLoading(true);
     try {
       const token = await getToken();
@@ -323,6 +354,15 @@ export default function SessionPage() {
         silenceMs: metrics.silenceMs,
         sessionId: id,
         userId,
+        conversationMode: fromVoice && naturalModeActive ? "natural" : "manual",
+        turnTiming: {
+          silenceMs: metrics.silenceMs,
+          speechDurationMs: metrics.speechDurationMs,
+          autoSubmitted: Boolean(fromVoice && naturalModeActive),
+          cameraAssisted: Boolean(localDecision?.cameraAssisted),
+          pauseDecision: localDecision?.pauseDecision,
+          interruptionDetected: naturalConversation.state === "user_interrupting",
+        },
         coordinationContext: localDecision ? {
           pauseDecision: localDecision.pauseDecision,
           userStateApprox: localDecision.userStateApprox,
@@ -377,8 +417,10 @@ export default function SessionPage() {
           decisionConfidence: localDecision?.confidence,
         }, token).catch(() => undefined);
       }
+      if (fromVoice && naturalModeActive) naturalConversation.dispatch("ai_speaking");
       await voice.speak(result.aiMessage.content, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode);
-      if (fromVoice && voiceMode) voice.startListening();
+      if (fromVoice && naturalModeActive) naturalConversation.dispatch("ai_finished");
+      if (fromVoice && voiceMode && naturalModeActive) voice.startListening();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not send your response.";
       if (message.includes("Session already completed")) {
@@ -387,6 +429,7 @@ export default function SessionPage() {
         setSession((current) => current ? { ...current, status: "completed" } : current);
         setError("This session is already completed. Start a new practice session for hands-free voice.");
       } else {
+        if (fromVoice && naturalModeActive) naturalConversation.dispatch("error");
         setError(message);
       }
     } finally {
@@ -398,6 +441,51 @@ export default function SessionPage() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await submitContent(draft);
+  }
+
+  function startNaturalConversation() {
+    setError("");
+    setConversationMode("natural");
+    setVoiceMode(true);
+    naturalConversation.dispatch("start");
+    if (session?.status === "completed") {
+      naturalConversation.dispatch("error");
+      return;
+    }
+    const hasUserTurn = messages.some((message) => message.role === "user");
+    const openingMessage = !hasUserTurn ? messages.find((message) => message.role === "ai")?.content : "";
+    naturalConversation.dispatch("ai_speaking");
+    voice.speak(openingMessage || listeningPrompts[practiceLanguage.code] || listeningPrompts.en, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode)
+      .then(() => {
+        naturalConversation.dispatch("listening_started");
+        voice.startListening();
+      })
+      .catch(() => {
+        naturalConversation.dispatch("error");
+        setError("Natural conversation paused. Switch to manual mode?");
+      });
+  }
+
+  function pauseNaturalConversation() {
+    setVoiceMode(false);
+    naturalConversation.dispatch("pause");
+    voice.stopListening();
+    voice.stopSpeaking();
+  }
+
+  function resumeNaturalConversation() {
+    setError("");
+    setVoiceMode(true);
+    naturalConversation.dispatch("resume");
+    voice.startListening();
+  }
+
+  function switchToManualMode() {
+    setConversationMode("manual");
+    setVoiceMode(false);
+    naturalConversation.reset();
+    voice.stopListening();
+    voice.stopSpeaking();
   }
 
   async function updateCameraAssistance(enabled: boolean) {
@@ -415,6 +503,8 @@ export default function SessionPage() {
     setError("");
     voice.stopListening();
     voice.stopSpeaking();
+    naturalConversation.reset();
+    setVoiceMode(false);
     setLoading(true);
     try {
       const token = await getToken();
@@ -586,7 +676,7 @@ export default function SessionPage() {
               {session?.practiceType || "Cognitive simulation"}
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-base font-medium leading-7 text-white/56 sm:text-lg">
-              {stateCopy(orbMode, voiceMode, autoSubmitNotice)}
+              {naturalModeActive && voiceMode ? autoSubmitNotice || (naturalConversation.state === "user_thinking" ? "Thinking. You may continue..." : naturalConversation.state === "processing_ai" || naturalConversation.state === "ready_to_send" ? "Sending your answer..." : naturalConversation.state === "ai_speaking" ? "AI responding..." : naturalConversation.state === "user_interrupting" ? "You interrupted the AI" : stateCopy(orbMode, voiceMode, autoSubmitNotice)) : stateCopy(orbMode, voiceMode, autoSubmitNotice)}
             </p>
             {beginnerMode && session && messages.length === 0 && (
               <div className="mt-8 grid gap-4 text-left">
@@ -624,12 +714,7 @@ export default function SessionPage() {
             {loading && <TypingIndicator />}
           </div>
 
-          {(voice.transcript || voice.interimTranscript) && (
-            <div className="mb-3 rounded-[1.35rem] bg-cyan-100/[0.08] p-4 text-center text-sm font-medium leading-6 text-cyan-50/80 ring-1 ring-cyan-100/15 backdrop-blur-2xl">
-              <span>{voice.transcript}</span>
-              {voice.interimTranscript && <span className="text-cyan-100/38"> {voice.interimTranscript}</span>}
-            </div>
-          )}
+          <LiveTranscriptPanel transcript={voice.transcript} interimTranscript={voice.interimTranscript} />
 
           <div className="mb-3 grid gap-2 text-xs font-semibold text-white/70 md:hidden">
             <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/12 backdrop-blur-2xl">
@@ -644,6 +729,22 @@ export default function SessionPage() {
           </div>
 
           <div className="rounded-[2rem] bg-white/[0.08] p-3 ring-1 ring-white/12 backdrop-blur-2xl">
+            <div className="mb-3">
+              <ConversationModeToggle
+                value={conversationMode}
+                onChange={(mode) => {
+                  if (mode === "manual") switchToManualMode();
+                  else {
+                    setConversationMode("natural");
+                    setVoiceMode(false);
+                    voice.stopListening();
+                    voice.stopSpeaking();
+                    naturalConversation.reset();
+                  }
+                }}
+                disabled={loading}
+              />
+            </div>
             <div className="mb-3 grid gap-2 text-xs font-semibold text-white/70 xl:hidden">
               <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/12 backdrop-blur-2xl">
                 <span className="inline-flex items-center gap-2"><Camera size={14} /> Camera-assisted timing</span>
@@ -656,49 +757,64 @@ export default function SessionPage() {
               </label>
             </div>
             {cameraAssistedTiming && <CameraPrivacyNotice compact className="mb-3 bg-white/[0.08] text-white/70 ring-white/12 dark:bg-white/[0.08] dark:text-white/70 dark:ring-white/12" />}
-            <form onSubmit={onSubmit} className="flex items-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (voiceMode) {
-                    setVoiceMode(false);
-                    voice.stopListening();
-                    voice.stopSpeaking();
-                  } else {
-                    setError("");
-                    setVoiceMode(true);
-                    if (session?.status !== "completed") {
-                      const hasUserTurn = messages.some((message) => message.role === "user");
-                      const openingMessage = !hasUserTurn ? messages.find((message) => message.role === "ai")?.content : "";
-                      voice.speak(openingMessage || listeningPrompts[practiceLanguage.code] || listeningPrompts.en, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode).then(() => voice.startListening());
-                      return;
-                    }
-                    voice.startListening();
-                  }
-                }}
-                disabled={!voice.supported || session?.status === "completed"}
-                className={`grid size-14 shrink-0 place-items-center rounded-full transition disabled:opacity-45 ${voiceMode ? "bg-cyan-200 text-slate-950 shadow-[0_0_40px_rgba(125,211,252,0.36)]" : "bg-white/[0.10] text-white ring-1 ring-white/12"}`}
-                aria-label={voiceMode ? "Stop live conversation" : "Start live conversation"}
-              >
-                {voiceMode ? <MicOff size={22} /> : <Mic size={22} />}
-              </button>
-              <textarea
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                rows={1}
-                className="max-h-32 min-h-14 min-w-0 flex-1 resize-none rounded-[1.35rem] border border-white/10 bg-white/[0.07] px-4 py-4 text-base font-medium text-white outline-none transition placeholder:text-white/32 focus:border-cyan-200/40 focus:ring-4 focus:ring-cyan-200/10"
-                placeholder={voiceMode ? "Voice is active. Text remains available." : "Speak or type your response..."}
+            {naturalModeActive ? (
+              <NaturalConversationControls
+                state={naturalConversation.state}
+                supported={voice.supported}
+                disabled={loading || session?.status === "completed"}
+                onStart={startNaturalConversation}
+                onPause={pauseNaturalConversation}
+                onResume={resumeNaturalConversation}
+                onEnd={finish}
+                onSwitchToManual={switchToManualMode}
               />
-              <button className="grid size-14 shrink-0 place-items-center rounded-full bg-white text-slate-950 shadow-[0_16px_40px_rgba(255,255,255,0.16)] transition hover:scale-105">
-                <Send size={20} />
-              </button>
-            </form>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 px-2 text-xs font-semibold text-white/42">
-              <span className="inline-flex items-center gap-2"><Volume2 size={14} /> {voiceMode ? stateCopy(orbMode, voiceMode, autoSubmitNotice) : "Voice-first mode is ready"}</span>
-              <button onClick={finish} disabled={loading} className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-rose-100 transition hover:bg-rose-300/10 disabled:opacity-60">
-                <Square size={13} /> End and generate report
-              </button>
-            </div>
+            ) : (
+              <>
+                <form onSubmit={onSubmit} className="flex items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError("");
+                      setVoiceMode(true);
+                      voice.startListening();
+                    }}
+                    disabled={!voice.supported || voiceMode || session?.status === "completed"}
+                    className="grid size-14 shrink-0 place-items-center rounded-full bg-white/[0.10] text-white ring-1 ring-white/12 transition disabled:opacity-45"
+                    aria-label="Start microphone"
+                  >
+                    <Mic size={22} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVoiceMode(false);
+                      voice.stopListening();
+                    }}
+                    disabled={!voiceMode}
+                    className="grid size-14 shrink-0 place-items-center rounded-full bg-white/[0.10] text-white ring-1 ring-white/12 transition disabled:opacity-45"
+                    aria-label="Stop microphone"
+                  >
+                    <MicOff size={22} />
+                  </button>
+                  <textarea
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    rows={1}
+                    className="max-h-32 min-h-14 min-w-0 flex-1 resize-none rounded-[1.35rem] border border-white/10 bg-white/[0.07] px-4 py-4 text-base font-medium text-white outline-none transition placeholder:text-white/32 focus:border-cyan-200/40 focus:ring-4 focus:ring-cyan-200/10"
+                    placeholder="Speak or type your response..."
+                  />
+                  <button className="grid size-14 shrink-0 place-items-center rounded-full bg-white text-slate-950 shadow-[0_16px_40px_rgba(255,255,255,0.16)] transition hover:scale-105">
+                    <Send size={20} />
+                  </button>
+                </form>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 px-2 text-xs font-semibold text-white/42">
+                  <span className="inline-flex items-center gap-2"><Volume2 size={14} /> Manual mode is ready</span>
+                  <button onClick={finish} disabled={loading} className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-rose-100 transition hover:bg-rose-300/10 disabled:opacity-60">
+                    <Square size={13} /> End and generate report
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </section>
       </AnimatedPage>

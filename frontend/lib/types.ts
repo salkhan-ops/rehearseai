@@ -30,6 +30,7 @@ export type Difficulty = (typeof difficulties)[number] | "Friendly" | "Realistic
 export type NerveEntryType = (typeof nerveEntryTypes)[number];
 export type NervePersona = (typeof nervePersonas)[number];
 export type EnvironmentMode = (typeof environmentModes)[number];
+export type ConversationMode = "manual" | "natural";
 
 export type SessionHint = {
   hintId: string;
@@ -69,6 +70,7 @@ export type Session = {
   feedbackLanguage?: string;
   durationPreference?: number;
   environmentMode?: EnvironmentMode;
+  preferredConversationMode?: ConversationMode;
   nerveEntryType?: NerveEntryType;
   nervePersona?: NervePersona;
   nerveMaterialName?: string;
@@ -204,6 +206,7 @@ export type SessionPayload = {
   feedbackLanguage?: string;
   durationPreference?: number;
   environmentMode?: EnvironmentMode;
+  preferredConversationMode?: ConversationMode;
   nerveEntryType?: NerveEntryType;
   nervePersona?: NervePersona;
   nerveMaterialName?: string;
@@ -422,6 +425,10 @@ export type VoiceProfile = {
   averageSpeechDurationMs?: number;
   averageTurnWordCount?: number;
   averageVisualThinkingPauseMs?: number;
+  preferredConversationMode?: ConversationMode;
+  averageAutoSubmitSilenceMs?: number;
+  averageThinkingPauseMs?: number;
+  autoSubmitCorrections?: number;
   typicalMouthActivityBeforeContinue?: number;
   typicalGazeShiftDuringThinking?: number;
   confusionMarkerRate?: number;
@@ -500,6 +507,15 @@ export type ConversationAnalyzePayload = {
     adjustedWaitMs?: number;
     cameraAssisted?: boolean;
     cameraHesitation?: boolean;
+  };
+  conversationMode?: ConversationMode;
+  turnTiming?: {
+    silenceMs?: number;
+    speechDurationMs?: number;
+    autoSubmitted?: boolean;
+    cameraAssisted?: boolean;
+    pauseDecision?: string;
+    interruptionDetected?: boolean;
   };
 };
 

@@ -27,6 +27,7 @@ EnvironmentMode = Literal[
     "Conference Q&A",
     "Custom Future Mode",
 ]
+ConversationMode = Literal["manual", "natural"]
 
 
 class SessionCreate(BaseModel):
@@ -41,6 +42,7 @@ class SessionCreate(BaseModel):
     feedbackLanguage: str = Field(default="en", max_length=8)
     durationPreference: int = Field(default=10, ge=1, le=120)
     environmentMode: EnvironmentMode = "AI Orb"
+    preferredConversationMode: ConversationMode = "natural"
     nerveEntryType: Optional[NerveEntryType] = None
     nervePersona: Optional[NervePersona] = None
     nerveMaterialName: Optional[str] = Field(default=None, max_length=180)
@@ -60,6 +62,7 @@ class Session(BaseModel):
     feedbackLanguage: str = "en"
     durationPreference: int = 10
     environmentMode: EnvironmentMode = "AI Orb"
+    preferredConversationMode: ConversationMode = "natural"
     nerveEntryType: Optional[NerveEntryType] = None
     nervePersona: Optional[NervePersona] = None
     nerveMaterialName: Optional[str] = None

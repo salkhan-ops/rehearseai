@@ -100,7 +100,11 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
         practice_type=session.practiceType,
         difficulty=session.difficulty,
     )
-    user_message = await store.add_message(session_id, "user", payload.content)
+    user_metadata = {
+        "conversationMode": payload.conversationMode,
+        "turnTiming": payload.turnTiming,
+    } if payload.conversationMode or payload.turnTiming else None
+    user_message = await store.add_message(session_id, "user", payload.content, user_metadata)
     if not safety.allow_response:
         ai_message = await store.add_message(session_id, "ai", safety.redirect_message or "I can help keep this as safe communication practice.")
         session.turnCount += 1

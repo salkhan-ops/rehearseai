@@ -128,8 +128,8 @@ class FirestoreService:
             return [Session(**doc.to_dict()) for doc in docs]
         return [session for session in self.sessions.values() if session.userId == user_id]
 
-    async def add_message(self, session_id: str, role: str, content: str) -> Message:
-        message = Message(id=str(uuid4()), role=role, content=content, createdAt=utc_now_iso())
+    async def add_message(self, session_id: str, role: str, content: str, metadata: Optional[dict] = None) -> Message:
+        message = Message(id=str(uuid4()), role=role, content=content, createdAt=utc_now_iso(), metadata=metadata)
         if self.client:
             session = await self.get_session(session_id)
             self.client.collection("sessions").document(session_id).collection("messages").document(message.id).set(

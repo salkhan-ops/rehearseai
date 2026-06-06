@@ -9,6 +9,7 @@ import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { CameraSignalControls } from "@/components/local-signals/CameraSignalControls";
 import { Nav } from "@/components/Nav";
+import { ConversationModeToggle } from "@/components/session/ConversationModeToggle";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { createPracticeSchedule, createSession, generateRandomScenario } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -17,7 +18,7 @@ import { sessionHref } from "@/lib/routes";
 import { updateTelemetryConsent } from "@/lib/telemetry";
 import type { LanguageCode } from "@/lib/languages";
 import { difficulties, Difficulty, environmentModes, nerveEntryTypes, nervePersonas, practiceTypes, PracticeType } from "@/lib/types";
-import type { EnvironmentMode, NerveEntryType, NervePersona } from "@/lib/types";
+import type { ConversationMode, EnvironmentMode, NerveEntryType, NervePersona } from "@/lib/types";
 import type { Entitlements } from "@/lib/admin";
 
 const frequencyOptions = [
@@ -71,6 +72,7 @@ function SetupForm() {
   const [optionalNotes, setOptionalNotes] = useState("");
   const [durationPreference, setDurationPreference] = useState(10);
   const [environmentMode, setEnvironmentMode] = useState<EnvironmentMode>("AI Orb");
+  const [preferredConversationMode, setPreferredConversationMode] = useState<ConversationMode>("natural");
   const [nerveEntryType, setNerveEntryType] = useState<NerveEntryType>("Topic");
   const [nervePersona, setNervePersona] = useState<NervePersona>("Mixed Panel");
   const [nerveMaterialName, setNerveMaterialName] = useState("");
@@ -143,6 +145,7 @@ function SetupForm() {
       feedbackLanguage,
       durationPreference,
       environmentMode,
+      preferredConversationMode,
       ...(difficulty === "Nerve" ? { nerveEntryType, nervePersona, nerveMaterialName, nerveMaterialText } : {})
     }, token);
     if (createRoutine) {
@@ -264,6 +267,10 @@ function SetupForm() {
                 }}
               />
             </div>
+
+            <section className="mt-5 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
+              <ConversationModeToggle value={preferredConversationMode} onChange={setPreferredConversationMode} />
+            </section>
 
             <section className="mt-5 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">

@@ -10,6 +10,8 @@ class MessageCreate(BaseModel):
     silenceMs: int = 0
     wordTimings: Optional[list[dict]] = None
     coordinationContext: Optional[dict] = None
+    conversationMode: Optional[Literal["manual", "natural"]] = None
+    turnTiming: Optional[dict] = None
 
 
 class Message(BaseModel):
@@ -17,3 +19,4 @@ class Message(BaseModel):
     role: Literal["user", "ai"]
     content: str
     createdAt: str
+    metadata: Optional[dict] = None
