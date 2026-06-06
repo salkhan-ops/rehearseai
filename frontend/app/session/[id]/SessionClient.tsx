@@ -1154,7 +1154,7 @@ export default function SessionPage() {
 
           <LiveTranscriptPanel transcript={voice.transcript} interimTranscript={voice.interimTranscript} />
 
-          {naturalModeActive && (
+          {debugTurnTaking && naturalModeActive && (
             <div className="mb-3 rounded-xl bg-black/45 p-3 text-left text-[11px] font-semibold leading-5 text-cyan-50/75 ring-1 ring-cyan-100/15">
               <div className="mb-1 text-cyan-100">Voice debug</div>
               <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
