@@ -150,9 +150,17 @@ export default function SessionPage() {
   const [latestControl, setLatestControl] = useState<ConversationControl | null>(null);
   const [autoSubmitNotice, setAutoSubmitNotice] = useState("");
   const [naturalCountdown, setNaturalCountdown] = useState<number | null>(null);
+  const [turnDebug, setTurnDebug] = useState<Record<string, string | number | boolean>>({});
   const [pauseDecision, setPauseDecision] = useState<PauseFusionDecision | null>(null);
   const autoEndingRef = useRef(false);
   const heldVoiceTurnRef = useRef<{ content: string; speechDurationMs: number; silenceMs: number } | null>(null);
+  const naturalTranscriptRef = useRef("");
+  const naturalMetricsRef = useRef<{ speechDurationMs: number; silenceMs: number }>({ speechDurationMs: 0, silenceMs: 0 });
+  const naturalLastTranscriptUpdateAtRef = useRef(0);
+  const naturalDeepgramFinalReceivedRef = useRef(false);
+  const isFinalizingTurnRef = useRef(false);
+  const sessionActiveRef = useRef(true);
+  const debugTurnTaking = process.env.NEXT_PUBLIC_DEBUG_TURN_TAKING === "true";
   const naturalTimerRefs = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const naturalIntervalRefs = useRef<Array<ReturnType<typeof setInterval>>>([]);
   const naturalGentlePromptShownRef = useRef(false);
@@ -183,6 +191,28 @@ export default function SessionPage() {
     setNaturalCountdown(null);
   }
 
+  function meaningfulTurn(content: string) {
+    const normalized = content.replace(/\s+/g, " ").trim();
+    return normalized.split(" ").filter(Boolean).length >= 2 || normalized.length >= 12;
+  }
+
+  function cameraTurnSignal() {
+    if (!cameraAssistedTiming) return "no_signal";
+    if (!cameraSignals.signals.faceDetected) return "face_not_detected";
+    const likelyThinking =
+      cameraSignals.signals.mouthMovementIntensity > 0.14 ||
+      cameraSignals.signals.headMovementIntensity > 0.12 ||
+      cameraSignals.signals.gazeShiftFrequency > 0.1 ||
+      cameraSignals.signals.lookingAwayScore > 0.42;
+    const likelyFinished =
+      cameraSignals.signals.mouthMovementIntensity < 0.08 &&
+      cameraSignals.signals.headMovementIntensity < 0.08 &&
+      cameraSignals.signals.visualStillnessMs > 1200;
+    if (likelyFinished) return "likely_finished";
+    if (likelyThinking) return "likely_thinking";
+    return "no_signal";
+  }
+
   function naturalTimeoutPrompt(kind: "soft" | "hard") {
     const difficulty = session?.difficulty || "Intermediate";
     if (difficulty === "Beginner" || difficulty === "Friendly") {
@@ -210,33 +240,60 @@ export default function SessionPage() {
     naturalIntervalRefs.current.push(interval);
   }
 
-  function forceResolveNaturalTurn(reason: "send_now" | "force_resolution" | "hard_timeout" = "force_resolution") {
-    const held = heldVoiceTurnRef.current;
-    const content = (held?.content || draft || voice.transcript || "").trim();
-    const meaningful = content.replace(/\s+/g, " ").split(" ").filter(Boolean).length >= 2 || content.length >= 12;
+  function scheduleNaturalAutoFinalize(reason: string, delayMs: number, maxDelayMs = HARD_TIMEOUT_MS) {
     clearNaturalTimers();
-    if (meaningful) {
-      submitContent(content, true, {
-        speechDurationMs: held?.speechDurationMs || 0,
-        silenceMs: reason === "hard_timeout" ? HARD_TIMEOUT_MS : FORCE_DECISION_MS,
-      }, {
-        forceNaturalSend: true,
-        forceResolutionTriggered: reason !== "send_now",
-        hardTimeoutTriggered: reason === "hard_timeout",
-        gentlePromptShown: naturalGentlePromptShownRef.current,
-        decisionOverride: reason,
-      }).catch(() => undefined);
+    const boundedDelay = Math.max(0, Math.min(delayMs, maxDelayMs));
+    if (boundedDelay >= SOFT_PROMPT_MS) startCountdown(SOFT_PROMPT_MS, boundedDelay);
+    const timer = setTimeout(() => finalizeAndSendTurn(reason), boundedDelay);
+    naturalTimerRefs.current.push(timer);
+  }
+
+  async function finalizeAndSendTurn(reason = "auto_send") {
+    if (!sessionActiveRef.current || !naturalModeActive || !latestVoiceModeRef.current || latestLoadingRef.current || isFinalizingTurnRef.current) return;
+    const content = (naturalTranscriptRef.current || heldVoiceTurnRef.current?.content || draft || voice.transcript || "").replace(/\s+/g, " ").trim();
+    clearNaturalTimers();
+    if (!meaningfulTurn(content)) {
+      heldVoiceTurnRef.current = null;
+      naturalTranscriptRef.current = "";
+      naturalDeepgramFinalReceivedRef.current = false;
+      setDraft("");
+      voice.resetTranscript();
+      setAutoSubmitNotice("I didn’t catch that. Please try again.");
+      naturalConversation.dispatch("listening_started");
+      if (sessionActiveRef.current && latestVoiceModeRef.current && session?.status !== "completed") {
+        window.setTimeout(() => {
+          if (sessionActiveRef.current && latestVoiceModeRef.current) {
+            voice.startListening();
+            scheduleNaturalBoundedWait(0, false);
+          }
+        }, 800);
+      }
       return;
     }
-    heldVoiceTurnRef.current = null;
-    naturalGentlePromptShownRef.current = true;
-    setDraft("");
-    voice.resetTranscript();
-    setAutoSubmitNotice(naturalTimeoutPrompt("hard") || "I didn’t catch that. Would you like to try again?");
-    naturalConversation.dispatch("listening_started");
-    if (latestVoiceModeRef.current && session?.status !== "completed") {
-      window.setTimeout(() => voice.startListening(), 900);
-    }
+
+    isFinalizingTurnRef.current = true;
+    setAutoSubmitNotice("Moving forward...");
+    naturalConversation.dispatch("send_ready");
+    await submitContent(content, true, naturalMetricsRef.current, {
+      forceNaturalSend: true,
+      forceResolutionTriggered: reason === "force_resolution" || reason === "hard_timeout",
+      hardTimeoutTriggered: reason === "hard_timeout",
+      gentlePromptShown: naturalGentlePromptShownRef.current,
+      decisionOverride: reason,
+    }).finally(() => {
+      isFinalizingTurnRef.current = false;
+      naturalTranscriptRef.current = "";
+      naturalDeepgramFinalReceivedRef.current = false;
+      naturalLastTranscriptUpdateAtRef.current = 0;
+    });
+  }
+
+  function forceResolveNaturalTurn(reason: "send_now" | "force_resolution" | "hard_timeout" = "force_resolution") {
+    naturalMetricsRef.current = {
+      speechDurationMs: heldVoiceTurnRef.current?.speechDurationMs || naturalMetricsRef.current.speechDurationMs || 0,
+      silenceMs: reason === "hard_timeout" ? HARD_TIMEOUT_MS : FORCE_DECISION_MS,
+    };
+    finalizeAndSendTurn(reason).catch(() => undefined);
   }
 
   function scheduleNaturalBoundedWait(elapsedSilenceMs: number, hasContent: boolean) {
@@ -257,12 +314,28 @@ export default function SessionPage() {
     }
 
     if (hasContent) {
-      const forceTimer = setTimeout(() => forceResolveNaturalTurn("force_resolution"), forceDelay);
+      const forceTimer = setTimeout(() => forceResolveNaturalTurn("force_resolution"), Math.min(forceDelay, 6000));
       naturalTimerRefs.current.push(forceTimer);
     }
 
     const hardTimer = setTimeout(() => forceResolveNaturalTurn("hard_timeout"), hardDelay);
     naturalTimerRefs.current.push(hardTimer);
+  }
+
+  function stopChamberMedia() {
+    sessionActiveRef.current = false;
+    setVoiceMode(false);
+    clearNaturalTimers();
+    heldVoiceTurnRef.current = null;
+    naturalTranscriptRef.current = "";
+    naturalDeepgramFinalReceivedRef.current = false;
+    isFinalizingTurnRef.current = false;
+    naturalConversation.reset();
+    voice.stopListening();
+    voice.stopSpeaking();
+    voice.resetTranscript();
+    cameraSignals.stop();
+    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
   }
 
   useEffect(() => {
@@ -305,7 +378,22 @@ export default function SessionPage() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => () => clearNaturalTimers(), []);
+  useEffect(() => {
+    sessionActiveRef.current = true;
+    const handlePageHide = () => stopChamberMedia();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        stopChamberMedia();
+      }
+    };
+    window.addEventListener("pagehide", handlePageHide);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      stopChamberMedia();
+    };
+  }, []);
 
   const time = useMemo(() => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`, [seconds]);
   const remainingSeconds = Math.max(durationMinutes * 60 - seconds, 0);
@@ -322,7 +410,8 @@ export default function SessionPage() {
 
   useEffect(() => {
     if (voice.transcript || voice.interimTranscript) {
-      if (!naturalModeActive) setDraft(`${voice.transcript} ${voice.interimTranscript}`.trim());
+      const liveTranscript = `${voice.transcript} ${voice.interimTranscript}`.replace(/\s+/g, " ").trim();
+      if (!naturalModeActive) setDraft(liveTranscript);
       analyzeCoordination({
         transcript: voice.transcript,
         interimTranscript: voice.interimTranscript,
@@ -334,7 +423,14 @@ export default function SessionPage() {
         setAutoSubmitNotice("You interrupted the AI");
       } else if (naturalModeActive) {
         clearNaturalTimers();
+        naturalTranscriptRef.current = liveTranscript || naturalTranscriptRef.current;
+        naturalLastTranscriptUpdateAtRef.current = Date.now();
         naturalConversation.dispatch("speech_detected");
+        if (meaningfulTurn(naturalTranscriptRef.current)) {
+          const cameraSignal = cameraTurnSignal();
+          const delayMs = cameraSignal === "likely_thinking" ? 5000 : cameraSignal === "likely_finished" ? 1200 : 3500;
+          scheduleNaturalAutoFinalize("stable_transcript", delayMs, 6000);
+        }
       }
     }
   }, [analyzeCoordination, naturalConversation, naturalModeActive, voice, voice.transcript, voice.interimTranscript]);
@@ -343,7 +439,21 @@ export default function SessionPage() {
     return voice.onFinalTranscript((nextTranscript, metrics) => {
       if (!voiceMode || loading) return;
       if (naturalModeActive) {
-        submitContent(nextTranscript, true, metrics);
+        const transcript = nextTranscript.replace(/\s+/g, " ").trim();
+        naturalTranscriptRef.current = naturalTranscriptRef.current.includes(transcript)
+          ? naturalTranscriptRef.current
+          : [naturalTranscriptRef.current, transcript].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+        naturalMetricsRef.current = metrics || { speechDurationMs: 0, silenceMs: 0 };
+        naturalLastTranscriptUpdateAtRef.current = Date.now();
+        naturalDeepgramFinalReceivedRef.current = voice.provider === "deepgram";
+        heldVoiceTurnRef.current = {
+          content: naturalTranscriptRef.current,
+          speechDurationMs: naturalMetricsRef.current.speechDurationMs,
+          silenceMs: naturalMetricsRef.current.silenceMs,
+        };
+        setDraft(naturalTranscriptRef.current);
+        setAutoSubmitNotice("Moving forward...");
+        scheduleNaturalAutoFinalize("deepgram_final_stable", 2000, 3000);
         return;
       }
       setDraft(nextTranscript);
@@ -360,6 +470,32 @@ export default function SessionPage() {
       if (!voiceMode) voice.stopListening();
     };
   }, [voiceMode, naturalModeActive, loading, voice.isSpeaking, voice.supported, voice.voiceState, voice.startListening, voice.stopListening, naturalConversation.state]);
+
+  useEffect(() => {
+    if (!debugTurnTaking || !naturalModeActive) return undefined;
+    const interval = setInterval(() => {
+      const transcript = naturalTranscriptRef.current || voice.transcript || "";
+      const snapshot = {
+        currentState: naturalConversation.state,
+        silenceMs: naturalMetricsRef.current.silenceMs || 0,
+        transcriptLength: transcript.length,
+        interimTranscript: voice.interimTranscript,
+        finalTranscript: voice.transcript,
+        lastTranscriptUpdateAt: naturalLastTranscriptUpdateAtRef.current,
+        deepgramFinalReceived: naturalDeepgramFinalReceivedRef.current,
+        cameraEnabled: cameraAssistedTiming,
+        cameraDecision: cameraTurnSignal(),
+        pauseDecision: pauseDecision?.pauseDecision || "",
+        forceTimeoutMs: HARD_TIMEOUT_MS,
+        autoSendEligible: meaningfulTurn(transcript),
+        sendNowTriggered: isFinalizingTurnRef.current,
+        reasonBlocked: !meaningfulTurn(transcript) ? "empty_or_too_short" : latestLoadingRef.current ? "loading" : !latestVoiceModeRef.current ? "voice_mode_off" : "",
+      };
+      setTurnDebug(snapshot);
+      console.debug("[turn-taking]", snapshot);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [debugTurnTaking, naturalModeActive, naturalConversation.state, voice.transcript, voice.interimTranscript, cameraAssistedTiming, pauseDecision]);
 
   useEffect(() => {
     if (!session || session.status === "completed" || loading || autoEndingRef.current) return;
@@ -412,7 +548,14 @@ export default function SessionPage() {
         personalBaseline: coordination.profile || undefined,
         aiSpeaking: voice.isSpeaking,
       });
-      localDecision = naturalDecision?.sourceDecision || pauseFusionEngine(
+      localDecision = naturalOptions.forceNaturalSend ? {
+        pauseDecision: "respond",
+        confidence: 0.98,
+        reason: "user_finished",
+        adjustedWaitMs: metrics.silenceMs,
+        userStateApprox: "finished",
+        cameraAssisted: cameraAssistedTiming && cameraSignals.signals.faceDetected,
+      } : naturalDecision?.sourceDecision || pauseFusionEngine(
           {
             finalTranscript: outboundContent,
             interimTranscript: voice.interimTranscript,
@@ -577,6 +720,7 @@ export default function SessionPage() {
   }
 
   function startNaturalConversation() {
+    sessionActiveRef.current = true;
     setError("");
     setConversationMode("natural");
     setVoiceMode(true);
@@ -609,6 +753,7 @@ export default function SessionPage() {
   }
 
   function resumeNaturalConversation() {
+    sessionActiveRef.current = true;
     setError("");
     setVoiceMode(true);
     naturalConversation.dispatch("resume");
@@ -617,6 +762,7 @@ export default function SessionPage() {
   }
 
   function switchToManualMode() {
+    sessionActiveRef.current = true;
     setConversationMode("manual");
     setVoiceMode(false);
     naturalConversation.reset();
@@ -638,8 +784,10 @@ export default function SessionPage() {
 
   async function finish() {
     setError("");
+    clearNaturalTimers();
     voice.stopListening();
     voice.stopSpeaking();
+    cameraSignals.stop();
     naturalConversation.reset();
     setVoiceMode(false);
     setLoading(true);
@@ -672,7 +820,7 @@ export default function SessionPage() {
       {beginnerMode && session && <CoachPanel session={session} latestHint={latestHint} progress={Math.min(100, Math.round(((session.turnCount || 0) / 6) * 100))} />}
       <AnimatedPage className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-4 sm:px-6">
         <header className="flex items-center justify-between">
-          <Link href="/practice" className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12]">
+          <Link href="/practice" onClick={stopChamberMedia} className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12]">
             <ArrowLeft size={16} /> Exit chamber
           </Link>
           <div className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl sm:flex">
@@ -852,6 +1000,20 @@ export default function SessionPage() {
           </div>
 
           <LiveTranscriptPanel transcript={voice.transcript} interimTranscript={voice.interimTranscript} />
+
+          {debugTurnTaking && naturalModeActive && (
+            <div className="mb-3 rounded-xl bg-black/45 p-3 text-left text-[11px] font-semibold leading-5 text-cyan-50/75 ring-1 ring-cyan-100/15">
+              <div className="mb-1 text-cyan-100">Turn-taking debug</div>
+              <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+                {Object.entries(turnDebug).map(([key, value]) => (
+                  <div key={key} className="flex justify-between gap-3">
+                    <span className="text-white/38">{key}</span>
+                    <span className="truncate text-right">{String(value)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="mb-3 grid gap-2 text-xs font-semibold text-white/70 md:hidden">
             <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/12 backdrop-blur-2xl">

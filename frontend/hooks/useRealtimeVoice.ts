@@ -59,6 +59,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   const audioUrlRef = useRef<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const speakRunRef = useRef(0);
   const finalBufferRef = useRef("");
   const interimBufferRef = useRef("");
   const finalizingRef = useRef(false);
@@ -230,12 +231,18 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   }, [cleanupDeepgram, fallback]);
 
   const speak = useCallback((text: string, voiceId?: string, speechCode = browserSpeechCode): Promise<void> => {
+    const runId = ++speakRunRef.current;
     cleanupDeepgram();
     fallback.stopListening();
     setVoiceState("ai_speaking");
     const cleanText = humanizeSpeech(text);
     return new Promise(async (resolve) => {
       const playBrowserFallback = () => {
+        if (runId !== speakRunRef.current) {
+          setVoiceState("idle");
+          resolve();
+          return;
+        }
         if (typeof window === "undefined" || !window.speechSynthesis) {
           setVoiceState("idle");
           resolve();
@@ -249,10 +256,12 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         utterance.pitch = 1.02;
         utterance.volume = 1;
         utterance.onend = () => {
+          if (runId !== speakRunRef.current) return;
           setVoiceState("idle");
           resolve();
         };
         utterance.onerror = () => {
+          if (runId !== speakRunRef.current) return;
           setVoiceState("idle");
           resolve();
         };
@@ -263,17 +272,24 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         audioRef.current?.pause();
         if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
         const blob = await synthesizeSpeech(cleanText, voiceId);
+        if (runId !== speakRunRef.current) {
+          setVoiceState("idle");
+          resolve();
+          return;
+        }
         const audioUrl = URL.createObjectURL(blob);
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
         audioUrlRef.current = audioUrl;
         audio.onended = () => {
+          if (runId !== speakRunRef.current) return;
           setVoiceState("idle");
           URL.revokeObjectURL(audioUrl);
           if (audioUrlRef.current === audioUrl) audioUrlRef.current = null;
           resolve();
         };
         audio.onerror = () => {
+          if (runId !== speakRunRef.current) return;
           URL.revokeObjectURL(audioUrl);
           if (audioUrlRef.current === audioUrl) audioUrlRef.current = null;
           audioRef.current = null;
@@ -289,6 +305,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   }, [browserSpeechCode, cleanupDeepgram, fallback]);
 
   const stopSpeaking = useCallback(() => {
+    speakRunRef.current += 1;
     audioRef.current?.pause();
     audioRef.current = null;
     if (audioUrlRef.current) {
@@ -299,6 +316,18 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     setVoiceState("idle");
     fallback.stopSpeaking();
   }, [fallback]);
+
+  useEffect(() => () => {
+    speakRunRef.current += 1;
+    cleanupDeepgram();
+    fallback.stopListening();
+    fallback.stopSpeaking();
+    audioRef.current?.pause();
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    audioUrlRef.current = null;
+    audioRef.current = null;
+    window.speechSynthesis?.cancel();
+  }, [cleanupDeepgram, fallback]);
 
   const onFinalTranscript = useCallback((callback: FinalTranscriptCallback) => {
     callbackRef.current = callback;
