@@ -275,13 +275,7 @@ export default function SessionPage() {
     isFinalizingTurnRef.current = true;
     setAutoSubmitNotice("Moving forward...");
     naturalConversation.dispatch("send_ready");
-    await submitContent(content, true, naturalMetricsRef.current, {
-      forceNaturalSend: true,
-      forceResolutionTriggered: reason === "force_resolution" || reason === "hard_timeout",
-      hardTimeoutTriggered: reason === "hard_timeout",
-      gentlePromptShown: naturalGentlePromptShownRef.current,
-      decisionOverride: reason,
-    }).finally(() => {
+    await sendNaturalTurnDirect(content, reason).finally(() => {
       isFinalizingTurnRef.current = false;
       naturalTranscriptRef.current = "";
       naturalDeepgramFinalReceivedRef.current = false;
@@ -337,6 +331,109 @@ export default function SessionPage() {
     voice.resetTranscript();
     cameraSignals.stop();
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+  }
+
+  async function sendNaturalTurnDirect(content: string, reason: string) {
+    const outboundContent = content.replace(/\s+/g, " ").trim();
+    if (!meaningfulTurn(outboundContent) || session?.status === "completed") return;
+    const metrics = naturalMetricsRef.current || { speechDurationMs: 0, silenceMs: 0 };
+    const cameraSignal = cameraTurnSignal();
+    clearNaturalTimers();
+    voice.stopListening();
+    voice.resetTranscript();
+    setDraft("");
+    setLoading(true);
+    setError("");
+    naturalConversation.dispatch("ai_processing");
+    try {
+      const token = await getToken();
+      const requestStartedAt = Date.now();
+      const result = await sendMessage(id, outboundContent, userId, token, {
+        transcript: outboundContent,
+        interimTranscript: "",
+        speechDurationMs: metrics.speechDurationMs,
+        silenceMs: metrics.silenceMs,
+        sessionId: id,
+        userId,
+        conversationMode: "natural",
+        turnTiming: {
+          silenceMs: metrics.silenceMs,
+          speechDurationMs: metrics.speechDurationMs,
+          autoSubmitted: true,
+          cameraAssisted: cameraSignal !== "no_signal" && cameraSignal !== "face_not_detected",
+          pauseDecision: reason,
+          interruptionDetected: naturalConversation.state === "user_interrupting",
+          gentlePromptShown: naturalGentlePromptShownRef.current,
+          forceResolutionTriggered: reason === "force_resolution" || reason === "hard_timeout" || reason === "camera_delay_elapsed",
+          hardTimeoutTriggered: reason === "hard_timeout",
+        },
+        coordinationContext: {
+          pauseDecision: "respond",
+          userStateApprox: "finished",
+          adjustedWaitMs: metrics.silenceMs,
+          cameraAssisted: cameraSignal !== "no_signal" && cameraSignal !== "face_not_detected",
+          cameraHesitation: cameraSignal === "likely_thinking",
+        },
+      });
+      const responseLatencyMs = Date.now() - requestStartedAt;
+      setMessages((current) => [...current, result.userMessage, result.aiMessage]);
+      setSession((current) => current ? { ...current, turnCount: result.turnCount } : current);
+      if (result.conversationControl) {
+        setLatestControl(result.conversationControl);
+        setSession((current) => current ? { ...current, pressureLevel: result.conversationControl?.pressureLevel || current.pressureLevel } : current);
+      }
+      if (beginnerMode && result.hint) {
+        setLatestHint(result.hint);
+        setHintVisible(true);
+        updateSessionHint(result.hint.hintId, { wasViewed: true }, token).catch(() => undefined);
+        window.setTimeout(() => setHintVisible(false), 6500);
+      }
+      if (session) {
+        sendTurnTelemetry({
+          userId,
+          sessionId: id,
+          turnId: result.userMessage.id,
+          practiceType: session.practiceType,
+          difficulty: session.difficulty,
+          language: session.practiceLanguage || "en",
+          transcript: outboundContent,
+          speechDurationMs: metrics.speechDurationMs,
+          silenceBeforeMs: metrics.silenceMs,
+          silenceAfterMs: metrics.silenceMs,
+          userTurnIndex: result.turnCount,
+          aiTurnIndex: result.turnCount,
+          responseLatencyMs,
+          aiWaitedMs: metrics.silenceMs,
+          aiResponseText: result.aiMessage.content,
+          userInterruptedAi: false,
+          aiInterruptedUser: false,
+          cameraEnabled: cameraAssistedTiming,
+          faceDetected: cameraSignals.signals.faceDetected,
+          mouthMovementActivity: cameraSignals.signals.mouthMovementIntensity,
+          visualStillnessMs: cameraSignals.signals.visualStillnessMs,
+          lookingAwayScore: cameraSignals.signals.lookingAwayScore,
+          headMovementIntensity: cameraSignals.signals.headMovementIntensity,
+          pauseDecision: "respond",
+          decisionConfidence: 0.98,
+        }, token).catch(() => undefined);
+      }
+      naturalConversation.dispatch("ai_speaking");
+      setAutoSubmitNotice("AI responding...");
+      await voice.speak(result.aiMessage.content, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode);
+      naturalConversation.dispatch("ai_finished");
+      if (sessionActiveRef.current && latestVoiceModeRef.current && naturalModeActive) {
+        voice.startListening();
+        scheduleNaturalBoundedWait(0, false);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not send your response.";
+      naturalConversation.dispatch("error");
+      setError(message);
+    } finally {
+      naturalGentlePromptShownRef.current = false;
+      setAutoSubmitNotice("");
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
