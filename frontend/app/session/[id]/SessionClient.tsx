@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { ArrowLeft, BrainCircuit, Camera, Clock3, Eye, EyeOff, Mic, MicOff, Send, Square, UsersRound, Volume2 } from "lucide-react";
-import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
@@ -347,6 +346,11 @@ export default function SessionPage() {
   }
 
   stopChamberMediaRef.current = stopChamberMedia;
+
+  function exitChamber() {
+    stopChamberMediaRef.current();
+    router.push("/practice");
+  }
 
   async function sendNaturalTurnDirect(content: string, reason: string) {
     const outboundContent = content.replace(/\s+/g, " ").trim();
@@ -982,9 +986,9 @@ export default function SessionPage() {
       {beginnerMode && session && <CoachPanel session={session} latestHint={latestHint} progress={Math.min(100, Math.round(((session.turnCount || 0) / 6) * 100))} />}
       <AnimatedPage className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-4 sm:px-6">
         <header className="flex items-center justify-between">
-          <Link href="/practice" onClick={stopChamberMedia} className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12]">
+          <button type="button" onClick={exitChamber} className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12]">
             <ArrowLeft size={16} /> Exit chamber
-          </Link>
+          </button>
           <div className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl sm:flex">
             <BrainCircuit size={16} /> {session?.practiceType || "Loading"} · elapsed {time}
           </div>

@@ -75,6 +75,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   const finalizingRef = useRef(false);
   const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speechStartedAtRef = useRef<number | null>(null);
   const lastSpeechAtRef = useRef<number | null>(null);
   const [provider, setProvider] = useState<Provider>("mock");
@@ -109,6 +110,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   const cleanupDeepgram = useCallback(() => {
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
     if (maxTimerRef.current) clearTimeout(maxTimerRef.current);
+    if (connectionTimerRef.current) clearTimeout(connectionTimerRef.current);
+    connectionTimerRef.current = null;
     recorderRef.current?.state === "recording" && recorderRef.current.stop();
     recorderRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -185,18 +188,31 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     setVoiceState("connecting");
     setProviderReason("");
     try {
+      setDiagnostics((current) => ({ ...current, micPermission: "prompt", deepgramConnected: false }));
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      streamRef.current = stream;
+      setDiagnostics((current) => ({ ...current, micPermission: "granted" }));
+
       const socket = new WebSocket(getVoiceWebSocketUrl(deepgramCode));
       wsRef.current = socket;
       setProvider("deepgram");
+      connectionTimerRef.current = setTimeout(() => {
+        if (socket.readyState !== WebSocket.OPEN) {
+          cleanupDeepgram();
+          setVoiceState("error");
+          startMock("Deepgram connection timed out. Using browser speech fallback.");
+        }
+      }, 5000);
 
       socket.onopen = async () => {
         try {
+          if (connectionTimerRef.current) clearTimeout(connectionTimerRef.current);
+          connectionTimerRef.current = null;
           const mimeType = getMimeType();
-          setDiagnostics((current) => ({ ...current, micPermission: "prompt" }));
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
           setDiagnostics((current) => ({ ...current, micPermission: "granted", deepgramConnected: true }));
-          streamRef.current = stream;
-          const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+          const currentStream = streamRef.current;
+          if (!currentStream) throw new Error("Microphone stream was stopped before Deepgram connected.");
+          const recorder = new MediaRecorder(currentStream, mimeType ? { mimeType } : undefined);
           recorderRef.current = recorder;
           recorder.ondataavailable = (event) => {
             if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
