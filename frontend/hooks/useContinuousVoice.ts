@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export const SHORT_PAUSE_MS = 1300;
 export const LONG_PAUSE_MS = 3200;
@@ -270,7 +270,7 @@ export function useContinuousVoice(language = "en-US") {
     };
   }, [clearTimers, language, schedulePauseDetection]);
 
-  return {
+  return useMemo(() => ({
     supported,
     voiceState,
     isListening: voiceState === "listening" || voiceState === "user_speaking" || voiceState === "silence_detected",
@@ -284,5 +284,16 @@ export function useContinuousVoice(language = "en-US") {
     onFinalTranscript,
     speak,
     stopSpeaking,
-  };
+  }), [
+    interimTranscript,
+    onFinalTranscript,
+    resetTranscript,
+    speak,
+    startListening,
+    stopListening,
+    stopSpeaking,
+    supported,
+    transcript,
+    voiceState,
+  ]);
 }

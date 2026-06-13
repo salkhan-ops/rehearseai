@@ -22,6 +22,8 @@ import { useConversationCoordination } from "@/hooks/useConversationCoordination
 import { useLocalCameraSignals } from "@/hooks/useLocalCameraSignals";
 import { useNaturalConversation } from "@/hooks/useNaturalConversation";
 import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
+import { fuseConversationState, type ConversationState as FusedConversationState, type RealtimeConversationEngineState } from "@/lib/conversation/ConversationStateFusion";
+import { VisionSignalExtractor } from "@/lib/conversation/VisionSignalExtractor";
 import { completeCourseSession, endSession, generateReport, getSession, sendMessage, updateSessionHint } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { FORCE_DECISION_MS, HARD_TIMEOUT_MS, SOFT_PROMPT_MS } from "@/lib/conversation/naturalTurnTakingEngine";
@@ -155,6 +157,8 @@ export default function SessionPage() {
   const [naturalCountdown, setNaturalCountdown] = useState<number | null>(null);
   const [turnDebug, setTurnDebug] = useState<Record<string, string | number | boolean>>({});
   const [pauseDecision, setPauseDecision] = useState<PauseFusionDecision | null>(null);
+  const [realtimeEngineState, setRealtimeEngineState] = useState<RealtimeConversationEngineState>("WAITING");
+  const [conversationState, setConversationState] = useState<FusedConversationState | null>(null);
   const autoEndingRef = useRef(false);
   const heldVoiceTurnRef = useRef<{ content: string; speechDurationMs: number; silenceMs: number } | null>(null);
   const naturalTranscriptRef = useRef("");
@@ -167,6 +171,13 @@ export default function SessionPage() {
   const naturalTimerRefs = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const naturalIntervalRefs = useRef<Array<ReturnType<typeof setInterval>>>([]);
   const naturalGentlePromptShownRef = useRef(false);
+  const visionSignalExtractorRef = useRef(new VisionSignalExtractor());
+  const latestConversationStateRef = useRef<FusedConversationState | null>(null);
+  const turnCompleteSustainedAtRef = useRef(0);
+  const speechReadinessSustainedAtRef = useRef(0);
+  const mouthVolumeReadinessAtRef = useRef(0);
+  const promptSustainedAtRef = useRef(0);
+  const lastFusionPublishAtRef = useRef(0);
   const latestVoiceModeRef = useRef(false);
   const latestLoadingRef = useRef(false);
   const stopChamberMediaRef = useRef<() => void>(() => undefined);
@@ -184,6 +195,8 @@ export default function SessionPage() {
   });
   const naturalConversation = useNaturalConversation();
   const naturalModeActive = conversationMode === "natural";
+  const naturalConversationState = naturalConversation.state;
+  const naturalConversationDispatch = naturalConversation.dispatch;
 
   useEffect(() => {
     latestVoiceModeRef.current = voiceMode;
@@ -201,9 +214,22 @@ export default function SessionPage() {
     setNaturalCountdown(null);
   }
 
+  function resetNaturalTurnBuffers() {
+    heldVoiceTurnRef.current = null;
+    naturalTranscriptRef.current = "";
+    naturalMetricsRef.current = { speechDurationMs: 0, silenceMs: 0 };
+    naturalLastTranscriptUpdateAtRef.current = 0;
+    naturalDeepgramFinalReceivedRef.current = false;
+    setDraft("");
+    voice.resetTranscript();
+  }
+
   function meaningfulTurn(content: string) {
     const normalized = content.replace(/\s+/g, " ").trim();
-    return normalized.split(" ").filter(Boolean).length >= 2 || normalized.length >= 12;
+    const words = normalized.split(" ").filter(Boolean);
+    if (words.length >= 4) return true;
+    if (words.length >= 2 && normalized.length >= 18) return true;
+    return normalized.length >= 28;
   }
 
   function cameraTurnSignal() {
@@ -253,6 +279,11 @@ export default function SessionPage() {
   }
 
   function scheduleNaturalAutoFinalize(reason: string, delayMs: number, maxDelayMs = HARD_TIMEOUT_MS) {
+    const pendingTranscript = (naturalTranscriptRef.current || heldVoiceTurnRef.current?.content || draft || voice.transcript || "").replace(/\s+/g, " ").trim();
+    if (!meaningfulTurn(pendingTranscript)) {
+      setAutoSubmitNotice((current) => current === "Moving forward..." ? "" : current);
+      return;
+    }
     clearNaturalTimers();
     const boundedDelay = Math.max(0, Math.min(delayMs, maxDelayMs));
     if (boundedDelay >= SOFT_PROMPT_MS) startCountdown(SOFT_PROMPT_MS, boundedDelay);
@@ -263,13 +294,15 @@ export default function SessionPage() {
   async function finalizeAndSendTurn(reason = "auto_send") {
     if (!sessionActiveRef.current || !naturalModeActive || !latestVoiceModeRef.current || latestLoadingRef.current || isFinalizingTurnRef.current) return;
     const content = (naturalTranscriptRef.current || heldVoiceTurnRef.current?.content || draft || voice.transcript || "").replace(/\s+/g, " ").trim();
+    const currentState = latestConversationStateRef.current;
+    if (currentState?.vision.mouth_aperture && visionSignalExtractorRef.current.mouthOpenVetoActive(currentState.vision.mouth_aperture)) {
+      setAutoSubmitNotice("Still listening...");
+      scheduleNaturalAutoFinalize("mouth_open_veto_elapsed", 900, 3000);
+      return;
+    }
     clearNaturalTimers();
     if (!meaningfulTurn(content)) {
-      heldVoiceTurnRef.current = null;
-      naturalTranscriptRef.current = "";
-      naturalDeepgramFinalReceivedRef.current = false;
-      setDraft("");
-      voice.resetTranscript();
+      resetNaturalTurnBuffers();
       setAutoSubmitNotice("I didn’t catch that. Please try again.");
       naturalConversation.dispatch("listening_started");
       if (sessionActiveRef.current && latestVoiceModeRef.current && session?.status !== "completed") {
@@ -288,9 +321,7 @@ export default function SessionPage() {
     naturalConversation.dispatch("send_ready");
     await sendNaturalTurnDirect(content, reason).finally(() => {
       isFinalizingTurnRef.current = false;
-      naturalTranscriptRef.current = "";
-      naturalDeepgramFinalReceivedRef.current = false;
-      naturalLastTranscriptUpdateAtRef.current = 0;
+      resetNaturalTurnBuffers();
     });
   }
 
@@ -332,14 +363,11 @@ export default function SessionPage() {
     sessionActiveRef.current = false;
     setVoiceMode(false);
     clearNaturalTimers();
-    heldVoiceTurnRef.current = null;
-    naturalTranscriptRef.current = "";
-    naturalDeepgramFinalReceivedRef.current = false;
+    resetNaturalTurnBuffers();
     isFinalizingTurnRef.current = false;
     naturalConversation.reset();
     voice.stopListening();
     voice.stopSpeaking();
-    voice.resetTranscript();
     cameraSignals.stop();
     stopMediaPipeCamera();
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
@@ -393,6 +421,7 @@ export default function SessionPage() {
           cameraAssisted: cameraSignal !== "no_signal" && cameraSignal !== "face_not_detected",
           cameraHesitation: cameraSignals.conversationSignal.recommendedAction === "wait_longer" || cameraSignals.conversationSignal.recommendedAction === "continue_listening",
         },
+        conversationState: latestConversationStateRef.current || undefined,
       });
       const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
@@ -529,21 +558,24 @@ export default function SessionPage() {
       });
       if (naturalModeActive && voice.isSpeaking) {
         voice.stopSpeaking();
-        naturalConversation.dispatch("interrupt");
+        naturalConversationDispatch("interrupt");
         setAutoSubmitNotice("You interrupted the AI");
       } else if (naturalModeActive) {
         clearNaturalTimers();
         naturalTranscriptRef.current = liveTranscript || naturalTranscriptRef.current;
         naturalLastTranscriptUpdateAtRef.current = Date.now();
-        naturalConversation.dispatch("speech_detected");
+        naturalConversationDispatch("speech_detected");
         if (meaningfulTurn(naturalTranscriptRef.current)) {
           const cameraSignal = cameraTurnSignal();
           const delayMs = cameraSignal === "likely_thinking" ? 5000 : cameraSignal === "likely_finished" ? 1200 : 3500;
           scheduleNaturalAutoFinalize("stable_transcript", delayMs, 6000);
+        } else {
+          setAutoSubmitNotice((current) => current === "Moving forward..." ? "" : current);
+          scheduleNaturalBoundedWait(0, false);
         }
       }
     }
-  }, [analyzeCoordination, naturalConversation, naturalModeActive, voice, voice.transcript, voice.interimTranscript]);
+  }, [analyzeCoordination, naturalConversationDispatch, naturalModeActive, voice.isSpeaking, voice.stopSpeaking, voice.transcript, voice.interimTranscript]);
 
   useEffect(() => {
     return voice.onFinalTranscript((nextTranscript, metrics) => {
@@ -562,27 +594,39 @@ export default function SessionPage() {
           silenceMs: naturalMetricsRef.current.silenceMs,
         };
         setDraft(naturalTranscriptRef.current);
-        setAutoSubmitNotice("Moving forward...");
-        scheduleNaturalAutoFinalize("deepgram_final_stable", 2000, 3000);
+        if (meaningfulTurn(naturalTranscriptRef.current)) {
+          setAutoSubmitNotice("Moving forward...");
+          scheduleNaturalAutoFinalize("deepgram_final_stable", 2000, 3000);
+        } else {
+          setAutoSubmitNotice("");
+          naturalConversationDispatch("listening_started");
+          scheduleNaturalBoundedWait(0, false);
+        }
         return;
       }
       setDraft(nextTranscript);
     });
-  }, [voice.onFinalTranscript, voiceMode, loading, naturalModeActive]);
+  }, [naturalConversationDispatch, voice.onFinalTranscript, voiceMode, loading, naturalModeActive]);
 
   useEffect(() => {
-    if (!voiceMode || !naturalModeActive || loading || voice.isSpeaking || naturalConversation.state === "paused") return;
+    if (!voiceMode || !naturalModeActive || loading || voice.isSpeaking || naturalConversationState === "paused") return;
     if (voice.supported && voice.voiceState === "idle") {
+      const pendingTranscript = (naturalTranscriptRef.current || heldVoiceTurnRef.current?.content || draft || "").replace(/\s+/g, " ").trim();
+      if (meaningfulTurn(pendingTranscript)) {
+        scheduleNaturalAutoFinalize("pending_transcript_after_idle", 250, 1000);
+        return;
+      }
+      setAutoSubmitNotice((current) => current === "Moving forward..." ? "" : current);
       voice.startListening();
-      scheduleNaturalBoundedWait(0, Boolean((heldVoiceTurnRef.current?.content || draft).trim()));
+      scheduleNaturalBoundedWait(0, false);
     }
     return () => {
       if (!voiceMode) voice.stopListening();
     };
-  }, [voiceMode, naturalModeActive, loading, voice.isSpeaking, voice.supported, voice.voiceState, voice.startListening, voice.stopListening, naturalConversation.state]);
+  }, [voiceMode, naturalModeActive, loading, voice.isSpeaking, voice.supported, voice.voiceState, voice.startListening, voice.stopListening, naturalConversationState]);
 
   useEffect(() => {
-    if (!voiceMode || !naturalModeActive || loading || voice.isSpeaking || naturalConversation.state === "paused") return undefined;
+    if (!voiceMode || !naturalModeActive || loading || voice.isSpeaking || naturalConversationState === "paused") return undefined;
     const interval = setInterval(() => {
       if (!sessionActiveRef.current || isFinalizingTurnRef.current || latestLoadingRef.current || !latestVoiceModeRef.current) return;
       const transcript = (naturalTranscriptRef.current || voice.transcript || heldVoiceTurnRef.current?.content || "").replace(/\s+/g, " ").trim();
@@ -609,10 +653,96 @@ export default function SessionPage() {
       }
     }, 500);
     return () => clearInterval(interval);
-  }, [voiceMode, naturalModeActive, loading, voice.isSpeaking, voice.voiceState, voice.interimTranscript, voice.transcript, naturalConversation.state, cameraAssistedTiming, cameraSignals.signals]);
+  }, [voiceMode, naturalModeActive, loading, voice.isSpeaking, voice.voiceState, voice.interimTranscript, voice.transcript, naturalConversationState, cameraAssistedTiming, cameraSignals.signals]);
 
   useEffect(() => {
-    if (!voiceMode || !naturalModeActive || loading || voice.isSpeaking || naturalConversation.state === "paused") return;
+    let frame = 0;
+    const tick = () => {
+      const now = Date.now();
+      const transcript = (naturalTranscriptRef.current || voice.transcript || heldVoiceTurnRef.current?.content || "").replace(/\s+/g, " ").trim();
+      const silenceMs = naturalLastTranscriptUpdateAtRef.current ? now - naturalLastTranscriptUpdateAtRef.current : naturalMetricsRef.current.silenceMs || 0;
+      const speechDurationMs = naturalMetricsRef.current.speechDurationMs || heldVoiceTurnRef.current?.speechDurationMs || 0;
+      const baseEngineState: RealtimeConversationEngineState =
+        loading ? "PROCESSING" :
+        voice.isSpeaking ? "AI_SPEAKING" :
+        voiceMode && naturalModeActive && voice.isListening ? "LISTENING" :
+        "WAITING";
+      let vision = visionSignalExtractorRef.current.sample(cameraSignals.faceSignalState, voice.audioFeatures);
+      if (baseEngineState === "AI_SPEAKING" && vision.mouth_aperture > 0.3 && voice.audioFeatures.volume_rising) {
+        if (!mouthVolumeReadinessAtRef.current) mouthVolumeReadinessAtRef.current = now;
+        if (now - mouthVolumeReadinessAtRef.current >= 200) {
+          vision = { ...vision, speech_readiness: 1 };
+        }
+      } else {
+        mouthVolumeReadinessAtRef.current = 0;
+      }
+      const fused = fuseConversationState({
+        audio: voice.audioFeatures,
+        vision,
+        finalTranscript: voice.transcript || transcript,
+        interimTranscript: voice.interimTranscript,
+        transcriptIsFinal: voice.transcriptIsFinal || Boolean(voice.transcript),
+        speechFinal: voice.speechFinal,
+        silenceMs,
+        speechDurationMs,
+        engineState: baseEngineState,
+      });
+
+      let nextState: RealtimeConversationEngineState = baseEngineState;
+      const mouthVeto = visionSignalExtractorRef.current.mouthOpenVetoActive(vision.mouth_aperture, now);
+      if (baseEngineState === "LISTENING" && fused.turn_complete_probability > 0.85 && !mouthVeto) {
+        if (!turnCompleteSustainedAtRef.current) turnCompleteSustainedAtRef.current = now;
+        if (now - turnCompleteSustainedAtRef.current >= 150) nextState = "PROCESSING";
+      } else {
+        turnCompleteSustainedAtRef.current = 0;
+      }
+      if (baseEngineState === "AI_SPEAKING" && vision.speech_readiness > 0.8) {
+        if (!speechReadinessSustainedAtRef.current) speechReadinessSustainedAtRef.current = now;
+        if (now - speechReadinessSustainedAtRef.current >= 200) {
+          voice.stopSpeaking();
+          naturalConversationDispatch("interrupt");
+          nextState = "LISTENING";
+        }
+      } else {
+        speechReadinessSustainedAtRef.current = 0;
+      }
+      if (baseEngineState === "WAITING" && (silenceMs > 4000 || vision.confusion_score > 0.7)) {
+        if (!promptSustainedAtRef.current) promptSustainedAtRef.current = now;
+        if (now - promptSustainedAtRef.current >= 100) nextState = "PROMPTING";
+      } else {
+        promptSustainedAtRef.current = 0;
+      }
+
+      const nextFused = { ...fused, engine_state: nextState };
+      latestConversationStateRef.current = nextFused;
+      if (now - lastFusionPublishAtRef.current >= 100) {
+        lastFusionPublishAtRef.current = now;
+        setRealtimeEngineState(nextState);
+        setConversationState(nextFused);
+        window.dispatchEvent(new CustomEvent("rehearseai:conversation-state", { detail: nextFused }));
+      }
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    cameraSignals.faceSignalState,
+    loading,
+    naturalConversationDispatch,
+    naturalModeActive,
+    voiceMode,
+    voice.audioFeatures,
+    voice.interimTranscript,
+    voice.isListening,
+    voice.isSpeaking,
+    voice.stopSpeaking,
+    voice.speechFinal,
+    voice.transcript,
+    voice.transcriptIsFinal,
+  ]);
+
+  useEffect(() => {
+    if (!voiceMode || !naturalModeActive || loading || voice.isSpeaking || naturalConversationState === "paused") return;
     if (!cameraAssistedTiming || cameraSignals.conversationSignal.recommendedAction !== "send_now") return;
     if (!cameraSignals.conversationSignal.faceDetected) return;
     const transcript = (naturalTranscriptRef.current || voice.transcript || heldVoiceTurnRef.current?.content || "").replace(/\s+/g, " ").trim();
@@ -621,6 +751,10 @@ export default function SessionPage() {
     const stableMs = naturalLastTranscriptUpdateAtRef.current ? now - naturalLastTranscriptUpdateAtRef.current : 0;
     const silentEnough = !voice.interimTranscript && !["connecting", "user_speaking"].includes(voice.voiceState);
     if (!silentEnough || stableMs < 900 || isFinalizingTurnRef.current) return;
+    if (latestConversationStateRef.current?.vision.mouth_aperture && visionSignalExtractorRef.current.mouthOpenVetoActive(latestConversationStateRef.current.vision.mouth_aperture)) {
+      setAutoSubmitNotice("Still listening...");
+      return;
+    }
     naturalMetricsRef.current = {
       speechDurationMs: naturalMetricsRef.current.speechDurationMs || heldVoiceTurnRef.current?.speechDurationMs || 0,
       silenceMs: Math.max(naturalMetricsRef.current.silenceMs || 0, stableMs),
@@ -631,7 +765,7 @@ export default function SessionPage() {
     cameraAssistedTiming,
     cameraSignals.conversationSignal,
     loading,
-    naturalConversation.state,
+    naturalConversationState,
     naturalModeActive,
     voice.interimTranscript,
     voice.isSpeaking,
@@ -645,7 +779,7 @@ export default function SessionPage() {
     const interval = setInterval(() => {
       const transcript = naturalTranscriptRef.current || voice.transcript || "";
       const snapshot = {
-        currentState: naturalConversation.state,
+        currentState: naturalConversationState,
         silenceMs: naturalMetricsRef.current.silenceMs || 0,
         transcriptLength: transcript.length,
         interimTranscript: voice.interimTranscript,
@@ -675,6 +809,10 @@ export default function SessionPage() {
         userStateEstimate: cameraSignals.conversationSignal.userStateEstimate,
         recommendedAction: cameraSignals.conversationSignal.recommendedAction,
         cameraDecision: cameraTurnSignal(),
+        conversationEngineState: realtimeEngineState,
+        turnCompleteProbability: Number((conversationState?.turn_complete_probability || 0).toFixed(3)),
+        speechReadiness: Number((conversationState?.vision.speech_readiness || 0).toFixed(3)),
+        confusionScore: Number((conversationState?.vision.confusion_score || 0).toFixed(3)),
         cameraSignalState: cameraSignals.state,
         pauseDecision: pauseDecision?.pauseDecision || "",
         forceTimeoutMs: HARD_TIMEOUT_MS,
@@ -686,7 +824,7 @@ export default function SessionPage() {
       console.debug("[turn-taking]", snapshot);
     }, 500);
     return () => clearInterval(interval);
-  }, [debugTurnTaking, naturalModeActive, naturalConversation.state, voice.transcript, voice.interimTranscript, voice.diagnostics, cameraAssistedTiming, cameraSignals, pauseDecision]);
+  }, [debugTurnTaking, naturalModeActive, naturalConversationState, voice.transcript, voice.interimTranscript, voice.diagnostics, cameraAssistedTiming, cameraSignals, pauseDecision, realtimeEngineState, conversationState]);
 
   useEffect(() => {
     if (!session || session.status === "completed" || loading || autoEndingRef.current) return;
@@ -835,6 +973,7 @@ export default function SessionPage() {
           cameraAssisted: localDecision.cameraAssisted,
           cameraHesitation: cameraAssistedTiming && (cameraSignals.signals.visualStillnessMs > 2600 || cameraSignals.signals.lookingAwayScore > 0.65),
         } : undefined,
+        conversationState: latestConversationStateRef.current || undefined,
       });
       const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);

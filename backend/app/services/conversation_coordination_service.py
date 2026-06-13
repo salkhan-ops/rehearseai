@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from app.models.message import ConversationState
 from app.services.firestore_service import FirestoreService
 from app.services.conversation_stance_service import ConversationStance, ConversationStanceService
 from app.services.pressure_escalation_service import AiAction, PressureEscalationService
@@ -86,6 +87,7 @@ class CoordinationAnalyzeRequest(BaseModel):
     safetyRiskLevel: str = "LOW"
     cameraAssisted: bool = False
     cameraHesitation: bool = False
+    conversationState: Optional[ConversationState] = None
 
 
 class CartesiaCoordination(BaseModel):
@@ -187,6 +189,13 @@ class ConversationCoordinationService:
 
     def _analyze(self, payload: CoordinationAnalyzeRequest, profile: VoiceProfile) -> CoordinationState:
         text = f"{payload.transcript} {payload.interimTranscript}".strip()
+        fused = payload.conversationState
+        if fused:
+            text = f"{fused.transcript.final or payload.transcript} {fused.transcript.interim or payload.interimTranscript}".strip()
+            payload.silenceMs = fused.timing.silence_ms or payload.silenceMs
+            payload.speechDurationMs = fused.timing.speech_duration_ms or payload.speechDurationMs
+            payload.cameraAssisted = True
+            payload.cameraHesitation = fused.vision.confusion_score > 0.55 or fused.vision.speech_readiness > 0.55
         words = self._words(text)
         wpm = self._words_per_minute(len(words), payload.speechDurationMs)
         filler_count = self._filler_count(text)
@@ -207,6 +216,8 @@ class ConversationCoordinationService:
         user_state: UserState = "calm"
         if collapsing:
             user_state = "collapsing"
+        elif fused and fused.vision.confusion_score > 0.7:
+            user_state = "confused"
         elif confused:
             user_state = "confused"
         elif defensive:
@@ -225,6 +236,21 @@ class ConversationCoordinationService:
         should_interrupt = overexplaining and payload.speechDurationMs > 45000
         should_respond = bool(words) and payload.silenceMs >= silence_threshold and not wait_requested
         should_wait = not should_respond and not should_interrupt
+        if fused:
+            category = fused.audio.silence_category
+            if category == "micro_pause":
+                should_respond = False
+                should_wait = True
+            elif category == "yielding_pause" and not fused.transcript.speech_final:
+                should_respond = False
+                should_wait = True
+            elif category == "abandoned_pause" and fused.transcript.is_final and fused.turn_complete_probability > 0.85:
+                should_respond = True
+                should_wait = False
+            if fused.vision.speech_readiness > 0.7:
+                should_respond = False
+                should_interrupt = False
+                should_wait = True
         tone = self._tone(user_state)
         response_length: ResponseLength = "short"
         if user_state in {"confused", "collapsing", "rushing"}:

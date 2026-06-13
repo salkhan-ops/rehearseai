@@ -28,6 +28,7 @@ def deepgram_listen_url(language: str = "en") -> str:
         "&smart_format=true"
         "&interim_results=true"
         "&punctuate=true"
+        "&words=true"
         "&endpointing=1000"
         "&utterance_end_ms=2400"
         "&vad_events=true"
@@ -84,6 +85,7 @@ async def deepgram_voice_proxy(websocket: WebSocket):
                 if message.get("type") == "websocket.disconnect":
                     break
                 if message.get("bytes") is not None:
+                    websocket.app.state.prosody.extract(message["bytes"])
                     await deepgram.send(message["bytes"])
                 elif message.get("text"):
                     payload = message["text"]

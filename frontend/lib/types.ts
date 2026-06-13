@@ -31,6 +31,44 @@ export type NerveEntryType = (typeof nerveEntryTypes)[number];
 export type NervePersona = (typeof nervePersonas)[number];
 export type EnvironmentMode = (typeof environmentModes)[number];
 export type ConversationMode = "manual" | "natural";
+export type SilenceCategory = "micro_pause" | "yielding_pause" | "abandoned_pause";
+export type RealtimeConversationEngineState = "LISTENING" | "PROCESSING" | "AI_SPEAKING" | "WAITING" | "PROMPTING";
+
+export type ConversationState = {
+  audio: {
+    volume_rms: number;
+    silence_category: SilenceCategory;
+    filler_rate: number;
+    voice_onset_delay_ms: number;
+    pitch_rising: boolean;
+    volume_rising: boolean;
+    sampled_at: number;
+  };
+  vision: {
+    gaze_on_camera: number;
+    brow_raised: number;
+    brow_furrowed: number;
+    mouth_aperture: number;
+    head_nodding: boolean;
+    speech_readiness: number;
+    engagement_score: number;
+    confusion_score: number;
+    sampled_at: number;
+  };
+  transcript: {
+    final: string;
+    interim: string;
+    is_final: boolean;
+    speech_final: boolean;
+  };
+  timing: {
+    silence_ms: number;
+    speech_duration_ms: number;
+  };
+  turn_complete_probability: number;
+  engine_state: RealtimeConversationEngineState;
+  sampled_at: number;
+};
 
 export type SessionHint = {
   hintId: string;
@@ -499,6 +537,7 @@ export type ConversationAnalyzePayload = {
   speechDurationMs?: number;
   silenceMs?: number;
   wordTimings?: Array<{ word: string; startMs?: number; endMs?: number }>;
+  conversationState?: ConversationState;
   sessionId?: string;
   userId: string;
   coordinationContext?: {

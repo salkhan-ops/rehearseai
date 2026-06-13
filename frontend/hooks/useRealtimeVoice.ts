@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { synthesizeSpeech } from "@/lib/api";
+import { AudioFeatureExtractor, classifySilence, type AudioFeatures, type SilenceCategory } from "@/lib/conversation/AudioFeatureExtractor";
 import { useContinuousVoice } from "./useContinuousVoice";
 
 type VoiceState = "idle" | "connecting" | "listening" | "user_speaking" | "silence_detected" | "processing" | "ai_speaking" | "error";
 type Provider = "deepgram" | "mock";
-export type VoiceTurnMetrics = { speechDurationMs: number; silenceMs: number };
+export type VoiceTurnMetrics = { speechDurationMs: number; silenceMs: number; silenceCategory?: SilenceCategory };
 type FinalTranscriptCallback = (transcript: string, metrics?: VoiceTurnMetrics) => void | Promise<void>;
 export type VoiceDiagnostics = {
   micPermission: "unknown" | "granted" | "denied" | "prompt" | "error";
@@ -69,6 +70,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   const audioUrlRef = useRef<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioExtractorRef = useRef(new AudioFeatureExtractor());
+  const audioFeatureTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const speakRunRef = useRef(0);
   const finalBufferRef = useRef("");
   const interimBufferRef = useRef("");
@@ -87,6 +90,17 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
+  const [transcriptIsFinal, setTranscriptIsFinal] = useState(false);
+  const [speechFinal, setSpeechFinal] = useState(false);
+  const [audioFeatures, setAudioFeatures] = useState<AudioFeatures>(() => ({
+    volume_rms: 0,
+    silence_category: "micro_pause",
+    filler_rate: 0,
+    voice_onset_delay_ms: 0,
+    pitch_rising: false,
+    volume_rising: false,
+    sampled_at: 0,
+  }));
   const [supported, setSupported] = useState(false);
   const [diagnostics, setDiagnostics] = useState<VoiceDiagnostics>({
     micPermission: "unknown",
@@ -116,9 +130,12 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
     if (maxTimerRef.current) clearTimeout(maxTimerRef.current);
     if (connectionTimerRef.current) clearTimeout(connectionTimerRef.current);
+    if (audioFeatureTimerRef.current) clearInterval(audioFeatureTimerRef.current);
+    audioFeatureTimerRef.current = null;
     connectionTimerRef.current = null;
     recorderRef.current?.state === "recording" && recorderRef.current.stop();
     recorderRef.current = null;
+    audioExtractorRef.current.disconnect();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) {
@@ -142,6 +159,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     lastSpeechAtRef.current = null;
     setTranscript("");
     setInterimTranscript("");
+    setTranscriptIsFinal(false);
+    setSpeechFinal(false);
     fallback.resetTranscript();
     setDiagnostics((current) => ({ ...current, transcriptReceived: false }));
   }, [fallback]);
@@ -158,6 +177,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     const metrics = {
       speechDurationMs: speechStartedAtRef.current ? now - speechStartedAtRef.current : 0,
       silenceMs: lastSpeechAtRef.current ? now - lastSpeechAtRef.current : 0,
+      silenceCategory: classifySilence(lastSpeechAtRef.current ? now - lastSpeechAtRef.current : 0),
     };
     cleanupDeepgram();
     callbackRef.current?.(text, metrics);
@@ -207,6 +227,16 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         return;
       }
       streamRef.current = stream;
+      await audioExtractorRef.current.connect(stream);
+      audioFeatureTimerRef.current = setInterval(() => {
+        const now = Date.now();
+        const silenceMs = lastSpeechAtRef.current ? now - lastSpeechAtRef.current : 0;
+        setAudioFeatures(audioExtractorRef.current.sample({
+          silenceMs,
+          transcript: `${finalBufferRef.current} ${interimBufferRef.current}`.trim(),
+          speechDurationMs: speechStartedAtRef.current ? now - speechStartedAtRef.current : 0,
+        }));
+      }, 100);
       setDiagnostics((current) => ({ ...current, micPermission: "granted" }));
 
       const socket = new WebSocket(getVoiceWebSocketUrl(deepgramCode));
@@ -268,6 +298,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
           return;
         }
         if (payload.type === "UtteranceEnd") {
+          setSpeechFinal(true);
           finalizeTurn();
           return;
         }
@@ -280,6 +311,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         lastSpeechAtRef.current = Date.now();
         setVoiceState("user_speaking");
         if (payload.is_final) {
+          setTranscriptIsFinal(true);
           if (text !== lastFinalTextRef.current && !finalBufferRef.current.endsWith(text)) {
             finalBufferRef.current = `${finalBufferRef.current} ${text}`.replace(/\s+/g, " ").trim();
             lastFinalTextRef.current = text;
@@ -287,9 +319,14 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
           interimBufferRef.current = "";
           setTranscript(finalBufferRef.current);
           setInterimTranscript("");
-          if (payload.speech_final) finalizeTurn();
+          if (payload.speech_final) {
+            setSpeechFinal(true);
+            finalizeTurn();
+          }
           else schedulePause();
         } else {
+          setTranscriptIsFinal(false);
+          setSpeechFinal(false);
           interimBufferRef.current = text;
           setInterimTranscript(text);
           schedulePause();
@@ -335,6 +372,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     cleanupDeepgram();
     fallback.stopListening();
     setVoiceState("ai_speaking");
+    audioExtractorRef.current.markAiAudioEnded();
     setDiagnostics((current) => ({ ...current, aiResponseReceived: Boolean(text.trim()), ttsStarted: false, ttsError: "" }));
     const cleanText = humanizeSpeech(text);
     return new Promise(async (resolve) => {
@@ -361,6 +399,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         utterance.volume = 1;
         utterance.onend = () => {
           if (runId !== speakRunRef.current) return;
+          audioExtractorRef.current.markAiAudioEnded();
           setVoiceState("idle");
           speakingRef.current = false;
           resolve();
@@ -392,6 +431,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         audio.onplay = () => setDiagnostics((current) => ({ ...current, ttsStarted: true }));
         audio.onended = () => {
           if (runId !== speakRunRef.current) return;
+          audioExtractorRef.current.markAiAudioEnded();
           setVoiceState("idle");
           speakingRef.current = false;
           URL.revokeObjectURL(audioUrl);
@@ -452,7 +492,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
 
   const activeMock = provider === "mock";
   const realtimeBusy = speakingRef.current || ["connecting", "listening", "user_speaking", "silence_detected", "processing", "ai_speaking"].includes(voiceState);
-  return {
+  return useMemo(() => ({
     supported,
     provider,
     providerReason,
@@ -463,11 +503,44 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     transcript: activeMock && !realtimeBusy ? fallback.transcript : transcript,
     interimTranscript: activeMock && !realtimeBusy ? fallback.interimTranscript : interimTranscript,
     diagnostics,
+    transcriptIsFinal,
+    speechFinal,
+    audioFeatures,
     startListening,
     stopListening,
     resetTranscript,
     onFinalTranscript,
     speak,
     stopSpeaking,
-  };
+  }), [
+    activeMock,
+    audioFeatures,
+    diagnostics,
+    fallback.interimTranscript,
+    fallback.isListening,
+    fallback.isProcessing,
+    fallback.isSpeaking,
+    fallback.resetTranscript,
+    fallback.startListening,
+    fallback.stopListening,
+    fallback.stopSpeaking,
+    fallback.supported,
+    fallback.transcript,
+    fallback.voiceState,
+    interimTranscript,
+    onFinalTranscript,
+    provider,
+    providerReason,
+    realtimeBusy,
+    resetTranscript,
+    speak,
+    speechFinal,
+    startListening,
+    stopListening,
+    stopSpeaking,
+    supported,
+    transcript,
+    transcriptIsFinal,
+    voiceState,
+  ]);
 }

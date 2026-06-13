@@ -14,6 +14,66 @@ LANGUAGE_NAMES = {
 }
 
 
+def narrate_conversation_state(conversation_state: Optional[dict]) -> str:
+    if not conversation_state:
+        return "[CONVERSATION STATE]\nNo fused multimodal state available."
+    audio = conversation_state.get("audio") or {}
+    vision = conversation_state.get("vision") or {}
+    transcript = conversation_state.get("transcript") or {}
+    turn_probability = float(conversation_state.get("turn_complete_probability") or 0)
+
+    affect_parts: list[str] = []
+    if float(audio.get("filler_rate") or 0) >= 10:
+        affect_parts.append("high filler rate")
+    if float(audio.get("volume_rms") or 0) < 0.02:
+        affect_parts.append("low volume")
+    if bool(audio.get("pitch_rising")):
+        affect_parts.append("rising pitch")
+    if float(vision.get("confusion_score") or 0) > 0.7:
+        affect = "confused or searching"
+    elif float(vision.get("speech_readiness") or 0) > 0.7:
+        affect = "ready to continue speaking"
+    elif affect_parts:
+        affect = "hesitant, " + ", ".join(affect_parts[:2])
+    else:
+        affect = "steady"
+
+    engagement = "present" if float(vision.get("engagement_score") or 0) >= 0.45 else "low"
+    engagement_cues = []
+    if float(vision.get("gaze_on_camera") or 0) > 0.6:
+        engagement_cues.append("gaze on camera")
+    if bool(vision.get("head_nodding")):
+        engagement_cues.append("nodding")
+    if float(vision.get("mouth_aperture") or 0) > 0.3:
+        engagement_cues.append("mouth open")
+    if not engagement_cues:
+        engagement_cues.append("limited visual cues")
+
+    silence_category = str(audio.get("silence_category") or "micro_pause")
+    if float(vision.get("speech_readiness") or 0) > 0.7:
+        turn_signal = "not complete, user appears ready to continue"
+    elif turn_probability > 0.85 and transcript.get("is_final"):
+        turn_signal = f"complete, {silence_category.replace('_', ' ')}"
+    elif silence_category == "micro_pause":
+        turn_signal = "incomplete, micro pause"
+    else:
+        turn_signal = f"uncertain, {silence_category.replace('_', ' ')}"
+
+    notable = "none"
+    if float(vision.get("confusion_score") or 0) > 0.7:
+        notable = "confusion signal sustained"
+    elif bool(audio.get("volume_rising")) and float(vision.get("mouth_aperture") or 0) > 0.3:
+        notable = "user may be starting to speak"
+
+    return (
+        "[CONVERSATION STATE]\n"
+        f"User affect: {affect}\n"
+        f"Engagement: {engagement} ({', '.join(engagement_cues[:2])})\n"
+        f"Turn signal: {turn_signal}\n"
+        f"Notable: {notable}"
+    )
+
+
 def build_roleplay_prompt(session: Session, history: list[Message], max_history_messages: int = 8, coordination_context: Optional[dict] = None) -> str:
     turns = "\n".join([f"{message.role.upper()}: {message.content}" for message in history[-max_history_messages:]])
     persona = PERSONAS[session.practiceType]
@@ -39,7 +99,9 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
     coordination_block = "No live conversation coordination context provided."
     if coordination_context:
         conversation_control = coordination_context.get("conversationControl") or {}
+        state_narration = narrate_conversation_state(coordination_context.get("conversationState"))
         coordination_block = f"""
+{state_narration}
 - userState: {coordination_context.get("userState")}
 - pressureAdjustment: {coordination_context.get("pressureAdjustment")}
 - recommendedAiTone: {coordination_context.get("recommendedAiTone")}

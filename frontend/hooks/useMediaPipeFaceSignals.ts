@@ -41,6 +41,7 @@ export function useMediaPipeFaceSignals({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const extractorRef = useRef(new FaceFeatureExtractor());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const conversationContextRef = useRef({ transcriptStableMs, silenceMs, hasTranscript });
   const [status, setStatus] = useState<MediaPipeFaceStatus>(enabled ? "idle" : "idle");
   const [error, setError] = useState("");
   const [mediaPipeLoaded, setMediaPipeLoaded] = useState(false);
@@ -53,16 +54,20 @@ export function useMediaPipeFaceSignals({
     timerRef.current = null;
   }, []);
 
+  useEffect(() => {
+    conversationContextRef.current = { transcriptStableMs, silenceMs, hasTranscript };
+  }, [hasTranscript, silenceMs, transcriptStableMs]);
+
   const sample = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
     const result = faceLandmarkerService.detectFrame(video);
     const timestamp = Date.now();
     const nextFace = extractorRef.current.extract(result, timestamp);
-    const nextConversation = faceSignalRuleEngine(nextFace, { transcriptStableMs, silenceMs, hasTranscript });
+    const nextConversation = faceSignalRuleEngine(nextFace, conversationContextRef.current);
     setFaceSignalState(nextFace);
     setConversationSignal(nextConversation);
-  }, [hasTranscript, silenceMs, transcriptStableMs]);
+  }, []);
 
   const start = useCallback(async () => {
     if (!enabled) return;
@@ -88,10 +93,10 @@ export function useMediaPipeFaceSignals({
     stopTimer();
     faceLandmarkerService.stopCamera();
     extractorRef.current.reset();
-    setFaceSignalState(defaultFaceSignalState);
-    setConversationSignal(defaultFaceConversationSignal);
-    setError("");
-    setStatus("idle");
+    setFaceSignalState((current) => current === defaultFaceSignalState ? current : defaultFaceSignalState);
+    setConversationSignal((current) => current === defaultFaceConversationSignal ? current : defaultFaceConversationSignal);
+    setError((current) => current === "" ? current : "");
+    setStatus((current) => current === "idle" ? current : "idle");
   }, [stopTimer]);
 
   useEffect(() => {
@@ -117,11 +122,6 @@ export function useMediaPipeFaceSignals({
       stop();
     };
   }, [enabled, start, stop]);
-
-  useEffect(() => {
-    if (!enabled || !faceSignalState.timestamp) return;
-    setConversationSignal(faceSignalRuleEngine(faceSignalState, { transcriptStableMs, silenceMs, hasTranscript }));
-  }, [enabled, faceSignalState, hasTranscript, silenceMs, transcriptStableMs]);
 
   return useMemo(() => ({
     enabled,

@@ -147,9 +147,15 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
             safetyRiskLevel=safety.risk_level,
             cameraAssisted=bool((payload.coordinationContext or {}).get("cameraAssisted", False)),
             cameraHesitation=bool((payload.coordinationContext or {}).get("cameraHesitation", False)),
+            conversationState=payload.conversationState,
         )
     )
     coordination_context = get_coordination(request).prompt_context(coordination_state)
+    if payload.conversationState:
+        coordination_context = {
+            **(coordination_context or {}),
+            "conversationState": payload.conversationState.model_dump(),
+        }
     if payload.coordinationContext:
         coordination_context = {
             **(coordination_context or {}),

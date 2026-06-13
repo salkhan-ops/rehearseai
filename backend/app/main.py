@@ -22,6 +22,7 @@ from app.services.telemetry_service import TelemetryService
 from app.services.safety_scope_service import SafetyScopeService
 from app.services.coach_service import CoachService
 from app.services.cross_examination_service import CrossExaminationService
+from app.services.prosody_extractor import ProsodyExtractor
 
 settings = get_settings()
 
@@ -49,6 +50,7 @@ app.state.coach = CoachService(app.state.store)
 app.state.cross_examination = CrossExaminationService(app.state.store)
 app.state.deepgram = DeepgramService()
 app.state.cartesia = CartesiaService()
+app.state.prosody = ProsodyExtractor()
 
 app.include_router(health.router)
 app.include_router(auth.router)

@@ -15,6 +15,41 @@ export type FaceLandmarkerServiceSnapshot = {
 
 type StatusListener = (snapshot: FaceLandmarkerServiceSnapshot) => void;
 
+let tfLiteConsoleFilterInstalled = false;
+
+function isTfLiteInfoMessage(args: unknown[]) {
+  return args.map((arg) => String(arg)).join(" ").includes("Created TensorFlow Lite XNNPACK delegate");
+}
+
+function installTfLiteConsoleFilter() {
+  if (tfLiteConsoleFilterInstalled || typeof window === "undefined") return;
+  tfLiteConsoleFilterInstalled = true;
+  const originalError = console.error.bind(console);
+  const originalWarn = console.warn.bind(console);
+  console.error = (...args: Parameters<typeof console.error>) => {
+    if (isTfLiteInfoMessage(args)) return;
+    originalError(...args);
+  };
+  console.warn = (...args: Parameters<typeof console.warn>) => {
+    if (isTfLiteInfoMessage(args)) return;
+    originalWarn(...args);
+  };
+}
+
+function suppressTfLiteInfo<T>(operation: () => T): T {
+  installTfLiteConsoleFilter();
+  return operation();
+}
+
+if (typeof window !== "undefined") {
+  installTfLiteConsoleFilter();
+  window.addEventListener("error", (event) => {
+    if (String(event.message || "").includes("Created TensorFlow Lite XNNPACK delegate")) {
+      event.preventDefault();
+    }
+  });
+}
+
 class FaceLandmarkerService {
   private landmarker: FaceLandmarker | null = null;
   private initPromise: Promise<FaceLandmarker> | null = null;
@@ -24,6 +59,7 @@ class FaceLandmarkerService {
   private cameraPermission: FaceLandmarkerServiceSnapshot["cameraPermission"] = "unknown";
   private error = "";
   private listeners = new Set<StatusListener>();
+  private lastSnapshotKey = "";
 
   subscribe(listener: StatusListener) {
     this.listeners.add(listener);
@@ -47,6 +83,9 @@ class FaceLandmarkerService {
     if (next.cameraPermission) this.cameraPermission = next.cameraPermission;
     if (typeof next.error === "string") this.error = next.error;
     const snapshot = this.snapshot();
+    const snapshotKey = JSON.stringify(snapshot);
+    if (snapshotKey === this.lastSnapshotKey) return;
+    this.lastSnapshotKey = snapshotKey;
     this.listeners.forEach((listener) => listener(snapshot));
   }
 
@@ -124,6 +163,7 @@ class FaceLandmarkerService {
   }
 
   stopCamera() {
+    const hadActiveCamera = Boolean(this.stream || this.attachedVideos.size);
     this.stream?.getTracks().forEach((track) => track.stop());
     this.stream = null;
     this.attachedVideos.forEach((video) => {
@@ -133,14 +173,24 @@ class FaceLandmarkerService {
       video.load();
     });
     this.attachedVideos.clear();
-    this.setSnapshot({ status: this.landmarker ? "idle" : "idle" });
+    if (hadActiveCamera || this.status !== "idle") {
+      this.setSnapshot({ status: "idle", error: "" });
+    }
   }
 
   detectFrame(videoElement: HTMLVideoElement): FaceLandmarkerResult | null {
     if (!this.landmarker || videoElement.readyState < 2) return null;
-    const result = this.landmarker.detectForVideo(videoElement, performance.now());
-    this.setSnapshot({ status: result.faceLandmarks.length ? "active" : "no_face" });
-    return result;
+    try {
+      const result = suppressTfLiteInfo(() => this.landmarker?.detectForVideo(videoElement, performance.now()) || null);
+      this.setSnapshot({ status: result?.faceLandmarks.length ? "active" : "no_face" });
+      return result;
+    } catch (error) {
+      this.setSnapshot({
+        status: "error",
+        error: error instanceof Error ? error.message : "MediaPipe frame detection failed.",
+      });
+      return null;
+    }
   }
 
   dispose() {
