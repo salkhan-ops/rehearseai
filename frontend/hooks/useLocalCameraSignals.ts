@@ -12,6 +12,8 @@ type Options = {
   hasTranscript?: boolean;
 };
 
+const SIGNAL_STALENESS_MS = 400;
+
 function stateMessage(state: CameraSignalState) {
   if (state === "disabled") return "Camera timing off";
   if (state === "active") return "Camera timing active";
@@ -51,6 +53,11 @@ export function useLocalCameraSignals({ enabled, fps = 12, transcriptStableMs = 
   const signals = useMemo<LocalCameraSignals>(() => {
     const face = mediaPipe.faceSignalState;
     if (!enabled || !face.faceDetected) return defaultCameraSignals;
+
+    // Reject stale signals — if the last camera frame is too old, don't use it for turn-taking
+    const signalAgeMs = Date.now() - face.timestamp;
+    if (face.timestamp > 0 && signalAgeMs > SIGNAL_STALENESS_MS) return defaultCameraSignals;
+
     return {
       faceDetected: face.faceDetected,
       faceConfidence: face.faceConfidence,
@@ -63,13 +70,13 @@ export function useLocalCameraSignals({ enabled, fps = 12, transcriptStableMs = 
       blinkRateApprox: face.blinkRateApprox,
       eyeStabilityScore: face.blinking ? 0.2 : 0.9,
       mouthOpenScore: face.mouthOpenScore,
-      mouthMovementIntensity: face.lipMovementScore,
+      mouthMovementIntensity: Math.max(face.lipMovementScore, face.lateralLipScore * 0.7),
       lipMovementActivity: face.lipMovementScore,
       mouthStillnessDurationMs: face.mouthStillnessMs,
       visualStillnessMs: face.visualStillnessMs,
       gazeShiftFrequency: face.lookingAwayScore,
       postureShiftFrequency: face.headMovementIntensity,
-      lightingScore: 1,
+      lightingScore: face.lightingScore,
       sampledAt: face.timestamp,
     };
   }, [enabled, mediaPipe.faceSignalState]);

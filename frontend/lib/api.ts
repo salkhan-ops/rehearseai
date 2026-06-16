@@ -89,6 +89,21 @@ export async function synthesizeSpeech(text: string, voiceId?: string): Promise<
   return response.blob();
 }
 
+export async function synthesizeSpeechStream(text: string, voiceId?: string): Promise<ReadableStream<Uint8Array>> {
+  const response = await fetch(`${API_URL}/api/voice/tts/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, voiceId }),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`TTS stream request failed: ${response.status}${detail ? ` ${detail}` : ""}`);
+  }
+  if (!response.body) throw new Error("No response body from TTS stream endpoint.");
+  return response.body;
+}
+
 export function submitContact(payload: { name: string; email: string; category: string; subject: string; message: string; userId?: string }) {
   return request<{ ok: boolean; id: string }>("/api/contact", {
     method: "POST",

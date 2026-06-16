@@ -22,6 +22,7 @@ export type FaceSignalState = {
   mouthOpenScore: number;
   lipMoving: boolean;
   lipMovementScore: number;
+  lateralLipScore: number;
   mouthStillnessMs: number;
   smiling: boolean;
   smileScore: number;
@@ -36,6 +37,7 @@ export type FaceSignalState = {
   headRoll?: number;
   visualStillnessMs: number;
   engagement: FaceEngagement;
+  lightingScore: number;
   timestamp: number;
 };
 
@@ -75,6 +77,7 @@ export const defaultFaceSignalState: FaceSignalState = {
   mouthOpenScore: 0,
   lipMoving: false,
   lipMovementScore: 0,
+  lateralLipScore: 0,
   mouthStillnessMs: 0,
   smiling: false,
   smileScore: 0,
@@ -86,6 +89,7 @@ export const defaultFaceSignalState: FaceSignalState = {
   headMovementIntensity: 0,
   visualStillnessMs: 0,
   engagement: "no_face",
+  lightingScore: 1,
   timestamp: 0,
 };
 

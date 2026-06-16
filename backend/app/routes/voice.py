@@ -5,7 +5,7 @@ from typing import Optional
 
 import websockets
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 router = APIRouter()
@@ -29,8 +29,8 @@ def deepgram_listen_url(language: str = "en") -> str:
         "&interim_results=true"
         "&punctuate=true"
         "&words=true"
-        "&endpointing=1000"
-        "&utterance_end_ms=2400"
+        "&endpointing=800"
+        "&utterance_end_ms=4000"
         "&vad_events=true"
     )
 
@@ -50,6 +50,22 @@ async def synthesize_voice(payload: TTSRequest, request: Request):
     except Exception as exc:
         logger.warning("Cartesia TTS failed: %s", exc)
         raise HTTPException(status_code=502, detail="Cartesia TTS failed. Browser speech fallback will be used.") from exc
+
+
+@router.post("/api/voice/tts/stream")
+async def synthesize_voice_stream(payload: TTSRequest, request: Request):
+    try:
+        stream = request.app.state.cartesia.synthesize_stream(payload.text, payload.voiceId)
+        return StreamingResponse(
+            stream,
+            media_type="audio/mpeg",
+            headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.warning("Cartesia streaming TTS failed: %s", exc)
+        raise HTTPException(status_code=502, detail="Cartesia streaming TTS failed.") from exc
 
 
 async def connect_to_deepgram(api_key: str, language: str):
@@ -85,8 +101,12 @@ async def deepgram_voice_proxy(websocket: WebSocket):
                 if message.get("type") == "websocket.disconnect":
                     break
                 if message.get("bytes") is not None:
-                    websocket.app.state.prosody.extract(message["bytes"])
+                    features = websocket.app.state.prosody.extract(message["bytes"])
                     await deepgram.send(message["bytes"])
+                    try:
+                        await websocket.send_json({"type": "prosody", "rms": features.rms_energy, "f0": features.f0_hz})
+                    except Exception:
+                        pass
                 elif message.get("text"):
                     payload = message["text"]
                     try:

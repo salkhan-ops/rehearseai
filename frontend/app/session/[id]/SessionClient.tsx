@@ -25,6 +25,8 @@ import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
 import { fuseConversationState, type ConversationState as FusedConversationState, type RealtimeConversationEngineState } from "@/lib/conversation/ConversationStateFusion";
 import { VisionSignalExtractor } from "@/lib/conversation/VisionSignalExtractor";
 import { completeCourseSession, endSession, generateReport, getSession, sendMessage, updateSessionHint } from "@/lib/api";
+import { createSessionLogger, nullLogger, type LogEntry } from "@/lib/sessionLogger";
+import { type SpeechEmotionResult } from "@/lib/conversation/SpeechEmotionAnalyzer";
 import { useAuth } from "@/lib/auth";
 import { FORCE_DECISION_MS, HARD_TIMEOUT_MS, SOFT_PROMPT_MS } from "@/lib/conversation/naturalTurnTakingEngine";
 import { getLanguage, isRtlLanguage } from "@/lib/languages";
@@ -162,16 +164,19 @@ export default function SessionPage() {
   const autoEndingRef = useRef(false);
   const heldVoiceTurnRef = useRef<{ content: string; speechDurationMs: number; silenceMs: number } | null>(null);
   const naturalTranscriptRef = useRef("");
-  const naturalMetricsRef = useRef<{ speechDurationMs: number; silenceMs: number }>({ speechDurationMs: 0, silenceMs: 0 });
+  const naturalMetricsRef = useRef<{ speechDurationMs: number; silenceMs: number; speechEmotion?: SpeechEmotionResult }>({ speechDurationMs: 0, silenceMs: 0 });
   const naturalLastTranscriptUpdateAtRef = useRef(0);
   const naturalDeepgramFinalReceivedRef = useRef(false);
   const isFinalizingTurnRef = useRef(false);
   const sessionActiveRef = useRef(true);
+  const speakWasInterruptedRef = useRef(false);
   const debugTurnTaking = process.env.NEXT_PUBLIC_DEBUG_TURN_TAKING === "true";
   const naturalTimerRefs = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const naturalIntervalRefs = useRef<Array<ReturnType<typeof setInterval>>>([]);
   const naturalGentlePromptShownRef = useRef(false);
   const visionSignalExtractorRef = useRef(new VisionSignalExtractor());
+  // Tracks when the current listen session started — used to discard stale pre-session transcript
+  const listenSessionStartedAtRef = useRef<number>(0);
   const latestConversationStateRef = useRef<FusedConversationState | null>(null);
   const turnCompleteSustainedAtRef = useRef(0);
   const speechReadinessSustainedAtRef = useRef(0);
@@ -181,6 +186,13 @@ export default function SessionPage() {
   const latestVoiceModeRef = useRef(false);
   const latestLoadingRef = useRef(false);
   const stopChamberMediaRef = useRef<() => void>(() => undefined);
+  const restartListenRef = useRef<() => void>(() => undefined);
+  const sessionLoggerRef = useRef(nullLogger);
+  const dblogRef = useRef<(entry: LogEntry) => void>(() => undefined);
+  const [debugLogEntries, setDebugLogEntries] = useState<string[]>([]);
+  const [debugLogFile, setDebugLogFile] = useState("");
+  const [showDebugLog, setShowDebugLog] = useState(false);
+  const [messageEmotions, setMessageEmotions] = useState<Record<string, SpeechEmotionResult>>({});
   const practiceLanguage = getLanguage(session?.practiceLanguage);
   const beginnerMode = session?.difficulty === "Beginner" || session?.difficulty === "Friendly";
   const coordination = useConversationCoordination({ userId, sessionId: id, enabled: voiceMode });
@@ -201,6 +213,14 @@ export default function SessionPage() {
   useEffect(() => {
     latestVoiceModeRef.current = voiceMode;
   }, [voiceMode]);
+
+  // Record the moment a new listen session starts so the watchdog can ignore
+  // transcript that was accumulated in a previous turn
+  useEffect(() => {
+    if (voice.voiceState === "connecting" || voice.voiceState === "listening") {
+      listenSessionStartedAtRef.current = Date.now();
+    }
+  }, [voice.voiceState]);
 
   useEffect(() => {
     latestLoadingRef.current = loading;
@@ -224,12 +244,40 @@ export default function SessionPage() {
     voice.resetTranscript();
   }
 
+  const INCOMPLETE_ENDINGS = new Set([
+    "a", "an", "the", "i", "and", "but", "or", "so", "because", "if", "when",
+    "while", "although", "though", "since", "unless", "until", "after", "before",
+    "in", "on", "at", "to", "of", "with", "for", "about", "into", "from", "by",
+    "my", "your", "his", "her", "their", "our", "its",
+    "that", "which", "who", "this", "these", "those",
+    "is", "was", "are", "were", "have", "had", "has", "be", "been",
+    "am", "do", "did", "does", "will", "would", "could", "should", "may", "might",
+    "i'm", "i've", "i'd", "i'll", "we're", "they're", "it's",
+  ]);
+
+  function looksIncomplete(content: string): boolean {
+    const words = content.trim().toLowerCase().replace(/[.,!?;:]+$/, "").split(/\s+/).filter(Boolean);
+    const last = words[words.length - 1];
+    return Boolean(last && INCOMPLETE_ENDINGS.has(last));
+  }
+
   function meaningfulTurn(content: string) {
     const normalized = content.replace(/\s+/g, " ").trim();
     const words = normalized.split(" ").filter(Boolean);
-    if (words.length >= 4) return true;
+    if (words.length >= 6) return true;
     if (words.length >= 2 && normalized.length >= 18) return true;
     return normalized.length >= 28;
+  }
+
+  function emotionBadgeClass(label: string) {
+    switch (label) {
+      case "confident": return "bg-emerald-500/20 text-emerald-300";
+      case "nervous": return "bg-rose-500/20 text-rose-300";
+      case "hesitant": return "bg-amber-500/20 text-amber-300";
+      case "monotone": return "bg-slate-400/20 text-slate-300";
+      case "rushed": return "bg-orange-500/20 text-orange-300";
+      default: return "bg-white/10 text-white/40";
+    }
   }
 
   function cameraTurnSignal() {
@@ -279,7 +327,7 @@ export default function SessionPage() {
   }
 
   function scheduleNaturalAutoFinalize(reason: string, delayMs: number, maxDelayMs = HARD_TIMEOUT_MS) {
-    const pendingTranscript = (naturalTranscriptRef.current || heldVoiceTurnRef.current?.content || draft || voice.transcript || "").replace(/\s+/g, " ").trim();
+    const pendingTranscript = (naturalTranscriptRef.current || heldVoiceTurnRef.current?.content || "").replace(/\s+/g, " ").trim();
     if (!meaningfulTurn(pendingTranscript)) {
       setAutoSubmitNotice((current) => current === "Moving forward..." ? "" : current);
       return;
@@ -293,27 +341,115 @@ export default function SessionPage() {
 
   async function finalizeAndSendTurn(reason = "auto_send") {
     if (!sessionActiveRef.current || !naturalModeActive || !latestVoiceModeRef.current || latestLoadingRef.current || isFinalizingTurnRef.current) return;
-    const content = (naturalTranscriptRef.current || heldVoiceTurnRef.current?.content || draft || voice.transcript || "").replace(/\s+/g, " ").trim();
+    // Only read from refs here — React state values (draft, voice.transcript) are stale
+    // in timer callbacks because they capture the render-time closure, not the live value.
+    const content = (naturalTranscriptRef.current || heldVoiceTurnRef.current?.content || "").replace(/\s+/g, " ").trim();
+    // If no speech was captured in this listen window, keep the mic alive instead of
+    // tearing it down every hard-timeout cycle.
+    if (!content && naturalMetricsRef.current.speechDurationMs === 0) {
+      dblogRef.current({ event: "VETO", type: "no_new_speech", text: "", words: 0, reason });
+      clearNaturalTimers();
+      heldVoiceTurnRef.current = null;
+      naturalTranscriptRef.current = "";
+      naturalMetricsRef.current = { speechDurationMs: 0, silenceMs: 0 };
+      naturalLastTranscriptUpdateAtRef.current = 0;
+      naturalDeepgramFinalReceivedRef.current = false;
+      setAutoSubmitNotice("Still listening...");
+      naturalConversation.dispatch("listening_started");
+      // Force-close any existing connection before restarting. If Deepgram is
+      // connected-but-silent, listeningActiveRef stays true and startListening()
+      // exits as a no-op, leaving the dead connection running forever.
+      voice.stopListening();
+      window.setTimeout(() => {
+        if (sessionActiveRef.current && latestVoiceModeRef.current) {
+          dblogRef.current({ event: "LISTEN_RESTART", reason: "empty_timeout_keepalive", decision: voice.voiceState });
+          voice.startListening();
+          scheduleNaturalBoundedWait(0, false);
+        }
+      }, 300);
+      return;
+    }
     const currentState = latestConversationStateRef.current;
     if (currentState?.vision.mouth_aperture && visionSignalExtractorRef.current.mouthOpenVetoActive(currentState.vision.mouth_aperture)) {
+      dblogRef.current({ event: "VETO", type: "mouth_open", text: content, silenceMs: naturalMetricsRef.current.silenceMs });
       setAutoSubmitNotice("Still listening...");
       scheduleNaturalAutoFinalize("mouth_open_veto_elapsed", 900, 3000);
       return;
     }
+    // Hard camera veto: face detected, mouth completely still, no live transcript —
+    // content is stale from a previous turn. Only applies when content is very short
+    // (a real answer of 5+ words should never be discarded by camera heuristics).
+    const contentWords = content.split(/\s+/).filter(Boolean).length;
+    if (cameraAssistedTiming && cameraSignals.signals.faceDetected &&
+        cameraSignals.signals.mouthStillnessDurationMs > 2500 &&
+        !voice.interimTranscript &&
+        !naturalDeepgramFinalReceivedRef.current &&
+        contentWords < 5) {
+      dblogRef.current({ event: "VETO", type: "hard_camera", text: content, mouthStillnessMs: cameraSignals.signals.mouthStillnessDurationMs });
+      resetNaturalTurnBuffers();
+      setAutoSubmitNotice("");
+      naturalConversation.dispatch("listening_started");
+      window.setTimeout(() => {
+        if (sessionActiveRef.current && latestVoiceModeRef.current) {
+          restartListenRef.current();
+          scheduleNaturalBoundedWait(0, false);
+        }
+      }, 400);
+      return;
+    }
     clearNaturalTimers();
     if (!meaningfulTurn(content)) {
+      dblogRef.current({ event: "VETO", type: "not_meaningful", text: content, words: content.split(/\s+/).filter(Boolean).length });
       resetNaturalTurnBuffers();
       setAutoSubmitNotice("I didn’t catch that. Please try again.");
       naturalConversation.dispatch("listening_started");
       if (sessionActiveRef.current && latestVoiceModeRef.current && session?.status !== "completed") {
         window.setTimeout(() => {
           if (sessionActiveRef.current && latestVoiceModeRef.current) {
-            voice.startListening();
+            restartListenRef.current();
             scheduleNaturalBoundedWait(0, false);
           }
         }, 800);
       }
       return;
+    }
+
+    // Fix 1: run evaluateTurn() here — the Deepgram path previously bypassed this entirely.
+    // Force-send reasons (hard timeout, explicit camera confirmation) skip this check.
+    const forceSend = ["force_resolution", "hard_timeout", "camera_delay_elapsed", "mediapipe_likely_finished"].includes(reason);
+    if (!forceSend) {
+      const evalDecision = naturalConversation.evaluateTurn({
+        finalTranscript: content,
+        interimTranscript: voice.interimTranscript,
+        speechDurationMs: naturalMetricsRef.current.speechDurationMs,
+        silenceMs: naturalMetricsRef.current.silenceMs,
+        deepgramEndpointing: voice.provider === "deepgram",
+        cameraSignals: cameraAssistedTiming ? cameraSignals.signals : null,
+        cameraConversationSignal: cameraAssistedTiming ? cameraSignals.conversationSignal : null,
+        personalBaseline: coordination.profile || undefined,
+        aiSpeaking: voice.isSpeaking,
+      });
+      dblogRef.current({
+        event: "TURN_DECISION",
+        decision: evalDecision?.decision ?? "send",
+        reason: evalDecision?.reason ?? reason,
+        silenceMs: naturalMetricsRef.current.silenceMs,
+        words: content.split(/\s+/).filter(Boolean).length,
+        text: content,
+        pauseState: evalDecision?.pauseState,
+        forceSend: false,
+      });
+      if (evalDecision && (evalDecision.decision === "wait_longer" || evalDecision.decision === "keep_listening")) {
+        dblogRef.current({ event: "WAIT_LONGER", decision: evalDecision.decision, reason: evalDecision.reason, silenceMs: naturalMetricsRef.current.silenceMs });
+        heldVoiceTurnRef.current = { content, ...naturalMetricsRef.current };
+        setDraft(content);
+        setAutoSubmitNotice(evalDecision.pauseState === "probably_thinking" ? "I’m waiting while you think..." : "Still with you...");
+        scheduleNaturalBoundedWait(naturalMetricsRef.current.silenceMs, true);
+        window.setTimeout(() => restartListenRef.current(), 300);
+        return;
+      }
+    } else {
+      dblogRef.current({ event: "TURN_DECISION", decision: "force_send", reason, silenceMs: naturalMetricsRef.current.silenceMs, words: content.split(/\s+/).filter(Boolean).length, forceSend: true });
     }
 
     isFinalizingTurnRef.current = true;
@@ -351,7 +487,7 @@ export default function SessionPage() {
     }
 
     if (hasContent) {
-      const forceTimer = setTimeout(() => forceResolveNaturalTurn("force_resolution"), Math.min(forceDelay, 6000));
+      const forceTimer = setTimeout(() => forceResolveNaturalTurn("force_resolution"), Math.min(forceDelay, 12000));
       naturalTimerRefs.current.push(forceTimer);
     }
 
@@ -374,6 +510,25 @@ export default function SessionPage() {
   }
 
   stopChamberMediaRef.current = stopChamberMedia;
+  restartListenRef.current = () => {
+    if (sessionActiveRef.current && latestVoiceModeRef.current && !latestLoadingRef.current && !voice.isSpeaking) {
+      voice.startListening();
+    }
+  };
+  dblogRef.current = (entry: LogEntry) => {
+    if (process.env.NEXT_PUBLIC_DEBUG_SESSION_LOG !== "true") return;
+    sessionLoggerRef.current.log(entry);
+    const ts = new Date().toLocaleTimeString("en", { hour12: false });
+    const details = [
+      "text" in entry ? `"${String(entry.text).slice(0, 55)}"` : null,
+      "decision" in entry ? `→${String(entry.decision)}` : null,
+      "reason" in entry ? `(${String(entry.reason)})` : null,
+      "silenceMs" in entry ? `sil=${String(entry.silenceMs)}ms` : null,
+      "words" in entry ? `w=${String(entry.words)}` : null,
+      "type" in entry ? `type=${String(entry.type)}` : null,
+    ].filter(Boolean).join(" ");
+    setDebugLogEntries((prev) => [...prev.slice(-149), `[${ts}] ${String(entry.event)} ${details}`.trim()]);
+  };
 
   function exitChamber() {
     stopChamberMediaRef.current();
@@ -385,12 +540,15 @@ export default function SessionPage() {
     if (!meaningfulTurn(outboundContent) || session?.status === "completed") return;
     const metrics = naturalMetricsRef.current || { speechDurationMs: 0, silenceMs: 0 };
     const cameraSignal = cameraTurnSignal();
+    dblogRef.current({ event: "TURN_SENT", text: outboundContent, words: outboundContent.split(/\s+/).filter(Boolean).length, reason, silenceMs: metrics.silenceMs, speechDurationMs: metrics.speechDurationMs, cameraSignal });
     clearNaturalTimers();
     voice.stopListening();
     voice.resetTranscript();
     setDraft("");
     setLoading(true);
     setError("");
+    // Capture the emotion snapshot before resetNaturalTurnBuffers clears it
+    const capturedEmotion = metrics.speechEmotion;
     naturalConversation.dispatch("ai_processing");
     try {
       const token = await getToken();
@@ -425,6 +583,10 @@ export default function SessionPage() {
       });
       const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
+      if (capturedEmotion && capturedEmotion.label !== "unclear") {
+        setMessageEmotions((prev) => ({ ...prev, [result.userMessage.id]: capturedEmotion }));
+        dblogRef.current({ event: "STATE_CHANGE", reason: `emotion:${capturedEmotion.label}`, decision: `${Math.round(capturedEmotion.confidenceScore * 100)}% confidence`, words: capturedEmotion.signals.wpm, silenceMs: capturedEmotion.signals.fillerCount });
+      }
       setSession((current) => current ? { ...current, turnCount: result.turnCount } : current);
       if (result.conversationControl) {
         setLatestControl(result.conversationControl);
@@ -467,9 +629,47 @@ export default function SessionPage() {
       }
       naturalConversation.dispatch("ai_speaking");
       setAutoSubmitNotice("AI responding...");
+      const ttsStartAt = Date.now();
+      dblogRef.current({ event: "TTS_START", text: result.aiMessage.content, words: result.aiMessage.content.split(/\s+/).filter(Boolean).length });
       await voice.speak(result.aiMessage.content, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode);
+      dblogRef.current({ event: "TTS_END", durationMs: Date.now() - ttsStartAt });
+      // If the user interrupted, play a brief spoken acknowledgment before listening
+      const wasInterrupted = speakWasInterruptedRef.current;
+      speakWasInterruptedRef.current = false;
+      if (wasInterrupted && sessionActiveRef.current && latestVoiceModeRef.current) {
+        const interruptAcks = [
+          "Go ahead.",
+          "Please continue.",
+          "Sure, go ahead.",
+          "Of course, go ahead.",
+          "I'm listening.",
+          "Please finish your thought.",
+          "You were saying?",
+          "Go on.",
+        ];
+        const ackPhrase = interruptAcks[Math.floor(Math.random() * interruptAcks.length)];
+        setAutoSubmitNotice(ackPhrase.replace(/\.$/, "..."));
+        await new Promise<void>((resolveAck) => {
+          const ack = new SpeechSynthesisUtterance(ackPhrase);
+          ack.rate = 1.05;
+          ack.volume = 0.85;
+          ack.onend = () => resolveAck();
+          ack.onerror = () => resolveAck();
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(ack);
+          window.setTimeout(resolveAck, 1500); // safety fallback
+        });
+      }
       naturalConversation.dispatch("ai_finished");
       if (sessionActiveRef.current && latestVoiceModeRef.current && naturalModeActive) {
+        setLoading(false);
+        latestLoadingRef.current = false;
+        // Call startListening() directly here — restartListenRef checks latestLoadingRef and
+        // voice.isSpeaking which are React state synced via effects/renders. At this exact
+        // point both are stale (loading is still true until finally runs, voiceState just
+        // changed from ai_speaking). The underlying refs (speakingRef, listeningActiveRef)
+        // are already correct, so startListening() will proceed correctly.
+        dblogRef.current({ event: "LISTEN_RESTART", reason: "post_tts", decision: voice.voiceState });
         voice.startListening();
         scheduleNaturalBoundedWait(0, false);
       }
@@ -477,6 +677,14 @@ export default function SessionPage() {
       const message = err instanceof Error ? err.message : "Could not send your response.";
       naturalConversation.dispatch("error");
       setError(message);
+      // Restart listening after error so the session doesn't freeze
+      window.setTimeout(() => {
+        if (sessionActiveRef.current && latestVoiceModeRef.current && naturalModeActive) {
+          dblogRef.current({ event: "LISTEN_RESTART", reason: "send_error_recovery", decision: voice.voiceState });
+          restartListenRef.current();
+          scheduleNaturalBoundedWait(0, false);
+        }
+      }, 500);
     } finally {
       naturalGentlePromptShownRef.current = false;
       setAutoSubmitNotice("");
@@ -557,9 +765,10 @@ export default function SessionPage() {
         silenceMs: 0,
       });
       if (naturalModeActive && voice.isSpeaking) {
+        speakWasInterruptedRef.current = true;
         voice.stopSpeaking();
         naturalConversationDispatch("interrupt");
-        setAutoSubmitNotice("You interrupted the AI");
+        setAutoSubmitNotice("Go ahead...");
       } else if (naturalModeActive) {
         clearNaturalTimers();
         naturalTranscriptRef.current = liveTranscript || naturalTranscriptRef.current;
@@ -567,7 +776,8 @@ export default function SessionPage() {
         naturalConversationDispatch("speech_detected");
         if (meaningfulTurn(naturalTranscriptRef.current)) {
           const cameraSignal = cameraTurnSignal();
-          const delayMs = cameraSignal === "likely_thinking" ? 5000 : cameraSignal === "likely_finished" ? 1200 : 3500;
+          // camera "likely_finished" was 1200ms — too aggressive, matched baseline to avoid premature sends
+          const delayMs = cameraSignal === "likely_thinking" ? 5500 : cameraSignal === "likely_finished" ? 2800 : 3500;
           scheduleNaturalAutoFinalize("stable_transcript", delayMs, 6000);
         } else {
           setAutoSubmitNotice((current) => current === "Moving forward..." ? "" : current);
@@ -587,19 +797,39 @@ export default function SessionPage() {
           : [naturalTranscriptRef.current, transcript].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
         naturalMetricsRef.current = metrics || { speechDurationMs: 0, silenceMs: 0 };
         naturalLastTranscriptUpdateAtRef.current = Date.now();
-        naturalDeepgramFinalReceivedRef.current = voice.provider === "deepgram";
+        naturalDeepgramFinalReceivedRef.current = true; // Track any real transcript, not just Deepgram
         heldVoiceTurnRef.current = {
           content: naturalTranscriptRef.current,
           speechDurationMs: naturalMetricsRef.current.speechDurationMs,
           silenceMs: naturalMetricsRef.current.silenceMs,
         };
         setDraft(naturalTranscriptRef.current);
-        if (meaningfulTurn(naturalTranscriptRef.current)) {
+        const accWords = naturalTranscriptRef.current.split(/\s+/).filter(Boolean).length;
+        const accIsMeaningful = meaningfulTurn(naturalTranscriptRef.current);
+        const accIsIncomplete = looksIncomplete(naturalTranscriptRef.current);
+        dblogRef.current({
+          event: "TRANSCRIPT",
+          text: naturalTranscriptRef.current,
+          words: accWords,
+          silenceMs: metrics?.silenceMs,
+          speechDurationMs: metrics?.speechDurationMs,
+          isMeaningful: accIsMeaningful,
+          isIncomplete: accIsIncomplete,
+          provider: voice.provider,
+        });
+        if (accIsMeaningful) {
           setAutoSubmitNotice("Moving forward...");
-          scheduleNaturalAutoFinalize("deepgram_final_stable", 2000, 3000);
+          // Re-open mic immediately so any continuation the user speaks during the
+          // autofinalize window is captured instead of lost to a closed WebSocket.
+          window.setTimeout(() => restartListenRef.current(), 150);
+          // Give extra time if the last word suggests the sentence is unfinished.
+          const finalizeDelay = accIsIncomplete ? 4500 : 2800;
+          scheduleNaturalAutoFinalize("deepgram_final_stable", finalizeDelay, 5500);
         } else {
           setAutoSubmitNotice("");
           naturalConversationDispatch("listening_started");
+          // Not enough content yet — re-listen immediately so nothing is missed.
+          window.setTimeout(() => restartListenRef.current(), 150);
           scheduleNaturalBoundedWait(0, false);
         }
         return;
@@ -631,6 +861,8 @@ export default function SessionPage() {
       if (!sessionActiveRef.current || isFinalizingTurnRef.current || latestLoadingRef.current || !latestVoiceModeRef.current) return;
       const transcript = (naturalTranscriptRef.current || voice.transcript || heldVoiceTurnRef.current?.content || "").replace(/\s+/g, " ").trim();
       if (!meaningfulTurn(transcript)) return;
+      // Only act on transcript that arrived in this listen session — never re-send stale content
+      if (naturalLastTranscriptUpdateAtRef.current < listenSessionStartedAtRef.current) return;
 
       const now = Date.now();
       if (!naturalLastTranscriptUpdateAtRef.current) naturalLastTranscriptUpdateAtRef.current = now;
@@ -638,10 +870,12 @@ export default function SessionPage() {
       const stableMs = now - lastUpdateAt;
       const cameraSignal = cameraTurnSignal();
       const voiceLooksSilent = voice.voiceState === "silence_detected" || voice.voiceState === "processing" || !voice.interimTranscript;
+      // Thresholds raised above Deepgram's utterance_end_ms (3000ms) to avoid
+      // firing before Deepgram's own UtteranceEnd signal
       const thresholdMs =
-        cameraSignal === "likely_finished" ? 1200 :
-        cameraSignal === "likely_thinking" ? 6500 :
-        2500;
+        cameraSignal === "likely_finished" ? 3200 :
+        cameraSignal === "likely_thinking" ? 7000 :
+        4000;
 
       if (voiceLooksSilent && stableMs >= thresholdMs) {
         naturalMetricsRef.current = {
@@ -699,6 +933,7 @@ export default function SessionPage() {
       if (baseEngineState === "AI_SPEAKING" && vision.speech_readiness > 0.8) {
         if (!speechReadinessSustainedAtRef.current) speechReadinessSustainedAtRef.current = now;
         if (now - speechReadinessSustainedAtRef.current >= 200) {
+          speakWasInterruptedRef.current = true;
           voice.stopSpeaking();
           naturalConversationDispatch("interrupt");
           nextState = "LISTENING";
@@ -750,7 +985,7 @@ export default function SessionPage() {
     const now = Date.now();
     const stableMs = naturalLastTranscriptUpdateAtRef.current ? now - naturalLastTranscriptUpdateAtRef.current : 0;
     const silentEnough = !voice.interimTranscript && !["connecting", "user_speaking"].includes(voice.voiceState);
-    if (!silentEnough || stableMs < 900 || isFinalizingTurnRef.current) return;
+    if (!silentEnough || stableMs < 2500 || isFinalizingTurnRef.current) return;
     if (latestConversationStateRef.current?.vision.mouth_aperture && visionSignalExtractorRef.current.mouthOpenVetoActive(latestConversationStateRef.current.vision.mouth_aperture)) {
       setAutoSubmitNotice("Still listening...");
       return;
@@ -939,6 +1174,7 @@ export default function SessionPage() {
     }
     clearNaturalTimers();
     heldVoiceTurnRef.current = null;
+    naturalTranscriptRef.current = "";
     naturalGentlePromptShownRef.current = false;
     setDraft("");
     voice.resetTranscript();
@@ -1055,6 +1291,22 @@ export default function SessionPage() {
     setError("");
     setConversationMode("natural");
     setVoiceMode(true);
+    if (process.env.NEXT_PUBLIC_DEBUG_SESSION_LOG === "true") {
+      sessionLoggerRef.current = createSessionLogger(id);
+      setDebugLogFile(sessionLoggerRef.current.file);
+      setDebugLogEntries([]);
+      setShowDebugLog(true);
+      dblogRef.current({
+        event: "SESSION_START",
+        sessionId: id,
+        userId,
+        camera: cameraAssistedTiming,
+        voiceProvider: voice.provider,
+        difficulty: session?.difficulty,
+        practiceType: session?.practiceType,
+        language: session?.practiceLanguage,
+      });
+    }
     naturalConversation.dispatch("start");
     if (session?.status === "completed") {
       naturalConversation.dispatch("error");
@@ -1317,7 +1569,14 @@ export default function SessionPage() {
             )}
             {messages.slice(-5).map((message) => (
               <AnimatedMessage key={message.id} className={`${message.role === "user" ? "ml-auto max-w-2xl text-right text-white/58" : "mr-auto max-w-3xl text-left text-white/84"} rounded-[1.35rem] bg-white/[0.06] p-4 ring-1 ring-white/10 backdrop-blur-2xl`}>
-                <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/34">{message.role === "user" ? "You" : "AI persona"}</div>
+                <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/34">
+                  {message.role === "user" ? "You" : "AI persona"}
+                  {message.role === "user" && messageEmotions[message.id] && (
+                    <span className={`ml-2 inline-block normal-case tracking-normal rounded-full px-2 py-px text-[10px] font-semibold ${emotionBadgeClass(messageEmotions[message.id].label)}`}>
+                      {messageEmotions[message.id].label} · {Math.round(messageEmotions[message.id].signals.wpm)} wpm
+                    </span>
+                  )}
+                </div>
                 <div className="text-base font-medium leading-7">{message.content}</div>
               </AnimatedMessage>
             ))}
@@ -1442,13 +1701,13 @@ export default function SessionPage() {
                     className="max-h-32 min-h-14 min-w-0 flex-1 resize-none rounded-[1.35rem] border border-white/10 bg-white/[0.07] px-4 py-4 text-base font-medium text-white outline-none transition placeholder:text-white/32 focus:border-cyan-200/40 focus:ring-4 focus:ring-cyan-200/10"
                     placeholder="Speak or type your response..."
                   />
-                  <button className="grid size-14 shrink-0 place-items-center rounded-full bg-white text-slate-950 shadow-[0_16px_40px_rgba(255,255,255,0.16)] transition hover:scale-105">
-                    <Send size={20} />
+                  <button type="submit" aria-label="Send message" className="grid size-14 shrink-0 place-items-center rounded-full bg-white text-slate-950 shadow-[0_16px_40px_rgba(255,255,255,0.16)] transition hover:scale-105">
+                    <Send size={20} aria-hidden="true" />
                   </button>
                 </form>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 px-2 text-xs font-semibold text-white/42">
                   <span className="inline-flex items-center gap-2"><Volume2 size={14} /> Manual mode is ready</span>
-                  <button onClick={finish} disabled={loading} className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-rose-100 transition hover:bg-rose-300/10 disabled:opacity-60">
+                  <button type="button" onClick={finish} disabled={loading} className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-rose-100 transition hover:bg-rose-300/10 disabled:opacity-60">
                     <Square size={13} /> End and generate report
                   </button>
                 </div>
@@ -1457,6 +1716,47 @@ export default function SessionPage() {
           </div>
         </section>
       </AnimatedPage>
+      {process.env.NEXT_PUBLIC_DEBUG_SESSION_LOG === "true" && debugLogFile && (
+        <div className="fixed bottom-4 left-4 z-50 max-w-sm font-mono text-xs select-text">
+          <div className="flex items-center gap-2 mb-1">
+            <button
+              type="button"
+              onClick={() => setShowDebugLog((v) => !v)}
+              className="px-2 py-1 rounded bg-yellow-400/90 text-black font-bold text-xs"
+            >
+              {showDebugLog ? "▼" : "▶"} Session Log
+            </button>
+            <span className="text-yellow-300/80 truncate max-w-[220px]" title={debugLogFile}>{debugLogFile}</span>
+            {showDebugLog && (
+              <button type="button" onClick={() => setDebugLogEntries([])} className="text-white/40 hover:text-white/70 text-xs px-1">clear</button>
+            )}
+          </div>
+          {showDebugLog && (
+            <div className="bg-black/92 border border-white/10 rounded p-2 max-h-72 overflow-y-auto space-y-0.5">
+              {debugLogEntries.length === 0 ? (
+                <div className="text-gray-500">No entries yet.</div>
+              ) : (
+                debugLogEntries.map((line, i) => (
+                  <div
+                    key={i}
+                    className={[
+                      "leading-tight whitespace-pre-wrap break-all",
+                      line.includes("VETO") || line.includes("ERROR") ? "text-red-400" :
+                      line.includes("WAIT_LONGER") || line.includes("keep_listening") ? "text-yellow-300" :
+                      line.includes("TURN_SENT") ? "text-blue-300" :
+                      line.includes("SESSION_START") ? "text-yellow-200 font-bold" :
+                      line.includes("TTS_") ? "text-purple-300" :
+                      "text-green-300",
+                    ].join(" ")}
+                  >
+                    {line}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }

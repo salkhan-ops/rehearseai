@@ -8,6 +8,7 @@ node_modules/
 .next/
 out/
 dist/
+session-logs/*.jsonl
 venv/
 venv-old-after-flatten/
 .venv/

@@ -11,7 +11,7 @@ from app.services.firestore_service import FirestoreService
 from app.services.gamification_service import GamificationService
 from app.services.notification_service import NotificationService
 from app.utils.timestamps import utc_now_iso
-from app.utils.security import get_current_user_id
+from app.utils.security import get_current_user_id, get_current_user_id_or_guest
 
 router = APIRouter()
 
@@ -218,7 +218,7 @@ async def reschedule_course_session(course_session_id: str, updates: dict, reque
 
 
 @router.get("/api/notifications")
-async def notifications(request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
+async def notifications(request: Request, current_user_id: Optional[str] = Depends(get_current_user_id_or_guest)):
     return await get_store(request).list_notifications(current_user_id or "guest")
 
 

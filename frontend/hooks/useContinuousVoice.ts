@@ -63,6 +63,22 @@ function humanizeSpeech(text: string) {
     .trim();
 }
 
+function estimateSpeechDurationMs(text: string): number {
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+  // ~140 words per minute at rate=0.88 → ~120 wpm → 500ms per word
+  return Math.max(2500, wordCount * 500);
+}
+
+function preWarmVoices() {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }
+}
+
 export function useContinuousVoice(language = "en-US") {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const callbackRef = useRef<FinalTranscriptCallback | null>(null);
@@ -77,6 +93,11 @@ export function useContinuousVoice(language = "en-US") {
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
+
+  // Pre-warm the browser voice list on mount so it's ready when TTS is first needed
+  useEffect(() => {
+    preWarmVoices();
+  }, []);
 
   const clearTimers = useCallback(() => {
     if (shortPauseTimerRef.current) clearTimeout(shortPauseTimerRef.current);
@@ -131,7 +152,13 @@ export function useContinuousVoice(language = "en-US") {
     maxTurnTimerRef.current = setTimeout(finalizeTurn, MAX_TURN_MS);
     try {
       recognitionRef.current.start();
-    } catch {
+    } catch (err) {
+      // InvalidStateError = recognition is already running — stop it so onend restarts cleanly
+      if (err instanceof DOMException && err.name === "InvalidStateError") {
+        try { recognitionRef.current.stop(); } catch { /* ignore */ }
+        // onend handler will restart in 160ms if shouldListenRef is still true
+        return;
+      }
       setVoiceState("listening");
     }
   }, [clearTimers, finalizeTurn, resetTranscript, voiceState]);
@@ -187,31 +214,33 @@ export function useContinuousVoice(language = "en-US") {
     window.speechSynthesis.cancel();
     return new Promise((resolve) => {
       waitForVoices().then(() => {
-      const utterance = new SpeechSynthesisUtterance(humanizeSpeech(text));
-      utterance.voice = pickVoice();
-      utterance.rate = 0.88;
-      utterance.pitch = 1.02;
-      utterance.volume = 1;
-      let resolved = false;
-      const finish = () => {
-        if (resolved) return;
-        resolved = true;
-        setVoiceState("idle");
-        resolve();
-      };
-      utterance.onstart = () => {
-        setVoiceState("ai_speaking");
+        const cleanText = humanizeSpeech(text);
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.voice = pickVoice();
+        utterance.rate = 0.88;
+        utterance.pitch = 1.02;
+        utterance.volume = 1;
+        let resolved = false;
+        const finish = () => {
+          if (resolved) return;
+          resolved = true;
+          setVoiceState("idle");
+          resolve();
+        };
+        utterance.onstart = () => {
+          setVoiceState("ai_speaking");
+          window.speechSynthesis.resume();
+        };
+        utterance.onend = () => {
+          finish();
+        };
+        utterance.onerror = () => {
+          finish();
+        };
+        window.speechSynthesis.speak(utterance);
         window.speechSynthesis.resume();
-      };
-      utterance.onend = () => {
-        finish();
-      };
-      utterance.onerror = () => {
-        finish();
-      };
-      window.speechSynthesis.speak(utterance);
-      window.speechSynthesis.resume();
-      window.setTimeout(finish, Math.max(3000, text.length * 95));
+        // Safety timeout: word-count based (140 wpm × rate 0.88 ≈ 123 wpm → ~488ms/word)
+        window.setTimeout(finish, estimateSpeechDurationMs(cleanText));
       });
     });
   }, [clearTimers, waitForVoices]);

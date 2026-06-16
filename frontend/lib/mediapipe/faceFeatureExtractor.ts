@@ -13,6 +13,7 @@ type HistoryFrame = {
 };
 
 const HISTORY_MS = 6000;
+const EMA_ALPHA = 0.35;
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -58,12 +59,20 @@ function movementIntensity(current: HistoryFrame, previous?: HistoryFrame) {
   return clamp01(mouthDelta * 1.6 + headDelta + centerDelta * 2);
 }
 
+function ema(current: number, previous: number, alpha = EMA_ALPHA): number {
+  return alpha * current + (1 - alpha) * previous;
+}
+
 export class FaceFeatureExtractor {
   private history: HistoryFrame[] = [];
   private lastMouthActiveAt = Date.now();
   private lastVisualActiveAt = Date.now();
   private blinkEvents: number[] = [];
   private wasBlinking = false;
+  private smoothedMouthOpen = 0;
+  private smoothedLipMovement = 0;
+  private smoothedHeadMovement = 0;
+  private smoothedLateralLip = 0;
 
   reset() {
     this.history = [];
@@ -71,6 +80,10 @@ export class FaceFeatureExtractor {
     this.lastVisualActiveAt = Date.now();
     this.blinkEvents = [];
     this.wasBlinking = false;
+    this.smoothedMouthOpen = 0;
+    this.smoothedLipMovement = 0;
+    this.smoothedHeadMovement = 0;
+    this.smoothedLateralLip = 0;
   }
 
   extract(result: FaceLandmarkerResult | null, timestamp = Date.now()): FaceSignalState {
@@ -83,14 +96,35 @@ export class FaceFeatureExtractor {
     const blinkScore = Math.max(blendshape(categories, "eyeBlinkLeft"), blendshape(categories, "eyeBlinkRight"));
     const jawOpen = blendshape(categories, "jawOpen");
     const mouthClose = blendshape(categories, "mouthClose");
-    const mouthOpenScore = clamp01(jawOpen * 0.9 + (1 - mouthClose) * 0.1);
+    const rawMouthOpenScore = clamp01(jawOpen * 0.9 + (1 - mouthClose) * 0.1);
+
+    // Richer lateral lip movement: funnel, pucker, left/right stretch and corner pulls
+    const mouthFunnel = blendshape(categories, "mouthFunnel");
+    const mouthPucker = blendshape(categories, "mouthPucker");
+    const mouthLeft = blendshape(categories, "mouthLeft");
+    const mouthRight = blendshape(categories, "mouthRight");
+    const mouthLowerDownLeft = blendshape(categories, "mouthLowerDownLeft");
+    const mouthLowerDownRight = blendshape(categories, "mouthLowerDownRight");
+    const mouthUpperUpLeft = blendshape(categories, "mouthUpperUpLeft");
+    const mouthUpperUpRight = blendshape(categories, "mouthUpperUpRight");
+    const mouthDimpleLeft = blendshape(categories, "mouthDimpleLeft");
+    const mouthDimpleRight = blendshape(categories, "mouthDimpleRight");
+    const rawLateralLipScore = clamp01(
+      mouthFunnel * 0.8 +
+      mouthPucker * 0.8 +
+      (mouthLeft + mouthRight) * 0.5 +
+      (mouthLowerDownLeft + mouthLowerDownRight) * 0.4 +
+      (mouthUpperUpLeft + mouthUpperUpRight) * 0.4 +
+      (mouthDimpleLeft + mouthDimpleRight) * 0.3,
+    );
+
     const smileScore = clamp01((blendshape(categories, "mouthSmileLeft") + blendshape(categories, "mouthSmileRight")) / 2);
     const center = averageLandmark(landmarks);
     const pose = headPoseFromMatrix(result.facialTransformationMatrixes?.[0]);
 
     const frame: HistoryFrame = {
       timestamp,
-      mouthOpenScore,
+      mouthOpenScore: rawMouthOpenScore,
       blinkScore,
       headYaw: pose.yaw,
       headPitch: pose.pitch,
@@ -100,8 +134,23 @@ export class FaceFeatureExtractor {
     };
 
     const previous = this.history[this.history.length - 1];
-    const headMovementIntensity = movementIntensity(frame, previous);
-    const lipMovementScore = clamp01(previous ? Math.abs(mouthOpenScore - previous.mouthOpenScore) * 7 : 0);
+    const rawHeadMovementIntensity = movementIntensity(frame, previous);
+
+    // Delta-based vertical lip movement (jaw open/close) combined with lateral scores
+    const rawVerticalLipScore = clamp01(previous ? Math.abs(rawMouthOpenScore - previous.mouthOpenScore) * 7 : 0);
+    const rawLipMovementScore = clamp01(rawVerticalLipScore * 0.6 + rawLateralLipScore * 0.4);
+
+    // Apply EMA smoothing to reduce per-frame jitter
+    this.smoothedMouthOpen = ema(rawMouthOpenScore, this.smoothedMouthOpen);
+    this.smoothedLipMovement = ema(rawLipMovementScore, this.smoothedLipMovement);
+    this.smoothedHeadMovement = ema(rawHeadMovementIntensity, this.smoothedHeadMovement);
+    this.smoothedLateralLip = ema(rawLateralLipScore, this.smoothedLateralLip);
+
+    const mouthOpenScore = this.smoothedMouthOpen;
+    const lipMovementScore = this.smoothedLipMovement;
+    const lateralLipScore = this.smoothedLateralLip;
+    const headMovementIntensity = this.smoothedHeadMovement;
+
     const blinking = blinkScore > 0.52;
     if (blinking && !this.wasBlinking) this.blinkEvents.push(timestamp);
     this.wasBlinking = blinking;
@@ -110,9 +159,10 @@ export class FaceFeatureExtractor {
     this.history.push(frame);
     this.history = this.history.filter((item) => timestamp - item.timestamp <= HISTORY_MS);
 
-    const mouthActive = mouthOpenScore > 0.26 || lipMovementScore > 0.18;
+    // Lower thresholds for mouth/lip activity to catch softer speech
+    const mouthActive = mouthOpenScore > 0.20 || lipMovementScore > 0.12 || lateralLipScore > 0.15;
     if (mouthActive) this.lastMouthActiveAt = timestamp;
-    const visualActive = headMovementIntensity > 0.08 || lipMovementScore > 0.12 || blinking;
+    const visualActive = headMovementIntensity > 0.08 || lipMovementScore > 0.10 || blinking;
     if (visualActive) this.lastVisualActiveAt = timestamp;
 
     const direction = lookDirection(pose.yaw, pose.pitch, center.x, center.y);
@@ -121,8 +171,8 @@ export class FaceFeatureExtractor {
     const mouthStillnessMs = timestamp - this.lastMouthActiveAt;
     const visualStillnessMs = timestamp - this.lastVisualActiveAt;
     const headMoving = headMovementIntensity > 0.1;
-    const mouthOpen = mouthOpenScore > 0.28;
-    const lipMoving = lipMovementScore > 0.16;
+    const mouthOpen = mouthOpenScore > 0.22;
+    const lipMoving = lipMovementScore > 0.12 || lateralLipScore > 0.14;
     const laughingLikely = smileScore > 0.52 && mouthOpenScore > 0.28;
     const engagement =
       !landmarks.length ? "no_face" :
@@ -140,6 +190,7 @@ export class FaceFeatureExtractor {
       mouthOpenScore,
       lipMoving,
       lipMovementScore,
+      lateralLipScore,
       mouthStillnessMs,
       smiling: smileScore > 0.32,
       smileScore,
@@ -154,6 +205,7 @@ export class FaceFeatureExtractor {
       headRoll: pose.roll,
       visualStillnessMs,
       engagement,
+      lightingScore: 1,
       timestamp,
     };
   }

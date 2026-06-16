@@ -7,10 +7,12 @@ export type AudioFeatures = {
   voice_onset_delay_ms: number;
   pitch_rising: boolean;
   volume_rising: boolean;
+  has_voice_activity: boolean;
   sampled_at: number;
 };
 
 const FILLERS = new Set(["um", "uh", "erm", "ah", "like", "so", "you", "know"]);
+const VOICE_ACTIVITY_THRESHOLD = 0.015;
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -44,6 +46,8 @@ export class AudioFeatureExtractor {
   private pitchHistory: Array<{ at: number; bin: number }> = [];
   private aiAudioEndedAt = 0;
   private firstVoiceOnsetAt = 0;
+  private voiceActivityFrames = 0;
+  private totalFrames = 0;
 
   async connect(stream: MediaStream) {
     this.disconnect();
@@ -51,7 +55,7 @@ export class AudioFeatureExtractor {
     if (!AudioContextCtor) return;
     this.context = new AudioContextCtor();
     this.analyser = this.context.createAnalyser();
-    this.analyser.fftSize = 1024;
+    this.analyser.fftSize = 2048;
     this.source = this.context.createMediaStreamSource(stream);
     this.source.connect(this.analyser);
     this.timeData = new Uint8Array(this.analyser.fftSize);
@@ -69,11 +73,20 @@ export class AudioFeatureExtractor {
     this.volumeHistory = [];
     this.pitchHistory = [];
     this.firstVoiceOnsetAt = 0;
+    this.voiceActivityFrames = 0;
+    this.totalFrames = 0;
   }
 
   markAiAudioEnded(at = Date.now()) {
     this.aiAudioEndedAt = at;
     this.firstVoiceOnsetAt = 0;
+    this.voiceActivityFrames = 0;
+    this.totalFrames = 0;
+  }
+
+  get hasRealVoiceActivity(): boolean {
+    if (this.totalFrames < 5) return false;
+    return this.voiceActivityFrames / this.totalFrames >= 0.2;
   }
 
   sample(options: { silenceMs?: number; transcript?: string; speechDurationMs?: number } = {}): AudioFeatures {
@@ -91,6 +104,9 @@ export class AudioFeatureExtractor {
       this.analyser.getByteFrequencyData(this.freqData);
       pitchBin = dominantBin(this.freqData);
     }
+
+    this.totalFrames += 1;
+    if (volume > VOICE_ACTIVITY_THRESHOLD) this.voiceActivityFrames += 1;
 
     this.volumeHistory.push({ at: now, volume });
     this.pitchHistory.push({ at: now, bin: pitchBin });
@@ -117,6 +133,7 @@ export class AudioFeatureExtractor {
       voice_onset_delay_ms: this.firstVoiceOnsetAt && this.aiAudioEndedAt ? this.firstVoiceOnsetAt - this.aiAudioEndedAt : 0,
       pitch_rising: pitchRising,
       volume_rising: volumeRising,
+      has_voice_activity: volume > VOICE_ACTIVITY_THRESHOLD,
       sampled_at: now,
     };
   }

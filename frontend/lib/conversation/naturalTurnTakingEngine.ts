@@ -21,9 +21,9 @@ export type NaturalPauseState =
 
 export const SHORT_PAUSE_MS = 1200;
 export const THINKING_PAUSE_MS = 3500;
-export const SOFT_PROMPT_MS = 6000;
-export const FORCE_DECISION_MS = 9000;
-export const HARD_TIMEOUT_MS = 12000;
+export const SOFT_PROMPT_MS = 10000;
+export const FORCE_DECISION_MS = 14000;
+export const HARD_TIMEOUT_MS = 16000;
 
 export type NaturalTurnTakingInput = {
   interimTranscript?: string;
@@ -58,6 +58,34 @@ const explicitWaitPhrases = [
   /\bgive me a moment\b/i,
   /\bhold on\b/i,
   /\bjust a moment\b/i,
+  /\blet me process\b/i,
+  /\bjust a minute\b/i,
+  /\bi need a second\b/i,
+  /\bdon'?t rush\b/i,
+  /\bstay on this\b/i,
+];
+
+// Short phrases that mean "I heard you" — not a real answer to send to the AI
+const backchannelPhrases = [
+  /^(yeah|yep|yup|right|okay|ok|mhm|mm-?hmm|uh-?huh|ahaan|haan|hmm+|hm+|uh+|um+)[\s,.!?]*$/i,
+  /^(i see|got it|makes sense|fair|sure|true|exactly|absolutely|i follow|understood|fair enough)[\s,.!?]*$/i,
+  /^(i'm with you|that makes sense|right right|yes continue|i hear you|that's clear|good point)[\s,.!?]*$/i,
+  /^(i agree|that's right|okay go on|ah okay|oh i see|now i get it|fine fine)[\s,.!?]*$/i,
+];
+
+// User explicitly handing the turn to the AI
+const turnHandoffPhrases = [
+  /\byour turn\b/i,
+  /\bgo ahead\b/i,
+  /\byou speak\b/i,
+  /\bover to you\b/i,
+  /\bwhat do you think\b/i,
+  /\bwhat'?s your (take|view|opinion|answer)\b/i,
+  /\bwhat would you (say|recommend|suggest|do)\b/i,
+  /\bhow would you (approach|handle|answer) (this|it|that)\b/i,
+  /\bi'?m done\b/i,
+  /\bthat'?s all from me\b/i,
+  /\bplease (respond|answer|reply)\b/i,
 ];
 
 function hasText(input: NaturalTurnTakingInput) {
@@ -66,6 +94,16 @@ function hasText(input: NaturalTurnTakingInput) {
 
 function hasExplicitWaitPhrase(text: string) {
   return explicitWaitPhrases.some((pattern) => pattern.test(text));
+}
+
+function isBackchannelOnly(text: string) {
+  const normalized = text.replace(/[,!?.]+$/, "").trim();
+  // Only treat as backchannel if very short (no full answer hiding in it)
+  return normalized.length < 32 && backchannelPhrases.some((p) => p.test(normalized));
+}
+
+function hasTurnHandoff(text: string) {
+  return turnHandoffPhrases.some((p) => p.test(text));
 }
 
 function mapPauseDecision(decision: PauseFusionDecision): NaturalTurnTakingResult {
@@ -105,6 +143,8 @@ function mapPauseDecision(decision: PauseFusionDecision): NaturalTurnTakingResul
   };
 }
 
+const CAMERA_STALENESS_MS = 400;
+
 export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalTurnTakingResult {
   const transcript = `${input.finalTranscript || ""} ${input.interimTranscript || ""}`.replace(/\s+/g, " ").trim();
   const baseline = input.personalBaseline || {};
@@ -113,7 +153,11 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
   const transcriptStableMs = input.lastTranscriptUpdateMs ? Date.now() - input.lastTranscriptUpdateMs : 0;
   const cameraConversationSignal = input.cameraConversationSignal;
   const cameraRecommendedAction = cameraConversationSignal?.recommendedAction || "ignore_camera";
-  const cameraCanAssist = Boolean(cameraConversationSignal?.cameraAvailable && cameraConversationSignal.faceDetected);
+
+  // Reject stale camera signals — if sampledAt is too old, camera data is unreliable
+  const cameraSignalAge = input.cameraSignals?.sampledAt ? Date.now() - input.cameraSignals.sampledAt : Infinity;
+  const cameraSignalFresh = cameraSignalAge < CAMERA_STALENESS_MS;
+  const cameraCanAssist = Boolean(cameraConversationSignal?.cameraAvailable && cameraConversationSignal.faceDetected && cameraSignalFresh);
   const cameraThinking =
     cameraCanAssist &&
     ((input.cameraSignals?.mouthMovementIntensity || 0) > 0.14 ||
@@ -190,6 +234,32 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
       reason: "explicit_wait_phrase",
       confidence: 0.95,
       adjustedWaitMs: longSilenceMs,
+      cameraAssisted: cameraCanAssist,
+    };
+  }
+
+  // User explicitly hands the turn to the AI — send immediately regardless of silence
+  if (hasTurnHandoff(transcript)) {
+    return {
+      decision: "send_now",
+      pauseDecision: "send_now",
+      pauseState: "send_now",
+      reason: "turn_handoff_phrase",
+      confidence: 0.97,
+      adjustedWaitMs: 0,
+      cameraAssisted: false,
+    };
+  }
+
+  // Backchannel-only utterance — user is acknowledging, not giving a real answer yet; wait longer
+  if (isBackchannelOnly(transcript)) {
+    return {
+      decision: "keep_listening",
+      pauseDecision: "continue_listening",
+      pauseState: "continue_listening",
+      reason: "backchannel_only",
+      confidence: 0.88,
+      adjustedWaitMs: FORCE_DECISION_MS,
       cameraAssisted: cameraCanAssist,
     };
   }

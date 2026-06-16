@@ -19,18 +19,20 @@ export function faceSignalRuleEngine(
     };
   }
 
-  if (face.lipMoving || face.lipMovementScore > 0.24 || face.mouthOpenScore > 0.42) {
+  // Lowered thresholds: was lip>0.24 || mouth>0.42 — now catches softer/lateral speech
+  if (face.lipMoving || face.lipMovementScore > 0.15 || face.mouthOpenScore > 0.28 || face.lateralLipScore > 0.14) {
     return {
       cameraAvailable: true,
       faceDetected: true,
       userStateEstimate: "actively_speaking",
-      confidence: clamp01(0.58 + face.lipMovementScore + face.mouthOpenScore * 0.25),
+      confidence: clamp01(0.58 + face.lipMovementScore + face.mouthOpenScore * 0.25 + face.lateralLipScore * 0.2),
       recommendedAction: "continue_listening",
       reason: "mouth_or_lip_movement_detected",
     };
   }
 
-  if (face.headMoving && face.headMovementIntensity > 0.16) {
+  // Lowered head movement threshold: was 0.16, now 0.12
+  if (face.headMoving && face.headMovementIntensity > 0.12) {
     return {
       cameraAvailable: true,
       faceDetected: true,
@@ -52,7 +54,8 @@ export function faceSignalRuleEngine(
     };
   }
 
-  if (face.visualStillnessMs > 6500) {
+  // Lowered visual stillness threshold: was 6500ms, now 5000ms (more responsive)
+  if (face.visualStillnessMs > 5000) {
     return {
       cameraAvailable: true,
       faceDetected: true,
@@ -63,20 +66,22 @@ export function faceSignalRuleEngine(
     };
   }
 
+  // Lowered stillness requirements: transcriptStable 900→700ms, mouthStillness 900→700ms, visualStillness 800→600ms
   if (
     context.hasTranscript &&
-    (context.transcriptStableMs || 0) > 900 &&
-    face.mouthStillnessMs > 900 &&
-    face.visualStillnessMs > 800 &&
-    face.mouthOpenScore < 0.28 &&
-    face.lipMovementScore < 0.16 &&
-    face.headMovementIntensity < 0.12
+    (context.transcriptStableMs || 0) > 700 &&
+    face.mouthStillnessMs > 700 &&
+    face.visualStillnessMs > 600 &&
+    face.mouthOpenScore < 0.22 &&
+    face.lipMovementScore < 0.12 &&
+    face.lateralLipScore < 0.10 &&
+    face.headMovementIntensity < 0.10
   ) {
     return {
       cameraAvailable: true,
       faceDetected: true,
       userStateEstimate: "likely_finished",
-      confidence: 0.78,
+      confidence: 0.80,
       recommendedAction: "send_now",
       reason: "mouth_closed_and_transcript_stable",
     };

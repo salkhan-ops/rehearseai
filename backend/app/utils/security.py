@@ -31,3 +31,20 @@ async def get_current_user_id(authorization: Optional[str] = Header(default=None
         return decoded.get("uid")
     except Exception as exc:
         raise HTTPException(status_code=401, detail="Invalid Firebase token") from exc
+
+
+async def get_current_user_id_or_guest(authorization: Optional[str] = Header(default=None)) -> Optional[str]:
+    """Like get_current_user_id but falls back to None (guest) when credentials are missing
+    or the token cannot be verified. Use only for read-only endpoints that are safe for
+    unauthenticated access (e.g. notifications list, which returns an empty list for guests)."""
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    try:
+        _ensure_firebase_app()
+        decoded = firebase_auth.verify_id_token(token)
+        return decoded.get("uid")
+    except Exception:
+        return None
