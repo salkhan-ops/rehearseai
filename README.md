@@ -128,6 +128,15 @@ To redeploy the frontend, push to `main` or run **Actions → Deploy frontend to
 - Contact form submissions saved through FastAPI to `contactMessages`
 - Recurring practice routines, daily cognitive challenges, browser reminder architecture, quick-start AI scenario generation, and practice adherence history
 - Multilingual practice and feedback preferences for English, Arabic, Urdu, Hindi, Spanish, and French
+- Natural conversation mode with hands-free automatic turn-taking
+- Camera-assisted timing using MediaPipe face landmark signals
+- Local ML pause-intent classifier pipeline (rule-based with ONNX/TFLite upgrade path)
+- Voice calibration page at `/voice-calibration` to personalise silence thresholds
+- Dynamic cross-examination engine with persona-specific attack vectors
+- Adaptive pressure escalation that adjusts AI challenge level in real time
+- Conversation stance selection (supportive → hostile) driven by session context
+- Response breakdown detector that identifies confusion, evasion, and over-explanation
+- Prosody extractor for per-chunk RMS energy and pitch sent to coaching logic
 
 ## Content and legal pages
 
@@ -247,6 +256,7 @@ CARTESIA_VERSION=2026-03-01
 The frontend sends AI response text and the selected voice ID to FastAPI at `/api/voice/tts`. FastAPI calls Cartesia and returns browser-playable MP3 audio. The Cartesia key is never exposed to frontend code. If Cartesia fails or is missing, the app falls back to browser `speechSynthesis`, preferring a natural female voice when available.
 
 The session page includes:
+
 - AI voice selector, defaulting to Skylar, a feminine Cartesia voice.
 - Session duration selector for 5, 10, 15, or 30 minutes.
 - Automatic report generation when the selected time limit expires.

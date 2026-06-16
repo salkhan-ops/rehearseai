@@ -21,8 +21,8 @@ export type NaturalPauseState =
 
 export const SHORT_PAUSE_MS = 1200;
 export const THINKING_PAUSE_MS = 3500;
-export const SOFT_PROMPT_MS = 10000;
-export const FORCE_DECISION_MS = 14000;
+export const SOFT_PROMPT_MS = 5000;
+export const FORCE_DECISION_MS = 9000;
 export const HARD_TIMEOUT_MS = 16000;
 
 export type NaturalTurnTakingInput = {
@@ -160,10 +160,9 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
   const cameraCanAssist = Boolean(cameraConversationSignal?.cameraAvailable && cameraConversationSignal.faceDetected && cameraSignalFresh);
   const cameraThinking =
     cameraCanAssist &&
-    ((input.cameraSignals?.mouthMovementIntensity || 0) > 0.14 ||
-      (input.cameraSignals?.headMovementIntensity || 0) > 0.12 ||
-      (input.cameraSignals?.gazeShiftFrequency || 0) > 0.1 ||
-      (input.cameraSignals?.lookingAwayScore || 0) > 0.42 ||
+    ((input.cameraSignals?.mouthMovementIntensity || 0) > 0.22 ||
+      (input.cameraSignals?.headMovementIntensity || 0) > 0.20 ||
+      (input.cameraSignals?.gazeShiftFrequency || 0) > 0.18 ||
       cameraRecommendedAction === "wait_longer" ||
       cameraRecommendedAction === "continue_listening");
 
@@ -321,6 +320,21 @@ export function naturalTurnTakingEngine(input: NaturalTurnTakingInput): NaturalT
       confidence: 0.86,
       adjustedWaitMs: longSilenceMs,
       cameraAssisted: cameraCanAssist,
+    };
+  }
+
+  // Deepgram has explicitly closed the utterance — override minor camera movement.
+  // Camera movement thresholds catch genuine thinking (mouth, head); passive gaze
+  // shifts after finishing a sentence should not block an authoritative STT endpoint.
+  if (input.deepgramEndpointing && input.finalTranscript && input.silenceMs >= THINKING_PAUSE_MS && transcriptStableMs >= 1500) {
+    return {
+      decision: "send_now",
+      pauseDecision: "send_now",
+      pauseState: "probably_finished",
+      reason: "deepgram_endpoint_confirmed",
+      confidence: 0.91,
+      adjustedWaitMs: THINKING_PAUSE_MS,
+      cameraAssisted: false,
     };
   }
 

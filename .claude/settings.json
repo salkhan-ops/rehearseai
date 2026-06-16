@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx next *)",
+      "Bash(npm audit *)",
+      "Bash(python3 -m json.tool --no-ensure-ascii)",
+      "Bash(python3 -c \"import sys,json; [print\\(json.dumps\\(e, indent=2\\)\\) for e in [json.loads\\(l\\) for l in sys.stdin]]\")",
+      "Bash(python3 -c ' *)",
+      "Bash(git -C /Users/salmankhan/StudioProjects/rehearseAI status)",
+      "Bash(git -C /Users/salmankhan/StudioProjects/rehearseAI log --oneline -5)",
+      "Bash(git -C /Users/salmankhan/StudioProjects/rehearseAI diff --stat HEAD)",
+      "Bash(git -C /Users/salmankhan/StudioProjects/rehearseAI add .gitignore backend/app/routes/courses.py backend/app/routes/voice.py backend/app/services/cartesia_service.py backend/app/utils/security.py frontend/app/session/[id]/SessionClient.tsx frontend/hooks/useContinuousVoice.ts frontend/hooks/useLocalCameraSignals.ts frontend/hooks/useMediaPipeFaceSignals.ts frontend/hooks/useRealtimeVoice.ts frontend/lib/api.ts frontend/lib/conversation/AudioFeatureExtractor.ts frontend/lib/conversation/naturalTurnTakingEngine.ts frontend/lib/mediapipe/faceFeatureExtractor.ts frontend/lib/mediapipe/faceSignalRuleEngine.ts frontend/lib/mediapipe/faceSignalTypes.ts frontend/package-lock.json frontend/package.json frontend/app/api/ frontend/lib/conversation/SpeechEmotionAnalyzer.ts frontend/lib/sessionLogger.ts)",
+      "Bash(git -C /Users/salmankhan/StudioProjects/rehearseAI commit -m ' *)"
+    ]
+  }
+}

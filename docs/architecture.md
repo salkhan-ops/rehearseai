@@ -25,6 +25,13 @@ flowchart LR
   Frontend --> API[FastAPI Cloud Run API]
   Frontend --> FirestoreRules[Firestore Client Reads\nProtected by Rules]
 
+  Frontend --> NaturalConv[Natural Conversation Engine\nTurn-Taking / State Machine]
+  Frontend --> MediaPipe[MediaPipe Face Landmarker\nCamera-Assisted Timing]
+  Frontend --> LocalML[Local Pause ML\nPause Fusion Engine]
+
+  MediaPipe --> LocalML
+  LocalML --> NaturalConv
+
   API --> FirestoreAdmin[Firestore via Backend Credentials]
   API --> Gemini[Google Gemini API]
   API --> Deepgram[Deepgram STT\nWebSocket Proxy]
@@ -39,6 +46,11 @@ flowchart LR
   API --> Coordination[Conversation Coordination Engine]
   API --> Telemetry[Privacy-Aware Telemetry]
   API --> Reports[Reports and Analytics]
+  API --> CrossExam[Cross-Examination Engine]
+  API --> Pressure[Pressure Escalation Service]
+  API --> Stance[Conversation Stance Service]
+  API --> Breakdown[Response Breakdown Detector]
+  API --> Prosody[Prosody Extractor]
 ```
 
 ## Component Responsibilities
@@ -47,9 +59,12 @@ flowchart LR
 | --- | --- | --- |
 | Web app | `frontend/app`, `frontend/components`, `frontend/lib` | User experience, authentication screens, practice/session flow, dashboard, admin views, reports, content, legal pages, and client API calls. |
 | API | `backend/app/main.py`, `backend/app/routes` | Stable service boundary for sessions, reports, courses, practice schedules, voice, telemetry, subscriptions, contact forms, and admin operations. |
-| Service layer | `backend/app/services` | Business logic for Firestore, Gemini, reports, voice providers, courses, gamification, notifications, telemetry, safety, and coaching. |
+| Service layer | `backend/app/services` | Business logic for Firestore, Gemini, reports, voice providers, courses, gamification, notifications, telemetry, safety, coaching, cross-examination, pressure escalation, stance selection, response breakdown, and prosody extraction. |
 | Data models | `backend/app/models`, `frontend/lib/types.ts` | Request/response and persisted domain structures shared conceptually between backend and frontend. |
 | Prompts | `backend/app/prompts` | Roleplay and report prompt templates with multilingual instructions and controlled output expectations. |
+| Natural conversation engine | `frontend/lib/conversation` | Client-side state machine and turn-taking logic that decides when the user has finished speaking without requiring a push-to-talk button. |
+| MediaPipe face tracking | `frontend/lib/mediapipe` | Loads the MediaPipe Face Landmarker WASM model in-browser to extract face-presence and blink/gaze signals that improve turn-taking timing accuracy. |
+| Local ML signals | `frontend/lib/local-signals`, `frontend/lib/local-ml` | Pause fusion engine that combines voice timing and camera signals into a single pause-intent decision. Rule-based now; designed for future ONNX/TFLite model swap. |
 | Database | Firestore | Users, sessions, messages, reports, analytics, billing metadata, entitlements, courses, practice routines, telemetry, contact messages, and audit logs. |
 | Security rules | `firestore.rules` | Client-side data access restrictions for user-owned and admin-only collections. |
 | ML scaffold | `backend/ml` | Offline classifier training placeholders for future consented telemetry learning. |
@@ -75,6 +90,17 @@ flowchart LR
 5. The browser sends confirmed text to the normal session message endpoint.
 6. If Deepgram or the proxy fails, the client falls back to browser speech recognition/mock voice behavior.
 
+### Natural Conversation Mode
+
+1. User enables natural mode via the `ConversationModeToggle` in the session UI.
+2. `conversationStateMachine.ts` tracks state across `idle → listening → user_speaking → user_thinking → ready_to_send → processing_ai → ai_speaking` and back.
+3. On every silence tick, `naturalTurnTakingEngine.ts` evaluates silence duration, transcript content, Deepgram endpointing events, and optional camera signals to produce a `NaturalTurnDecision` (`keep_listening`, `wait_longer`, `send_now`, `gentle_prompt`, `force_resolution`, `interrupt_ai`).
+4. When the MediaPipe face landmarker is active, `faceLandmarkerService.ts` streams face-presence and micro-expression data to `faceSignalRuleEngine.ts`, which emits a `FaceConversationSignal` (e.g. `thinking`, `finished_speaking`, `uncertain`).
+5. `pauseFusionEngine.ts` combines voice timing signals and camera signals through `localFeatureExtractor.ts` and `localPauseClassifier.ts` to produce a single `PauseFusionDecision` with an adaptive wait window.
+6. The turn-taking engine passes the decision back to the state machine, which either continues listening or fires the send event.
+7. After the AI responds, the state machine transitions through `processing_ai → ai_speaking → listening`, preventing double-capture of the AI audio.
+8. Users can calibrate personal silence thresholds at `/voice-calibration` which stores a `PersonalTimingBaseline` in local state.
+
 ### Report and Analytics
 
 1. User ends a session manually or the selected duration expires.
@@ -91,6 +117,15 @@ flowchart LR
 3. Users can create recurring schedules through `/api/practice-schedules`.
 4. Daily challenges and quick-start scenarios come from `/api/users/{user_id}/daily-challenge`, `/api/scenarios/random`, and `/api/scenarios/quick-start`.
 5. Completion updates practice history, progress, achievements, and notifications.
+
+### Adaptive Pressure and Cross-Examination
+
+1. On each AI turn, `response_breakdown_service.py` scans the user transcript for filler words, confusion markers, vague language, avoidance patterns, and evidence markers, producing a `ResponseBreakdown` (`none`, `mild`, `moderate`, `severe`) and a `LikelyCause`.
+2. `prosody_extractor.py` extracts RMS energy and fundamental frequency (F0) from the audio chunk using librosa (falling back to a pure-Python RMS calculation) to enrich coaching signals.
+3. `conversation_stance_service.py` maps the session mode, breakdown level, pressure level, and turn count to a `ConversationStance` (`supportive`, `curious`, `neutral`, `skeptical`, `opposing`, `hostile`).
+4. `pressure_escalation_service.py` produces the next `PressureDecision` — which includes the new pressure integer and an `AiAction` flag (`support`, `clarify`, `challenge`, `interrupt`, `escalate`, `multi_panel_followup`).
+5. `cross_examination_service.py` selects persona-specific attack vectors (e.g. `["market size", "defensibility"]` for an Investor persona), detects weak/evidence/evasion markers in the user response, and injects a follow-up challenge question into the prompt.
+6. These services feed into `conversation_coordination_service.py`, which assembles the final Gemini prompt with the correct stance, pressure, and cross-examination instructions.
 
 ### Admin Operations
 
@@ -232,4 +267,7 @@ Production targets:
 - Multilingual support includes English, Arabic, Urdu, Hindi, Spanish, and French.
 - Architecture supports local demo, cloud deployment, and future production hardening.
 - Standards alignment is documented without overstating certification status.
-
+- Natural conversation mode eliminates push-to-talk with a client-side state machine and adaptive silence timing.
+- Camera-assisted timing uses MediaPipe in-browser (no video leaves the device) to improve turn-taking accuracy.
+- Local ML pause classifier is rule-based with a documented upgrade path to ONNX/TFLite — no emotion or medical inference is claimed.
+- Adaptive pressure pipeline (response breakdown → stance → pressure escalation → cross-examination) is rule-driven and bounded by the safety scope service.

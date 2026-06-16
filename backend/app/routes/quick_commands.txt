@@ -1,0 +1,12 @@
+check this page out: http://localhost:3000/practice/setup?type=Job%20Interview. its contents are good..the desgin is not exciting... its too much info for the user to consume. please redesgin this page only. ensure the best UX desgin in mind. please keep the color combinations similar...also know that there is light and dark mode.. if its not good, i will ask you to return ... testing oyur desgin skills... 
+
+
+
+
+cd backend 
+source venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+
+cd frontend
+npm install
+npm run dev
