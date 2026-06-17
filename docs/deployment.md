@@ -1,6 +1,6 @@
 # Deployment
 
-This deployment guide supports the architecture described in `architecture.md`. The current production target is a static GitHub Pages frontend with a Google Cloud Run FastAPI backend.
+This deployment guide supports the architecture described in `architecture.md`. GitHub Pages deployment is disabled while RehearseAI remains private. The backend is Google Cloud Run-ready, and the frontend is currently tested locally.
 
 ## Backend
 
@@ -23,7 +23,7 @@ gcloud run deploy rehearseai-backend \
   --allow-unauthenticated
 ```
 
-After deployment, Cloud Run prints the service URL. Use that full URL as `NEXT_PUBLIC_API_URL` in the GitHub repository variables.
+After deployment, Cloud Run prints the service URL. Use that full URL as `NEXT_PUBLIC_API_URL` only for private/local frontend testing or a future private hosting target.
 
 Current expected backend URL after the service is healthy:
 
@@ -52,48 +52,32 @@ Set environment variables in Cloud Run or Secret Manager:
 - `PADDLE_ENVIRONMENT`
 - `CORS_ORIGINS`
 
-For GitHub Pages, include the production frontend URL in `CORS_ORIGINS`:
+For local testing, include the local frontend URL in `CORS_ORIGINS`:
 
 ```text
-https://salkhan-ops.github.io
+http://localhost:3000
 ```
 
 ## Frontend
 
-The frontend can be published as a static GitHub Pages site. A workflow is included at `.github/workflows/github-pages.yml`.
+GitHub Pages deployment is disabled. There is no Pages workflow in this repository.
 
-Production links:
+Local links:
 
 ```text
 Repository: https://github.com/salkhan-ops/rehearseai
-Frontend:   https://salkhan-ops.github.io/rehearseai/
-Actions:    https://github.com/salkhan-ops/rehearseai/actions
+Frontend:   http://localhost:3000
+Backend:    http://localhost:8000
 ```
 
-1. In GitHub, open **Settings → Pages** and set the source to **GitHub Actions**.
-2. In **Settings → Secrets and variables → Actions → Variables**, add:
-   - `NEXT_PUBLIC_API_URL`: your deployed Cloud Run backend URL
-   - `NEXT_PUBLIC_API_WS_URL`: the backend WebSocket origin, usually the Cloud Run URL with `https` replaced by `wss`
-   - `NEXT_PUBLIC_FIREBASE_API_KEY`
-   - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
-   - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-   - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
-   - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-   - `NEXT_PUBLIC_FIREBASE_APP_ID`
-   - `NEXT_PUBLIC_PADDLE_PRO_CHECKOUT_URL`
-   - `NEXT_PUBLIC_PADDLE_COACH_CHECKOUT_URL`
-3. Push to `main`, or run the workflow manually from the GitHub Actions tab.
-
-Do not use `http://localhost:8000` as `NEXT_PUBLIC_API_URL` for production. It only works for local development and temporary testing.
-
-For a local static export check:
+Run the frontend locally:
 
 ```bash
 cd frontend
-npm run build:pages
+npm run dev
 ```
 
-This writes the static site to `frontend/out`. The regular `npm run build` still uses the standalone Next.js output for non-GitHub-Pages deployments.
+The regular `npm run build` uses the standalone Next.js output for future non-GitHub-Pages deployments.
 
 ## Safety
 

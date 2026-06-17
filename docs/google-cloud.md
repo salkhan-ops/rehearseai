@@ -51,7 +51,7 @@ Set `CORS_ORIGINS` to the frontend domain.
 
 ## Frontend deploy
 
-The MVP target is GitHub Pages static hosting. Vercel or Firebase Hosting are also possible if the deployment target changes. In every case, set:
+GitHub Pages deployment is disabled while the repository stays private. For local frontend testing with a Cloud Run backend, set:
 
 ```text
 NEXT_PUBLIC_API_URL=https://YOUR_CLOUD_RUN_URL
@@ -66,7 +66,7 @@ NEXT_PUBLIC_API_WS_URL=wss://YOUR_CLOUD_RUN_HOST
 ## Production controls
 
 - Keep Gemini, Deepgram, Cartesia, Paddle, and service-account credentials out of the frontend.
-- Limit Cloud Run CORS origins to trusted frontend domains.
+- Limit Cloud Run CORS origins to trusted frontend domains or `http://localhost:3000` during local testing.
 - Prefer Secret Manager over checked-in key files.
 - Use least-privilege IAM for the Cloud Run service account.
 - Review Firestore rules any time a collection is added.

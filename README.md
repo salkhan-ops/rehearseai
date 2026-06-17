@@ -11,17 +11,17 @@ RehearseAI is a full-stack MVP for cognitive performance training: adaptive pres
 - Database: Google Firestore
 - AI: Google Gemini API, with mock fallback
 - Payments: Paddle placeholder
-- Hosting target: GitHub Pages for the static frontend, Google Cloud Run for the backend API
+- Hosting target: local/private frontend testing, Google Cloud Run-ready backend API
 
 ## Architecture and standards
 
 For a judge-facing technical overview, see `docs/architecture.md`. It explains the end-to-end architecture, runtime flows, Firestore data model, security/privacy controls, AI governance, deployment topology, and standards alignment with ISO/IEC, OWASP, GDPR-style privacy principles, WCAG, and NIST AI RMF.
 
-## Live URLs
+## Repository
 
 - GitHub repository: `https://github.com/salkhan-ops/rehearseai`
-- Frontend: `https://salkhan-ops.github.io/rehearseai/`
-- Backend API: deploy to Google Cloud Run and use the generated service URL as `NEXT_PUBLIC_API_URL`
+- Frontend: local development at `http://localhost:3000`
+- Backend API: local development at `http://localhost:8000`
 
 ## Project structure
 
@@ -80,31 +80,16 @@ git push -u origin main
 
 Use short feature branches such as `feature/session-flow`, `feature/firebase-auth`, or `fix/report-parsing`.
 
-## GitHub Pages frontend deployment
+## Frontend testing
 
-The frontend deploys from GitHub Actions using `.github/workflows/github-pages.yml`.
+GitHub Pages deployment is disabled for this private repository. Use local development while testing:
 
-Production frontend URL:
-
-```text
-https://salkhan-ops.github.io/rehearseai/
+```bash
+cd frontend
+npm run dev
 ```
 
-Required repository variables in **Settings → Secrets and variables → Actions → Variables**:
-
-```text
-NEXT_PUBLIC_API_URL
-NEXT_PUBLIC_FIREBASE_API_KEY
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-NEXT_PUBLIC_FIREBASE_PROJECT_ID
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-NEXT_PUBLIC_FIREBASE_APP_ID
-```
-
-`NEXT_PUBLIC_API_URL` must be the deployed Cloud Run backend URL. Do not use `http://localhost:8000` for the live GitHub Pages site except for temporary testing, because visitors' browsers would try to call their own machines.
-
-To redeploy the frontend, push to `main` or run **Actions → Deploy frontend to GitHub Pages → Run workflow** in GitHub.
+Open `http://localhost:3000`.
 
 ## What works now
 

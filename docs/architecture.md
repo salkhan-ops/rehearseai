@@ -208,9 +208,9 @@ The app should be evaluated as an AI-assisted coaching product, not a medical, l
 
 ## Reliability and Scalability
 
-The architecture is horizontally scalable because the frontend is static and the backend is stateless between requests:
+The architecture remains horizontally scalable because the frontend can be hosted separately and the backend is stateless between requests:
 
-- Static frontend can be served from GitHub Pages or another CDN-style host.
+- The frontend can be served from a private or public hosting target later.
 - Cloud Run scales FastAPI instances based on traffic.
 - Firestore provides managed document storage and indexing.
 - WebSocket voice sessions use FastAPI as a proxy and should be monitored separately from normal HTTP traffic.
@@ -240,19 +240,18 @@ Key operational checks:
 
 ```mermaid
 flowchart TB
-  GitHub[GitHub Repository] --> Actions[GitHub Actions]
-  Actions --> Pages[GitHub Pages Static Frontend]
+  Developer[Developer CLI] --> Frontend[Local Next.js Frontend]
   Developer[Developer CLI] --> CloudBuild[Google Cloud Build]
   CloudBuild --> CloudRun[Google Cloud Run FastAPI]
   CloudRun --> SecretManager[Cloud Run Env or Secret Manager]
   CloudRun --> Firestore[(Firestore Native Mode)]
-  Pages --> CloudRun
-  Pages --> Firebase[Firebase Auth]
+  Frontend --> CloudRun
+  Frontend --> Firebase[Firebase Auth]
 ```
 
 Production targets:
 
-- Frontend: `https://salkhan-ops.github.io/rehearseai/`
+- Frontend: local/private testing, currently `http://localhost:3000`
 - Backend: `https://rehearseai-backend-805488057071.us-central1.run.app`
 - Repository: `https://github.com/salkhan-ops/rehearseai`
 - Google Cloud project: `rehearseai-prod`
