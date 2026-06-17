@@ -2,6 +2,7 @@ from app.models.message import Message
 from app.models.session import Session
 from app.prompts.report_prompts import REPORT_SCHEMA
 from app.prompts.roleplay_prompts import DIFFICULTY_BEHAVIOR, PERSONAS
+from app.prompts.panel_prompts import build_panel_block, is_panel_mode
 from typing import Optional
 
 LANGUAGE_NAMES = {
@@ -121,6 +122,12 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
 - future Cartesia delivery: {coordination_context.get("cartesia")}
 - nerve cross-examination: {coordination_context.get("nerve")}
 """
+    panel_block = build_panel_block(session.environmentMode) if is_panel_mode(session.environmentMode) else ""
+    reply_instruction = (
+        "Follow the Panel turn rule above. Prefix every line with the speaker's name. Keep total response under 60 words."
+        if panel_block
+        else f"Reply in character in 1-3 sentences in {practice_language}. Ask one pointed follow-up or objection."
+    )
     return f"""
 Run a Cognitive Performance Training pressure simulation. Reply only as the counterpart, not as a coach.
 
@@ -141,7 +148,7 @@ Scenario:
 - Nerve panel persona: {session.nervePersona or "None"}
 - Nerve material: {session.nerveMaterialName or "None"}
 - Nerve pressure level: {session.pressureLevel}/10
-
+{panel_block}
 Adaptive behavior signals:
 - User turns: {len(user_turns)}
 - Filler markers: {filler_count}
@@ -173,7 +180,7 @@ Apply coordination before writing the response:
 Conversation so far:
 {turns}
 
-Reply in character in 1-3 sentences in {practice_language}. Ask one pointed follow-up or objection.
+{reply_instruction}
 Respond directly to the user's latest words; do not repeat generic goal reminders, slogans, or the same coaching phrase across turns.
 Use natural emotion appropriate to the role: curious, skeptical, concerned, impatient, warm, or impressed. Vary sentence openings and rhythm.
 Adapt pressure dynamically based on the user's behavior. Challenge vague logic, probe unsupported assumptions, and increase depth when performance is strong. If the user appears overwhelmed, soften the tone slightly while staying realistic. Never be abusive. Do not give a feedback report yet.
@@ -184,6 +191,14 @@ def build_opening_prompt(session: Session) -> str:
     persona = PERSONAS[session.practiceType]
     difficulty = DIFFICULTY_BEHAVIOR[session.difficulty]
     practice_language = LANGUAGE_NAMES.get(session.practiceLanguage, "English")
+    panel_block = build_panel_block(session.environmentMode) if is_panel_mode(session.environmentMode) else ""
+    opening_instruction = (
+        "Open the discussion: one panel member greets the candidate and asks the first question. "
+        "Prefix with that member's name. Keep response under 40 words total."
+        if panel_block
+        else f"Open the discussion in character in 1-2 sentences in {practice_language}. "
+             "Ask the user the first realistic question or objection."
+    )
     return f"""
 Start a Cognitive Performance Training pressure simulation. You are the counterpart, not the coach.
 
@@ -204,9 +219,9 @@ Scenario:
 - Nerve panel persona: {session.nervePersona or "None"}
 - Nerve material: {session.nerveMaterialName or "None"}
 - Nerve pressure level: {session.pressureLevel}/10
-
-Open the discussion in character in 1-2 sentences in {practice_language}.
-Ask the user the first realistic question or objection. Do not explain the product. Do not give generic advice. Do not say "stay focused on your goal."
+{panel_block}
+{opening_instruction}
+Do not explain the product. Do not give generic advice. Do not say "stay focused on your goal."
 Use a natural emotional tone appropriate to the role.
 """
 

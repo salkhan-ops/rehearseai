@@ -7,6 +7,8 @@ type FigureTone = "neutral" | "skeptical" | "notes" | "forward" | "distant";
 
 type Figure = {
   label: string;
+  /** Name Gemini uses in [Name]: tags. Defaults to label when not set. */
+  speakerName?: string;
   x: string;
   y: string;
   scale?: number;
@@ -73,10 +75,10 @@ const scenes: Record<EnvironmentMode, { title: string; layout: "interview" | "pa
     title: "Hostile Panel",
     layout: "panel",
     figures: [
-      { label: "Panelist", x: "26%", y: "22%", tone: "skeptical", folded: true },
-      { label: "Panelist", x: "42%", y: "18%", tone: "notes" },
-      { label: "Chair", x: "58%", y: "18%", tone: "skeptical", folded: true },
-      { label: "Panelist", x: "74%", y: "22%", tone: "distant" },
+      { label: "Panelist", speakerName: "Dr. Chen",       x: "26%", y: "22%", tone: "skeptical", folded: true },
+      { label: "Panelist", speakerName: "Prof. Williams", x: "42%", y: "18%", tone: "notes" },
+      { label: "Chair",    speakerName: "Chair",          x: "58%", y: "18%", tone: "skeptical", folded: true },
+      { label: "Panelist", speakerName: "Dr. Patel",      x: "74%", y: "22%", tone: "distant" },
     ],
   },
   "Conference Q&A": {
@@ -109,7 +111,7 @@ const toneStyles: Record<FigureTone, { jacket: string; jacketDark: string; shirt
   distant: { jacket: "#4c5c70", jacketDark: "#1e293b", shirt: "#f8fafc", skin: "#c98d6c", skinShade: "#9f5f48", accent: "#e2e8f0", hair: "#334155", hairLight: "#64748b", delay: 1.1 },
 };
 
-function AvatarFigure({ figure, index, compact = false }: { figure: Figure; index: number; compact?: boolean }) {
+function AvatarFigure({ figure, index, compact = false, isActiveSpeaker = false }: { figure: Figure; index: number; compact?: boolean; isActiveSpeaker?: boolean }) {
   const tone = toneStyles[figure.tone || "neutral"];
   const gradientId = `avatar-jacket-${index}-${(figure.tone || "neutral").replace(/\W/g, "")}`;
   const skinGradientId = `avatar-skin-${index}-${(figure.tone || "neutral").replace(/\W/g, "")}`;
@@ -129,6 +131,15 @@ function AvatarFigure({ figure, index, compact = false }: { figure: Figure; inde
         animate={{ scaleY: [1, 1.012, 1] }}
         transition={{ duration: 4.1, delay: index * 0.18, repeat: Infinity, ease: "easeInOut" }}
       >
+        {isActiveSpeaker && (
+          <motion.div
+            className="pointer-events-none absolute inset-0 z-20 rounded-[2rem]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.55, 1, 0.55] }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+            style={{ boxShadow: "0 0 0 2.5px rgba(103,232,249,0.72), 0 0 36px 10px rgba(103,232,249,0.28)" }}
+          />
+        )}
         <svg viewBox="0 0 190 270" className="h-full w-full overflow-visible">
           <defs>
             <linearGradient id={gradientId} x1="38" x2="154" y1="108" y2="222" gradientUnits="userSpaceOnUse">
@@ -215,7 +226,7 @@ function MiniOrb() {
   );
 }
 
-export function AICharacterEnvironment({ mode = "AI Orb", preview = false }: { mode?: EnvironmentMode; preview?: boolean }) {
+export function AICharacterEnvironment({ mode = "AI Orb", preview = false, activeSpeaker = null }: { mode?: EnvironmentMode; preview?: boolean; activeSpeaker?: string | null }) {
   const scene = scenes[mode] || scenes["AI Orb"];
   if (mode === "AI Orb" && !preview) return null;
   return (
@@ -236,7 +247,15 @@ export function AICharacterEnvironment({ mode = "AI Orb", preview = false }: { m
         </>
       )}
       {scene.layout === "audience" && <div className={`absolute left-1/2 ${preview ? "top-32" : "top-48"} h-24 w-[82%] -translate-x-1/2 rounded-[100%] bg-slate-950/34 ring-1 ring-white/12`} />}
-      {scene.figures.map((figure, index) => <AvatarFigure key={`${figure.label}-${index}`} figure={figure} index={index} compact={preview} />)}
+      {scene.figures.map((figure, index) => (
+        <AvatarFigure
+          key={`${figure.label}-${index}`}
+          figure={figure}
+          index={index}
+          compact={preview}
+          isActiveSpeaker={!preview && activeSpeaker !== null && (figure.speakerName ?? figure.label) === activeSpeaker}
+        />
+      ))}
       {mode !== "AI Orb" && (
         <div className={`absolute left-1/2 ${preview ? "bottom-7 h-9 w-[74%]" : "bottom-[5.6rem] h-20 w-[62%]"} -translate-x-1/2 rounded-[100%] border border-white/12 bg-gradient-to-b from-white/[0.13] to-slate-950/20 shadow-[0_22px_80px_rgba(0,0,0,0.28)] backdrop-blur-sm`} />
       )}

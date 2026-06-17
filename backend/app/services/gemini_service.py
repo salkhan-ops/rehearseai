@@ -10,6 +10,7 @@ from app.models.message import Message
 from app.models.report import Report
 from app.models.session import Session
 from app.services.analytics_service import AnalyticsService
+from app.prompts.panel_prompts import is_panel_mode
 from app.services.prompt_service import build_opening_prompt, build_report_prompt, build_roleplay_prompt
 from app.utils.timestamps import utc_now_iso
 
@@ -31,12 +32,18 @@ class GeminiService:
     async def generate_roleplay_response(self, session: Session, history: list[Message], coordination_context: Optional[dict] = None) -> str:
         if not self.enabled or self.roleplay_model is None:
             return self._mock_roleplay(session, history, coordination_context)
+        # Panel turns may carry 2 speaker tags — give a little more room
+        roleplay_max_tokens = (
+            min(260, self.settings.ai_roleplay_max_output_tokens + 80)
+            if is_panel_mode(session.environmentMode)
+            else self.settings.ai_roleplay_max_output_tokens
+        )
         try:
             response = await asyncio.wait_for(
                 self.roleplay_model.generate_content_async(
                     build_roleplay_prompt(session, history, self.settings.ai_history_messages, coordination_context),
                     generation_config={
-                        "max_output_tokens": self.settings.ai_roleplay_max_output_tokens,
+                        "max_output_tokens": roleplay_max_tokens,
                         "temperature": self.settings.ai_temperature,
                     },
                 ),
@@ -50,12 +57,14 @@ class GeminiService:
     async def generate_opening_response(self, session: Session) -> str:
         if not self.enabled or self.roleplay_model is None:
             return self._mock_opening(session)
+        # Panel openings may have 1-2 tagged speakers — allow more tokens
+        opening_max_tokens = 200 if is_panel_mode(session.environmentMode) else 120
         try:
             response = await asyncio.wait_for(
                 self.roleplay_model.generate_content_async(
                     build_opening_prompt(session),
                     generation_config={
-                        "max_output_tokens": 120,
+                        "max_output_tokens": opening_max_tokens,
                         "temperature": min(0.9, max(0.55, self.settings.ai_temperature)),
                     },
                 ),

@@ -12,12 +12,14 @@ import { CoachPanel } from "@/components/learning/CoachPanel";
 import { ConversationMap } from "@/components/learning/ConversationMap";
 import { FloatingHint } from "@/components/learning/FloatingHint";
 import { CameraPrivacyNotice } from "@/components/local-signals/CameraPrivacyNotice";
+import { AdaptiveTimingToggle } from "@/components/session/AdaptiveTimingToggle";
 import { CameraAssistedTimingToggle } from "@/components/session/CameraAssistedTimingToggle";
 import { CameraDebugPanel } from "@/components/session/CameraDebugPanel";
 import { CameraTimingStatus } from "@/components/session/CameraTimingStatus";
 import { ConversationModeToggle } from "@/components/session/ConversationModeToggle";
 import { LiveTranscriptPanel } from "@/components/session/LiveTranscriptPanel";
 import { NaturalConversationControls } from "@/components/session/NaturalConversationControls";
+import { useAdaptiveTiming } from "@/hooks/useAdaptiveTiming";
 import { useConversationCoordination } from "@/hooks/useConversationCoordination";
 import { useLocalCameraSignals } from "@/hooks/useLocalCameraSignals";
 import { useNaturalConversation } from "@/hooks/useNaturalConversation";
@@ -34,6 +36,8 @@ import { pauseFusionEngine } from "@/lib/local-signals/pauseFusionEngine";
 import { stopCamera as stopMediaPipeCamera } from "@/lib/mediapipe/faceLandmarkerService";
 import { reportHref } from "@/lib/routes";
 import { getTelemetryConsent, outcomeFromReport, saveLocalSignalTelemetry, sendSessionOutcome, sendTurnTelemetry, type PrivacySettings, updateTelemetryConsent } from "@/lib/telemetry";
+import { isPanelMode, getPanelVoiceId } from "@/lib/panel/panelVoiceConfig";
+import { parseSpeakerTurns, stripSpeakerTags } from "@/lib/panel/panelSpeakerParser";
 import { environmentModes } from "@/lib/types";
 import type { ConversationControl, ConversationMode, EnvironmentMode, Message, Session, SessionHint } from "@/lib/types";
 import type { PauseFusionDecision } from "@/lib/local-signals/types";
@@ -147,10 +151,12 @@ export default function SessionPage() {
   const [durationMinutes, setDurationMinutes] = useState(10);
   const [customDuration, setCustomDuration] = useState(false);
   const [selectedVoiceId, setSelectedVoiceId] = useState(voiceOptions[0].id);
+  const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null);
   const [visualMode, setVisualMode] = useState<EnvironmentMode>("AI Orb");
   const [conversationMode, setConversationMode] = useState<ConversationMode>("natural");
   const [voiceMode, setVoiceMode] = useState(false);
   const [cameraAssistedTiming, setCameraAssistedTiming] = useState(false);
+  const [adaptiveMode, setAdaptiveMode] = useState(false);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(profile?.privacySettings || defaultPrivacySettings);
   const [latestHint, setLatestHint] = useState<SessionHint | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
@@ -196,6 +202,7 @@ export default function SessionPage() {
   const practiceLanguage = getLanguage(session?.practiceLanguage);
   const beginnerMode = session?.difficulty === "Beginner" || session?.difficulty === "Friendly";
   const coordination = useConversationCoordination({ userId, sessionId: id, enabled: voiceMode });
+  const adaptive = useAdaptiveTiming({ userId, enabled: adaptiveMode });
   const { analyze: analyzeCoordination } = coordination;
   const voice = useRealtimeVoice({ browserSpeechCode: practiceLanguage.browserSpeechCode, deepgramCode: practiceLanguage.deepgramCode, longPauseMs: coordination.longPauseMs || 3400 });
   const naturalTranscriptForCamera = (naturalTranscriptRef.current || voice.transcript || heldVoiceTurnRef.current?.content || "").replace(/\s+/g, " ").trim();
@@ -426,7 +433,7 @@ export default function SessionPage() {
         deepgramEndpointing: voice.provider === "deepgram",
         cameraSignals: cameraAssistedTiming ? cameraSignals.signals : null,
         cameraConversationSignal: cameraAssistedTiming ? cameraSignals.conversationSignal : null,
-        personalBaseline: coordination.profile || undefined,
+        personalBaseline: { ...(coordination.profile ?? {}), ...(adaptive.activeBaseline ?? {}) },
         aiSpeaking: voice.isSpeaking,
       });
       dblogRef.current({
@@ -541,6 +548,13 @@ export default function SessionPage() {
     const metrics = naturalMetricsRef.current || { speechDurationMs: 0, silenceMs: 0 };
     const cameraSignal = cameraTurnSignal();
     dblogRef.current({ event: "TURN_SENT", text: outboundContent, words: outboundContent.split(/\s+/).filter(Boolean).length, reason, silenceMs: metrics.silenceMs, speechDurationMs: metrics.speechDurationMs, cameraSignal });
+    adaptive.recordTurn({
+      silenceAtSendMs: metrics.silenceMs,
+      speechDurationMs: metrics.speechDurationMs,
+      reason,
+      wasForced: ["force_resolution", "hard_timeout"].includes(reason),
+      cameraAssisted: cameraSignal === "likely_finished" || cameraSignal === "likely_thinking",
+    });
     clearNaturalTimers();
     voice.stopListening();
     voice.resetTranscript();
@@ -631,7 +645,15 @@ export default function SessionPage() {
       setAutoSubmitNotice("AI responding...");
       const ttsStartAt = Date.now();
       dblogRef.current({ event: "TTS_START", text: result.aiMessage.content, words: result.aiMessage.content.split(/\s+/).filter(Boolean).length });
-      await voice.speak(result.aiMessage.content, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode);
+      {
+        const segments = isPanelMode(visualMode) ? parseSpeakerTurns(result.aiMessage.content) : [{ speaker: "", text: result.aiMessage.content }];
+        for (const seg of segments) {
+          const vid = seg.speaker ? (getPanelVoiceId(seg.speaker) ?? selectedVoiceId) : selectedVoiceId;
+          setActiveSpeaker(seg.speaker || null);
+          await voice.speak(seg.text, vid || undefined, practiceLanguage.browserSpeechCode);
+        }
+        setActiveSpeaker(null);
+      }
       dblogRef.current({ event: "TTS_END", durationMs: Date.now() - ttsStartAt });
       // If the user interrupted, play a brief spoken acknowledgment before listening
       const wasInterrupted = speakWasInterruptedRef.current;
@@ -1110,7 +1132,7 @@ export default function SessionPage() {
         deepgramEndpointing: voice.provider === "deepgram",
         cameraSignals: cameraAssistedTiming ? cameraSignals.signals : null,
         cameraConversationSignal: cameraAssistedTiming ? cameraSignals.conversationSignal : null,
-        personalBaseline: coordination.profile || undefined,
+        personalBaseline: { ...(coordination.profile ?? {}), ...(adaptive.activeBaseline ?? {}) },
         aiSpeaking: voice.isSpeaking,
       });
       localDecision = naturalOptions.forceNaturalSend ? {
@@ -1258,7 +1280,15 @@ export default function SessionPage() {
         }, token).catch(() => undefined);
       }
       if (fromVoice && naturalModeActive) naturalConversation.dispatch("ai_speaking");
-      await voice.speak(result.aiMessage.content, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode);
+      {
+        const segments = isPanelMode(visualMode) ? parseSpeakerTurns(result.aiMessage.content) : [{ speaker: "", text: result.aiMessage.content }];
+        for (const seg of segments) {
+          const vid = seg.speaker ? (getPanelVoiceId(seg.speaker) ?? selectedVoiceId) : selectedVoiceId;
+          setActiveSpeaker(seg.speaker || null);
+          await voice.speak(seg.text, vid || undefined, practiceLanguage.browserSpeechCode);
+        }
+        setActiveSpeaker(null);
+      }
       if (fromVoice && naturalModeActive) naturalConversation.dispatch("ai_finished");
       if (fromVoice && voiceMode && naturalModeActive) {
         voice.startListening();
@@ -1315,7 +1345,18 @@ export default function SessionPage() {
     const hasUserTurn = messages.some((message) => message.role === "user");
     const openingMessage = !hasUserTurn ? messages.find((message) => message.role === "ai")?.content : "";
     naturalConversation.dispatch("ai_speaking");
-    voice.speak(openingMessage || listeningPrompts[practiceLanguage.code] || listeningPrompts.en, selectedVoiceId || undefined, practiceLanguage.browserSpeechCode)
+    (async () => {
+      const contentToSpeak = openingMessage || listeningPrompts[practiceLanguage.code] || listeningPrompts.en;
+      const segments = isPanelMode(visualMode) && openingMessage
+        ? parseSpeakerTurns(contentToSpeak)
+        : [{ speaker: "", text: contentToSpeak }];
+      for (const seg of segments) {
+        const vid = seg.speaker ? (getPanelVoiceId(seg.speaker) ?? selectedVoiceId) : selectedVoiceId;
+        setActiveSpeaker(seg.speaker || null);
+        await voice.speak(seg.text, vid || undefined, practiceLanguage.browserSpeechCode);
+      }
+      setActiveSpeaker(null);
+    })()
       .then(() => {
         naturalConversation.dispatch("listening_started");
         voice.startListening();
@@ -1416,6 +1457,14 @@ export default function SessionPage() {
             <div className="hidden max-w-sm xl:block">
               <CameraAssistedTimingToggle enabled={cameraAssistedTiming} onChange={(enabled) => updateCameraAssistance(enabled).catch(() => undefined)} />
             </div>
+            <div className="hidden max-w-sm xl:block">
+              <AdaptiveTimingToggle
+                enabled={adaptiveMode}
+                onChange={setAdaptiveMode}
+                adaptiveReady={adaptive.adaptiveReady}
+                turnCount={adaptive.turnCount}
+              />
+            </div>
             <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl lg:flex">
               <UsersRound size={14} />
               <select
@@ -1497,7 +1546,7 @@ export default function SessionPage() {
           {visualMode === "AI Orb" ? (
             <AIPresenceOrb state={orbMode} intensity={(session?.turnCount || 0) / 8} />
           ) : (
-            <AICharacterEnvironment mode={visualMode} />
+            <AICharacterEnvironment mode={visualMode} activeSpeaker={activeSpeaker} />
           )}
           <div className="absolute left-0 top-8 hidden max-w-xs space-y-3 lg:block">
             <MicroMetric label="Confidence" value={voice.isListening ? 74 : 68} tone="bg-cyan-300 text-cyan-300" />
@@ -1570,14 +1619,14 @@ export default function SessionPage() {
             {messages.slice(-5).map((message) => (
               <AnimatedMessage key={message.id} className={`${message.role === "user" ? "ml-auto max-w-2xl text-right text-white/58" : "mr-auto max-w-3xl text-left text-white/84"} rounded-[1.35rem] bg-white/[0.06] p-4 ring-1 ring-white/10 backdrop-blur-2xl`}>
                 <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/34">
-                  {message.role === "user" ? "You" : "AI persona"}
+                  {message.role === "user" ? "You" : (() => { const first = message.content.match(/^\[([^\]]+)\]/); return first ? first[1] : "AI persona"; })()}
                   {message.role === "user" && messageEmotions[message.id] && (
                     <span className={`ml-2 inline-block normal-case tracking-normal rounded-full px-2 py-px text-[10px] font-semibold ${emotionBadgeClass(messageEmotions[message.id].label)}`}>
                       {messageEmotions[message.id].label} · {Math.round(messageEmotions[message.id].signals.wpm)} wpm
                     </span>
                   )}
                 </div>
-                <div className="text-base font-medium leading-7">{message.content}</div>
+                <div className="text-base font-medium leading-7">{message.role === "ai" ? stripSpeakerTags(message.content) : message.content}</div>
               </AnimatedMessage>
             ))}
             {loading && <TypingIndicator />}
@@ -1651,6 +1700,12 @@ export default function SessionPage() {
             </div>
             <div className="mb-3 grid gap-2 text-xs font-semibold text-white/70 xl:hidden">
               <CameraAssistedTimingToggle enabled={cameraAssistedTiming} onChange={(enabled) => updateCameraAssistance(enabled).catch(() => undefined)} />
+              <AdaptiveTimingToggle
+                enabled={adaptiveMode}
+                onChange={setAdaptiveMode}
+                adaptiveReady={adaptive.adaptiveReady}
+                turnCount={adaptive.turnCount}
+              />
             </div>
             {cameraAssistedTiming && <CameraPrivacyNotice compact className="mb-3 bg-white/[0.08] text-white/70 ring-white/12 dark:bg-white/[0.08] dark:text-white/70 dark:ring-white/12" />}
             {naturalModeActive ? (
