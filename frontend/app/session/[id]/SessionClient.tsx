@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, BrainCircuit, Camera, Clock3, Eye, EyeOff, Mic, MicOff, Send, Square, UsersRound, Volume2 } from "lucide-react";
+import { ArrowLeft, BrainCircuit, Camera, Clock3, Eye, EyeOff, Maximize2, Mic, MicOff, Send, Square, UsersRound, Volume2 } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
@@ -14,6 +14,7 @@ import { FloatingHint } from "@/components/learning/FloatingHint";
 import { CameraPrivacyNotice } from "@/components/local-signals/CameraPrivacyNotice";
 import { AdaptiveTimingToggle } from "@/components/session/AdaptiveTimingToggle";
 import { CameraAssistedTimingToggle } from "@/components/session/CameraAssistedTimingToggle";
+import { ImmersiveMode } from "@/components/session/ImmersiveMode";
 import { CameraDebugPanel } from "@/components/session/CameraDebugPanel";
 import { CameraTimingStatus } from "@/components/session/CameraTimingStatus";
 import { ConversationModeToggle } from "@/components/session/ConversationModeToggle";
@@ -26,7 +27,7 @@ import { useNaturalConversation } from "@/hooks/useNaturalConversation";
 import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
 import { fuseConversationState, type ConversationState as FusedConversationState, type RealtimeConversationEngineState } from "@/lib/conversation/ConversationStateFusion";
 import { VisionSignalExtractor } from "@/lib/conversation/VisionSignalExtractor";
-import { completeCourseSession, endSession, generateReport, getSession, sendMessage, updateSessionHint } from "@/lib/api";
+import { analyzeSession, completeCourseSession, endSession, generateReport, getSession, sendMessage, updateSessionHint } from "@/lib/api";
 import { createSessionLogger, nullLogger, type LogEntry } from "@/lib/sessionLogger";
 import { type SpeechEmotionResult } from "@/lib/conversation/SpeechEmotionAnalyzer";
 import { useAuth } from "@/lib/auth";
@@ -157,6 +158,7 @@ export default function SessionPage() {
   const [voiceMode, setVoiceMode] = useState(false);
   const [cameraAssistedTiming, setCameraAssistedTiming] = useState(false);
   const [adaptiveMode, setAdaptiveMode] = useState(false);
+  const [immersiveOpen, setImmersiveOpen] = useState(false);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(profile?.privacySettings || defaultPrivacySettings);
   const [latestHint, setLatestHint] = useState<SessionHint | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
@@ -594,6 +596,7 @@ export default function SessionPage() {
           cameraHesitation: cameraSignals.conversationSignal.recommendedAction === "wait_longer" || cameraSignals.conversationSignal.recommendedAction === "continue_listening",
         },
         conversationState: latestConversationStateRef.current || undefined,
+        speechEmotion: capturedEmotion ?? undefined,
       });
       const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
@@ -777,6 +780,16 @@ export default function SessionPage() {
     return "idle";
   }, [error, loading, session?.difficulty, voice.isListening, voice.isProcessing, voice.isSpeaking, voice.voiceState]);
 
+  const naturalStatusLabel = naturalModeActive && voiceMode
+    ? autoSubmitNotice || (
+        naturalConversation.state === "user_thinking" ? "Thinking. You may continue..." :
+        naturalConversation.state === "processing_ai" || naturalConversation.state === "ready_to_send" ? "Sending your answer..." :
+        naturalConversation.state === "ai_speaking" ? "AI responding..." :
+        naturalConversation.state === "user_interrupting" ? "You interrupted the AI" :
+        undefined
+      )
+    : undefined;
+
   useEffect(() => {
     if (voice.transcript || voice.interimTranscript) {
       const liveTranscript = `${voice.transcript} ${voice.interimTranscript}`.replace(/\s+/g, " ").trim();
@@ -793,7 +806,11 @@ export default function SessionPage() {
         setAutoSubmitNotice("Go ahead...");
       } else if (naturalModeActive) {
         clearNaturalTimers();
-        naturalTranscriptRef.current = liveTranscript || naturalTranscriptRef.current;
+        // Never let a short interim (e.g. from a fresh mic session after restart) overwrite
+        // accumulated finals that already captured a longer answer.
+        if (liveTranscript.length > naturalTranscriptRef.current.length) {
+          naturalTranscriptRef.current = liveTranscript;
+        }
         naturalLastTranscriptUpdateAtRef.current = Date.now();
         naturalConversationDispatch("speech_detected");
         if (meaningfulTurn(naturalTranscriptRef.current)) {
@@ -1104,6 +1121,7 @@ export default function SessionPage() {
     } = {},
   ) {
     if (!content.trim()) return;
+    const submitEmotion = naturalMetricsRef.current.speechEmotion;
     setError("");
     setAutoSubmitNotice(fromVoice ? "Checking whether to wait..." : "");
     if (session?.status === "completed") {
@@ -1232,6 +1250,7 @@ export default function SessionPage() {
           cameraHesitation: cameraAssistedTiming && (cameraSignals.signals.visualStillnessMs > 2600 || cameraSignals.signals.lookingAwayScore > 0.65),
         } : undefined,
         conversationState: latestConversationStateRef.current || undefined,
+        speechEmotion: submitEmotion ?? undefined,
       });
       const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
@@ -1421,6 +1440,8 @@ export default function SessionPage() {
     try {
       const token = await getToken();
       await endSession(id, token);
+      // Fire-and-forget: don't await so it never blocks the report redirect
+      analyzeSession(id, token).catch(() => undefined);
       const courseSessionId = searchParams.get("courseSessionId");
       if (courseSessionId) await completeCourseSession(courseSessionId, id, token).catch(() => undefined);
       const report = await generateReport(id, token);
@@ -1436,6 +1457,18 @@ export default function SessionPage() {
   }
 
   return (
+    <>
+    <ImmersiveMode
+      open={immersiveOpen}
+      onClose={() => setImmersiveOpen(false)}
+      orbMode={orbMode}
+      visualMode={visualMode}
+      activeSpeaker={activeSpeaker}
+      intensity={(session?.turnCount || 0) / 8}
+      naturalStateLabel={naturalStatusLabel ?? undefined}
+      conversationStarted={voiceMode}
+      onStart={startNaturalConversation}
+    />
     <main className={`relative min-h-screen overflow-hidden bg-[#07111f] text-white transition-colors ${hintVisible && latestHint ? "bg-[#0b182b]" : ""}`} dir={isRtlLanguage(session?.practiceLanguage) ? "rtl" : "ltr"}>
       <AmbientField mode={orbMode} />
       {beginnerMode && <FloatingHint hint={hintVisible ? latestHint : null} onExpand={() => {
@@ -1447,11 +1480,11 @@ export default function SessionPage() {
       {beginnerMode && session && <CoachPanel session={session} latestHint={latestHint} progress={Math.min(100, Math.round(((session.turnCount || 0) / 6) * 100))} />}
       <AnimatedPage className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-4 sm:px-6">
         <header className="flex items-center justify-between">
-          <button type="button" onClick={exitChamber} className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12]">
-            <ArrowLeft size={16} /> Exit chamber
+          <button type="button" onClick={exitChamber} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12]">
+            <ArrowLeft size={13} /> Exit chamber
           </button>
-          <div className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl sm:flex">
-            <BrainCircuit size={16} /> {session?.practiceType || "Loading"} · elapsed {time}
+          <div className="hidden items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl sm:flex">
+            <BrainCircuit size={13} /> {session?.practiceType || "Loading"} · elapsed {time}
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden max-w-sm xl:block">
@@ -1525,6 +1558,15 @@ export default function SessionPage() {
               </button>
               <span className="hidden text-white/36 sm:inline">left {remainingTime}</span>
             </label>
+            <button
+              type="button"
+              onClick={() => setImmersiveOpen(true)}
+              className="flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12] hover:text-white/90"
+              title="Focus mode — hide everything except the AI"
+            >
+              <Maximize2 size={13} />
+              <span className="hidden sm:inline">Focus</span>
+            </button>
           </div>
         </header>
 
@@ -1587,7 +1629,7 @@ export default function SessionPage() {
               {session?.practiceType || "Cognitive simulation"}
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-base font-medium leading-7 text-white/56 sm:text-lg">
-              {naturalModeActive && voiceMode ? autoSubmitNotice || (naturalConversation.state === "user_thinking" ? "Thinking. You may continue..." : naturalConversation.state === "processing_ai" || naturalConversation.state === "ready_to_send" ? "Sending your answer..." : naturalConversation.state === "ai_speaking" ? "AI responding..." : naturalConversation.state === "user_interrupting" ? "You interrupted the AI" : stateCopy(orbMode, voiceMode, autoSubmitNotice)) : stateCopy(orbMode, voiceMode, autoSubmitNotice)}
+              {naturalStatusLabel ?? stateCopy(orbMode, voiceMode, autoSubmitNotice)}
             </p>
             {beginnerMode && session && messages.length === 0 && (
               <div className="mt-8 grid gap-4 text-left">
@@ -1813,5 +1855,6 @@ export default function SessionPage() {
         </div>
       )}
     </main>
+    </>
   );
 }

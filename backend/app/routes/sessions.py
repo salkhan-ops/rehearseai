@@ -104,7 +104,10 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
     user_metadata = {
         "conversationMode": payload.conversationMode,
         "turnTiming": payload.turnTiming,
-    } if payload.conversationMode or payload.turnTiming else None
+        "speechEmotion": payload.speechEmotion,
+        "speechDurationMs": payload.speechDurationMs,
+        "silenceMs": payload.silenceMs,
+    } if payload.conversationMode or payload.turnTiming or payload.speechEmotion else None
     user_message = await store.add_message(session_id, "user", payload.content, user_metadata)
     if payload.turnTiming:
         timing_decision = payload.turnTiming.get("pauseDecision")

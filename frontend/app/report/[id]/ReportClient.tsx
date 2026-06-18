@@ -26,6 +26,7 @@ import { getReport, getReportAnalytics, getSessionHints } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { isRtlLanguage } from "@/lib/languages";
 import type { PerformanceAnalytics, Report, SessionHint } from "@/lib/types";
+import { SessionReplayTimeline } from "@/components/report/SessionReplayTimeline";
 
 function ListSection({ title, items }: { title: string; items: string[] }) {
   return (
@@ -56,11 +57,13 @@ export default function ReportPage() {
   const [report, setReport] = useState<Report | null>(null);
   const [analytics, setAnalytics] = useState<PerformanceAnalytics | null>(null);
   const [hints, setHints] = useState<SessionHint[]>([]);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const { getToken } = useAuth();
 
   useEffect(() => {
     if (!id) return;
     getToken().then(async (token: string | null) => {
+      setAuthToken(token);
       const [nextReport, nextAnalytics] = await Promise.all([getReport(id, token), getReportAnalytics(id, token)]);
       const nextHints = await getSessionHints(nextReport.sessionId, token).catch(() => []);
       return [nextReport, nextAnalytics, nextHints] as const;
@@ -295,6 +298,8 @@ export default function ReportPage() {
             <p className="mt-4 font-medium text-secondary-token">{report.nextRecommendation}</p>
           </div>
         </div>
+
+        <SessionReplayTimeline sessionId={report.sessionId} token={authToken} />
 
         <div className="mt-8">
           <PracticeRoutinePanel />

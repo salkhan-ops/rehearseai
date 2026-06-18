@@ -41,9 +41,10 @@ PANEL_CONFIGS: dict[str, PanelConfig] = {
             "They may openly disagree on what to probe next, creating dual-angle pressure."
         ),
         "turn_rule": (
-            "Usually one speaker per turn. On weak or vague answers allow both: "
-            "Jordan notes the gap, Taylor presses on the implication. "
-            "Each speaker: one sentence, max 25 words."
+            "ONE speaker per turn — alternate Jordan and Taylor across turns. "
+            "ONLY allow both in the same turn when the answer is clearly evasive or the candidate is rambling: "
+            "Jordan states the gap (one sentence), THEN Taylor challenges the implication (one sentence). "
+            "Each speaker: one sentence, max 25 words. Default: single speaker."
         ),
     },
     "Thesis Defense Panel": {

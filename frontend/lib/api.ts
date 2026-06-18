@@ -1,4 +1,4 @@
-import type { Achievement, CalibrationStart, ConversationAnalyzePayload, ConversationControl, ConversationCoordinationState, Course, CourseBundle, CourseGeneratePayload, CourseSession, CourseTemplate, CourseTemplateEnrollmentPayload, CurrentSubscription, DailyChallenge, Difficulty, HintSummary, Message, NotificationItem, PerformanceAnalytics, PracticeHistory, PracticeScenario, PracticeSchedule, PracticeType, Report, Session, SessionHint, SessionPayload, UserProgress, VoiceProfile } from "./types";
+import type { Achievement, CalibrationStart, ConversationAnalyzePayload, ConversationControl, ConversationCoordinationState, Course, CourseBundle, CourseGeneratePayload, CourseSession, CourseTemplate, CourseTemplateEnrollmentPayload, CurrentSubscription, DailyChallenge, Difficulty, HintSummary, Message, NotificationItem, PerformanceAnalytics, PracticeHistory, PracticeScenario, PracticeSchedule, PracticeType, Report, Session, SessionAnalysis, SessionHint, SessionPayload, UserProgress, VoiceProfile } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -57,6 +57,14 @@ export function endSession(sessionId: string, token?: string | null) {
 
 export function generateReport(sessionId: string, token?: string | null) {
   return request<Report>(`/api/sessions/${sessionId}/report`, { method: "POST", token });
+}
+
+export function analyzeSession(sessionId: string, token?: string | null) {
+  return request<{ status: string }>(`/api/sessions/${sessionId}/analyze`, { method: "POST", token });
+}
+
+export function getSessionAnalysis(sessionId: string, token?: string | null) {
+  return request<SessionAnalysis>(`/api/sessions/${sessionId}/analysis`, { token });
 }
 
 export function getReport(reportId: string, token?: string | null) {

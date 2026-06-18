@@ -27,8 +27,8 @@ const scenes: Record<EnvironmentMode, { title: string; layout: "interview" | "pa
     title: "Executive Interview",
     layout: "panel",
     figures: [
-      { label: "Neutral", x: "39%", y: "20%", tone: "notes" },
-      { label: "Skeptical", x: "61%", y: "20%", tone: "skeptical", folded: true },
+      { label: "Neutral", x: "43%", y: "19%", scale: 1.12, tone: "notes" },
+      { label: "Skeptical", x: "57%", y: "19%", scale: 1.12, tone: "skeptical", folded: true },
     ],
   },
   "Thesis Defense Panel": {
@@ -161,8 +161,16 @@ function AvatarFigure({ figure, index, compact = false, isActiveSpeaker = false 
           <path d="M45 111c7-22 23-35 49-35s43 13 51 35v94H45v-94Z" fill="rgba(15,23,42,0.62)" stroke="rgba(255,255,255,0.12)" strokeWidth="2" />
           <path d="M42 170c-16 16-20 42-12 61h130c8-19 4-45-12-61-23 12-83 12-106 0Z" fill="rgba(2,6,23,0.42)" />
           <motion.g
-            animate={{ x: [0, index % 2 ? 1.4 : -1.4, 0], rotate: [0, index % 2 ? 0.9 : -0.9, 0] }}
-            transition={{ duration: 5, delay: tone.delay, repeat: Infinity, ease: "easeInOut" }}
+            animate={{
+              x: [0, index % 2 ? 1.4 : -1.4, 0],
+              rotate: [0, index % 2 ? 0.9 : -0.9, 0],
+              y: isActiveSpeaker ? -5 : 0,
+            }}
+            transition={{
+              x: { duration: 5, delay: tone.delay, repeat: Infinity, ease: "easeInOut" },
+              rotate: { duration: 5, delay: tone.delay, repeat: Infinity, ease: "easeInOut" },
+              y: { duration: 0.6, ease: "easeOut" },
+            }}
             style={{ transformOrigin: "95px 64px" }}
           >
             <path d="M72 88h46v35c-9 11-37 11-46 0V88Z" fill={`url(#${skinGradientId})`} opacity="0.9" />
@@ -173,8 +181,14 @@ function AvatarFigure({ figure, index, compact = false, isActiveSpeaker = false 
             <path d="M63 48c5 4 10 6 17 6l3-22c-8 4-15 9-20 16Z" fill={`url(#${hairGradientId})`} />
             <path d="M77 60c7-5 15-5 22-1" stroke="#111827" strokeWidth="4.5" strokeLinecap="round" opacity="0.9" />
             <path d="M109 59c7-5 15-5 21 0" stroke="#111827" strokeWidth="4.5" strokeLinecap="round" opacity="0.9" />
-            <motion.ellipse cx="88" cy="75" rx="3.2" ry="4" fill="#111827" animate={{ scaleY: [1, 0.08, 1] }} transition={{ duration: 3.7, delay: blinkDelay, repeat: Infinity, ease: "easeInOut" }} />
-            <motion.ellipse cx="119" cy="75" rx="3.2" ry="4" fill="#111827" animate={{ scaleY: [1, 0.08, 1] }} transition={{ duration: 3.7, delay: blinkDelay, repeat: Infinity, ease: "easeInOut" }} />
+            <motion.ellipse cx="88" cy="75" rx="3.2" ry="4" fill="#111827"
+              animate={{ scaleY: [1, 0.08, 1], y: isActiveSpeaker ? -3 : 0 }}
+              transition={{ scaleY: { duration: 3.7, delay: blinkDelay, repeat: Infinity, ease: "easeInOut" }, y: { duration: 0.5, ease: "easeOut" } }}
+            />
+            <motion.ellipse cx="119" cy="75" rx="3.2" ry="4" fill="#111827"
+              animate={{ scaleY: [1, 0.08, 1], y: isActiveSpeaker ? -3 : 0 }}
+              transition={{ scaleY: { duration: 3.7, delay: blinkDelay, repeat: Infinity, ease: "easeInOut" }, y: { duration: 0.5, ease: "easeOut" } }}
+            />
             <path d="M101 77c-2 7-3 12-1 15" stroke="rgba(124,45,18,0.36)" strokeWidth="2.5" strokeLinecap="round" fill="none" />
             <path d={figure.tone === "skeptical" ? "M86 94c9 4 22 4 34 0" : "M87 94c8 7 22 7 32 0"} stroke="#7c2d12" strokeWidth="3.2" strokeLinecap="round" fill="none" opacity="0.66" />
             <path d="M74 52c10-18 44-22 60-5" stroke="rgba(255,255,255,0.12)" strokeWidth="7" strokeLinecap="round" />
@@ -226,11 +240,14 @@ function MiniOrb() {
   );
 }
 
-export function AICharacterEnvironment({ mode = "AI Orb", preview = false, activeSpeaker = null }: { mode?: EnvironmentMode; preview?: boolean; activeSpeaker?: string | null }) {
+export function AICharacterEnvironment({ mode = "AI Orb", preview = false, activeSpeaker = null, containerClassName }: { mode?: EnvironmentMode; preview?: boolean; activeSpeaker?: string | null; containerClassName?: string }) {
   const scene = scenes[mode] || scenes["AI Orb"];
   if (mode === "AI Orb" && !preview) return null;
+  const defaultClass = preview
+    ? "relative h-52 w-full overflow-hidden rounded-[1.5rem] bg-[#07111f] ring-1 ring-slate-200 dark:ring-white/10"
+    : "absolute inset-x-0 top-6 z-[1] mx-auto h-[34rem] max-w-6xl overflow-hidden rounded-[2rem] opacity-100 [mask-image:linear-gradient(to_bottom,transparent,black_5%,black_82%,transparent)]";
   return (
-    <div className={`pointer-events-none ${preview ? "relative h-52 w-full overflow-hidden rounded-[1.5rem] bg-[#07111f] ring-1 ring-slate-200 dark:ring-white/10" : "absolute inset-x-0 top-6 z-[1] mx-auto h-[34rem] max-w-6xl overflow-hidden rounded-[2rem] opacity-100 [mask-image:linear-gradient(to_bottom,transparent,black_5%,black_82%,transparent)]"}`}>
+    <div className={`pointer-events-none ${containerClassName ?? defaultClass}`}>
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.045)_1px,transparent_1px)] bg-[size:48px_48px] opacity-35" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(103,232,249,0.15),transparent_34%),radial-gradient(circle_at_74%_42%,rgba(167,139,250,0.16),transparent_30%)]" />
       <motion.div

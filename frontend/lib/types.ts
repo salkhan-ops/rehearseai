@@ -559,6 +559,72 @@ export type ConversationAnalyzePayload = {
     forceResolutionTriggered?: boolean;
     hardTimeoutTriggered?: boolean;
   };
+  speechEmotion?: {
+    label?: string;
+    confidenceScore?: number;
+    pace?: string;
+    signals?: {
+      pitchVariancePct?: number;
+      pitchMeanHz?: number;
+      energyTrend?: number;
+      wpm?: number;
+      fillerRatio?: number;
+      fillerCount?: number;
+    };
+  };
+};
+
+export type TurnEmotionRecord = {
+  label: string;
+  confidenceScore: number;
+  pace: string;
+  signals: {
+    pitchVariancePct: number;
+    pitchMeanHz: number;
+    energyTrend: number;
+    wpm: number;
+    fillerRatio: number;
+    fillerCount: number;
+  };
+};
+
+export type TurnCoachingRecord = {
+  betterAnswer: string;
+  structureTip: string;
+  emotionalGuidance: string;
+  missedOpportunity: string;
+  toneAdvice: string;
+};
+
+export type TurnRecord = {
+  turnIndex: number;
+  aiSpeaker: string;
+  aiQuestion: string;
+  userText: string;
+  speechDurationMs: number;
+  silenceBeforeMs: number;
+  emotion: TurnEmotionRecord;
+  coaching?: TurnCoachingRecord;
+};
+
+export type AnalysisSummary = {
+  avgConfidenceScore: number;
+  dominantEmotion: string;
+  strongestTurn: number;
+  weakestTurn: number;
+  topStrengths: string[];
+  topImprovements: string[];
+};
+
+export type SessionAnalysis = {
+  analysisId: string;
+  sessionId: string;
+  generatedAt: string;
+  practiceType: string;
+  difficulty: string;
+  turns: TurnRecord[];
+  summary: AnalysisSummary;
+  status: "generating" | "complete" | "failed" | "not_found";
 };
 
 export type CalibrationStart = {

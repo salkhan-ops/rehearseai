@@ -57,6 +57,7 @@ class MessageCreate(BaseModel):
     conversationState: Optional[ConversationState] = None
     conversationMode: Optional[Literal["manual", "natural"]] = None
     turnTiming: Optional[dict] = None
+    speechEmotion: Optional[dict] = None
 
 
 class Message(BaseModel):

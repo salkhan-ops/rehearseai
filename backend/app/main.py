@@ -6,7 +6,7 @@ warnings.filterwarnings("ignore", message=r"urllib3 v2 only supports OpenSSL.*")
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
-from app.routes import admin, auth, contact, conversation, courses, health, payments, practice, reports, sessions, subscription, telemetry, voice
+from app.routes import admin, auth, contact, conversation, courses, health, payments, practice, reports, session_analysis, sessions, subscription, telemetry, voice
 from app.services.cartesia_service import CartesiaService
 from app.services.deepgram_service import DeepgramService
 from app.services.firestore_service import FirestoreService
@@ -65,3 +65,4 @@ app.include_router(admin.router)
 app.include_router(conversation.router)
 app.include_router(telemetry.router)
 app.include_router(voice.router)
+app.include_router(session_analysis.router)

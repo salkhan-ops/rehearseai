@@ -16,9 +16,9 @@ type FigureTone = "neutral" | "skeptical" | "notes" | "forward" | "distant";
 // ─── Voice palette ────────────────────────────────────────────────────────────
 // Replace any of these with a Cartesia voice ID to give that tone a unique voice.
 export const PANEL_TONE_VOICES: Record<FigureTone, string> = {
-  neutral:   "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4", // Skylar — warm American female (default)
-  notes:     "3e32f3c5-9ac0-4192-9994-87fdb277120f", // Noam — clear authoritative male (Professor, CFO, Analyst)
-  skeptical: "62ae83ad-4f6a-430b-af41-a9bede9286ca", // Gemma — decisive British female (Dr. Chen, Taylor, Skeptic)
+  neutral:   "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4", // Skylar — warm American female (Taylor, Chair, CEO, Advisor)
+  notes:     "3e32f3c5-9ac0-4192-9994-87fdb277120f", // Noam — clear authoritative male (Jordan, Professor, CFO, Analyst)
+  skeptical: "62ae83ad-4f6a-430b-af41-a9bede9286ca", // Gemma — decisive British female (Dr. Chen, Skeptic)
   forward:   "a167e0f3-df7e-4d52-a9c3-f949145efdab", // Blake — energetic male (Partner, Ops)
   distant:   "87286a8d-7ea7-4235-a41a-dd9fa6630feb", // Henry — monotone male (Reader, Dr. Patel)
 };
@@ -30,7 +30,7 @@ export const PANEL_TONE_VOICES: Record<FigureTone, string> = {
 const SPEAKER_TONE_MAP: Record<string, FigureTone> = {
   // Executive Interview
   Jordan:            "notes",
-  Taylor:            "skeptical",
+  Taylor:            "neutral",
   // Thesis Defense Panel
   Professor:         "notes",
   Chair:             "neutral",
