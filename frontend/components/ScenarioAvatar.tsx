@@ -13,6 +13,7 @@ const scenes: Record<PracticeType, { label: string; role: string; accent: string
   "Difficult Conversation": { label: "Tension room", role: "Emotional counterpart", accent: "from-rose-400 to-orange-500", prompt: "Stay fair" },
   "Teaching Session": { label: "Classroom", role: "Curious student", accent: "from-teal-400 to-cyan-600", prompt: "Ask confused questions" },
   "Sales Pitch": { label: "Buyer room", role: "Skeptical buyer", accent: "from-amber-400 to-rose-500", prompt: "Raise objections" },
+  "Casual Chat": { label: "Friendly chat", role: "Warm friend", accent: "from-sky-400 to-violet-500", prompt: "Be curious and natural" },
 };
 
 function SignalWave({ active }: { active: boolean }) {

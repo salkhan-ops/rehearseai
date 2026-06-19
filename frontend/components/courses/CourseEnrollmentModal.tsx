@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { X } from "lucide-react";
+import { BookOpen, Check, Clock, X } from "lucide-react";
 import { enrollCourseTemplate } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { categoryToPracticeType, getCourseConfig } from "@/lib/courseConfig";
 import { courseHref } from "@/lib/routes";
 import type { CourseTemplate, Difficulty } from "@/lib/types";
 import { difficulties } from "@/lib/types";
@@ -64,7 +65,7 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-violet-700 dark:text-cyan-100/60">Enroll in training path</p>
             <h2 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-950 dark:text-white">{template.title}</h2>
           </div>
-          <button onClick={onClose} className="grid size-10 place-items-center rounded-full bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white"><X size={18} /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="grid size-10 place-items-center rounded-full bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white"><X size={18} /></button>
         </div>
         <div className="mt-6 grid gap-4">
           <div className="grid gap-4 md:grid-cols-2">
@@ -82,6 +83,32 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
             <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-white/70">Difficulty<select value={difficulty} onChange={(event) => setDifficulty(event.target.value as Difficulty)} className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white">{difficulties.map((item) => <option key={item}>{item}</option>)}</select></label>
           </div>
         </div>
+        {/* What to expect each session */}
+        {(() => {
+          const practiceType = categoryToPracticeType[template.category];
+          if (!practiceType) return null;
+          const cfg = getCourseConfig(practiceType);
+          return (
+            <div className="mt-5 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+              <div className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400 dark:text-white/35">What to expect each session</div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
+                <Clock size={14} className="shrink-0 text-[#6200a8]" />
+                {cfg.defaultDuration} min default · {cfg.minDuration}–{cfg.maxDuration} min range
+              </div>
+              <p className="mt-2 text-sm font-medium leading-6 text-slate-600 dark:text-white/60">{cfg.aiPersona}</p>
+              <div className="mt-3 flex items-start gap-2 rounded-2xl bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-800 ring-1 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-200 dark:ring-emerald-400/20">
+                <Check size={14} className="mt-0.5 shrink-0" />
+                {cfg.successLooks}
+              </div>
+              <div className="mt-3 rounded-2xl bg-white px-3 py-2.5 text-sm font-medium leading-6 text-slate-600 ring-1 ring-slate-200 dark:bg-white/5 dark:text-white/55 dark:ring-white/10">
+                <span className="font-semibold text-slate-800 dark:text-white">Pressure arc:</span> <span className="text-slate-600 dark:text-white/60">{cfg.pressureArc}</span>
+              </div>
+              <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-slate-400 dark:text-white/35">
+                <BookOpen size={12} /> A personalised briefing card is shown before each session starts.
+              </div>
+            </div>
+          );
+        })()}
         {error && <div className="mt-4 rounded-2xl bg-rose-50 p-4 font-semibold text-rose-700 dark:bg-rose-400/10 dark:text-rose-100">{error}</div>}
         <button onClick={enroll} disabled={loading || days.length === 0} className="mt-6 w-full rounded-2xl bg-[#6200a8] px-5 py-4 text-lg font-bold text-white disabled:opacity-60">{loading ? "Creating calendar..." : "Start this training program"}</button>
       </div>

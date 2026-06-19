@@ -1,20 +1,21 @@
 import Link from "next/link";
 import type React from "react";
-import { ArrowUpRight, BriefcaseBusiness, GraduationCap, Handshake, MessageSquareWarning, Mic2, Presentation, Scale, ShoppingBag, Sparkles } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, GraduationCap, Handshake, MessageCircle, MessageSquareWarning, Mic2, Presentation, Scale, ShoppingBag, Sparkles } from "lucide-react";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { Nav } from "@/components/Nav";
 import { RandomChallengeButton } from "@/components/scheduling/RandomChallengeButton";
 import { PracticeType, practiceTypes } from "@/lib/types";
 
 const arenaMeta: Record<PracticeType, { icon: React.ReactNode; line: string; pressure: string; color: string; tag: string }> = {
-  "Job Interview": { icon: <BriefcaseBusiness size={22} />, line: "Answer sharp follow-ups without sounding rehearsed.", pressure: "Hiring manager + team lead", color: "from-sky-500 to-violet-600", tag: "Final round" },
-  "Presentation / Public Speaking": { icon: <Presentation size={22} />, line: "Handle skeptical audience questions while keeping structure.", pressure: "Live Q&A simulation", color: "from-cyan-500 to-blue-600", tag: "Stage mode" },
-  "Panel Discussion": { icon: <Mic2 size={22} />, line: "Stay crisp while multiple voices challenge your assumptions.", pressure: "Interruptions + moderator", color: "from-fuchsia-500 to-violet-700", tag: "Panel heat" },
-  "Thesis Defense": { icon: <GraduationCap size={22} />, line: "Defend methods, logic, and originality under academic pressure.", pressure: "Committee examiner", color: "from-indigo-500 to-sky-600", tag: "Deep logic" },
-  "Salary Negotiation": { icon: <Scale size={22} />, line: "Push for value while staying calm, direct, and credible.", pressure: "Budget-conscious manager", color: "from-emerald-500 to-teal-700", tag: "Leverage" },
-  "Difficult Conversation": { icon: <MessageSquareWarning size={22} />, line: "Say the hard thing clearly without escalating the room.", pressure: "Emotional counterpart", color: "from-rose-500 to-orange-500", tag: "Tension" },
-  "Teaching Session": { icon: <Sparkles size={22} />, line: "Explain simply while curious or confused people push back.", pressure: "Curious students", color: "from-teal-500 to-cyan-600", tag: "Clarity" },
-  "Sales Pitch": { icon: <ShoppingBag size={22} />, line: "Handle objections, urgency, and skeptical buyer logic.", pressure: "Skeptical buyer", color: "from-amber-500 to-rose-500", tag: "Objections" },
+  "Job Interview": { icon: <BriefcaseBusiness size={17} />, line: "Answer sharp follow-ups without sounding rehearsed.", pressure: "Hiring manager + team lead", color: "from-sky-500 to-violet-600", tag: "Final round" },
+  "Presentation / Public Speaking": { icon: <Presentation size={17} />, line: "Handle skeptical audience questions while keeping structure.", pressure: "Live Q&A simulation", color: "from-cyan-500 to-blue-600", tag: "Stage mode" },
+  "Panel Discussion": { icon: <Mic2 size={17} />, line: "Stay crisp while multiple voices challenge your assumptions.", pressure: "Interruptions + moderator", color: "from-fuchsia-500 to-violet-700", tag: "Panel heat" },
+  "Thesis Defense": { icon: <GraduationCap size={17} />, line: "Defend methods, logic, and originality under academic pressure.", pressure: "Committee examiner", color: "from-indigo-500 to-sky-600", tag: "Deep logic" },
+  "Salary Negotiation": { icon: <Scale size={17} />, line: "Push for value while staying calm, direct, and credible.", pressure: "Budget-conscious manager", color: "from-emerald-500 to-teal-700", tag: "Leverage" },
+  "Difficult Conversation": { icon: <MessageSquareWarning size={17} />, line: "Say the hard thing clearly without escalating the room.", pressure: "Emotional counterpart", color: "from-rose-500 to-orange-500", tag: "Tension" },
+  "Teaching Session": { icon: <Sparkles size={17} />, line: "Explain simply while curious or confused people push back.", pressure: "Curious students", color: "from-teal-500 to-cyan-600", tag: "Clarity" },
+  "Sales Pitch": { icon: <ShoppingBag size={17} />, line: "Handle objections, urgency, and skeptical buyer logic.", pressure: "Skeptical buyer", color: "from-amber-500 to-rose-500", tag: "Objections" },
+  "Casual Chat": { icon: <MessageCircle size={17} />, line: "Speak naturally and freely in a low-pressure friendly conversation.", pressure: "Friendly friend", color: "from-sky-500 to-violet-500", tag: "Fluency" },
 };
 
 export default function PracticePage() {
@@ -63,22 +64,18 @@ export default function PracticePage() {
             </div>
           </div>
         </div>
-        <StaggeredGrid className="relative mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StaggeredGrid className="relative mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {practiceTypes.map((type) => (
-            <AnimatedCard key={type} className="group overflow-hidden rounded-[1.7rem] bg-white shadow-[0_18px_55px_rgba(35,45,75,0.06)] ring-1 ring-slate-200/70 transition dark:bg-white/10 dark:ring-white/10">
-              <Link href={`/practice/setup?type=${encodeURIComponent(type)}`} className="block h-full p-5">
-                <div className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${arenaMeta[type].color} text-white shadow-lg shadow-violet-500/15`}>
+            <AnimatedCard key={type} className="group rounded-2xl bg-white ring-1 ring-slate-200/80 transition hover:shadow-md hover:ring-slate-300 dark:bg-white/[0.06] dark:ring-white/8 dark:hover:bg-white/[0.09] dark:hover:ring-white/14">
+              <Link href={`/practice/setup?type=${encodeURIComponent(type)}`} className="flex items-center gap-3.5 p-4">
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${arenaMeta[type].color} text-white`}>
                   {arenaMeta[type].icon}
                 </div>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="text-xl font-semibold tracking-[-0.035em] text-slate-950 dark:text-white">{type}</div>
-                  <ArrowUpRight className="mt-1 text-slate-300 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-violet-600" size={18} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold tracking-[-0.02em] text-slate-900 dark:text-white">{type}</p>
+                  <p className="mt-0.5 line-clamp-1 text-xs text-slate-500 dark:text-white/45">{arenaMeta[type].line}</p>
                 </div>
-                <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-white/60">{arenaMeta[type].line}</p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-white/10 dark:text-white/60">{arenaMeta[type].tag}</span>
-                  <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 dark:bg-violet-400/15 dark:text-violet-100">{arenaMeta[type].pressure}</span>
-                </div>
+                <ArrowUpRight className="shrink-0 text-slate-300 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-violet-500 dark:text-white/20 dark:group-hover:text-violet-400" size={15} />
               </Link>
             </AnimatedCard>
           ))}

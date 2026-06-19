@@ -1,8 +1,8 @@
 "use client";
 
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BrainCircuit, Lightbulb, Sparkles } from "lucide-react";
+import { ArrowRight, BrainCircuit, CalendarClock, Lightbulb, Sparkles } from "lucide-react";
 import { BenchmarkComparisonChart } from "@/components/analytics/BenchmarkComparisonChart";
 import { CommunicationEfficiencyChart } from "@/components/analytics/CommunicationEfficiencyChart";
 import { ConfidenceTrendChart } from "@/components/analytics/ConfidenceTrendChart";
@@ -53,6 +53,7 @@ function ReportAmbient() {
 export default function ReportPage() {
   const params = useParams<{ id?: string }>();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const id = params?.id || searchParams.get("id") || "";
   const [report, setReport] = useState<Report | null>(null);
   const [analytics, setAnalytics] = useState<PerformanceAnalytics | null>(null);
@@ -301,7 +302,57 @@ export default function ReportPage() {
 
         <SessionReplayTimeline sessionId={report.sessionId} token={authToken} />
 
-        <div className="mt-8">
+        {/* Habit upsell — shown after every session */}
+        <AnimatedSection className="mt-8 overflow-hidden rounded-[2rem] bg-gradient-to-br from-violet-600 to-[#6200a8] p-8 text-white shadow-[0_30px_70px_rgba(98,0,168,0.28)]">
+          <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">
+                <CalendarClock size={13} /> Make it a habit
+              </div>
+              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.045em] md:text-4xl">
+                {report.confidenceScore >= 75
+                  ? `You scored ${report.confidenceScore} on confidence. Keep the streak.`
+                  : `You scored ${report.confidenceScore} on confidence. Train 3× a week to break 75.`}
+              </h2>
+              <p className="mt-3 max-w-xl text-base font-medium leading-7 text-white/72">
+                The biggest gains come from consistency, not single sessions. Set a routine and RehearseAI will remind you when it's time.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => router.push("/practice/setup")}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-3.5 text-sm font-bold text-[#6200a8] shadow-[0_14px_30px_rgba(0,0,0,0.15)] transition hover:-translate-y-0.5"
+                >
+                  <CalendarClock size={16} /> Set up a routine <ArrowRight size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/practice/setup")}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-6 py-3.5 text-sm font-bold text-white ring-1 ring-white/20 transition hover:-translate-y-0.5 hover:bg-white/25"
+                >
+                  Practice again <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="hidden lg:block">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ["Confidence", report.confidenceScore],
+                  ["Clarity", report.clarityScore],
+                  ["Calmness", report.calmnessScore],
+                  ["Structure", report.structureScore],
+                ].map(([label, score]) => (
+                  <div key={String(label)} className="rounded-2xl bg-white/12 p-4 text-center ring-1 ring-white/10">
+                    <div className="text-2xl font-bold">{score}</div>
+                    <div className="mt-0.5 text-xs font-semibold text-white/60">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </AnimatedSection>
+
+        <div className="mt-6">
           <PracticeRoutinePanel />
         </div>
       </AnimatedPage>

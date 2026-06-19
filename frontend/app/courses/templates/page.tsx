@@ -10,23 +10,78 @@ import { getCourseTemplates } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { CourseTemplate } from "@/lib/types";
 
-const filters = ["All", "Interview", "Public Speaking", "Reasoning", "Negotiation", "Leadership", "Difficult Conversations", "Short Sprint", "Long Program"];
+type Filter = { label: string; value: string; matchFn?: (t: CourseTemplate) => boolean };
+
+const filters: Filter[] = [
+  { label: "All", value: "All" },
+  { label: "Interview", value: "Interview" },
+  { label: "Public Speaking", value: "Public Speaking" },
+  { label: "Reasoning", value: "Reasoning" },
+  { label: "Negotiation", value: "Negotiation" },
+  { label: "Leadership", value: "Leadership" },
+  { label: "Conflict", value: "Conflict", matchFn: (t) => t.category === "Difficult Conversations" },
+  { label: "Short Sprint", value: "Short Sprint", matchFn: (t) => t.durationDays <= 14 },
+  { label: "Long Program", value: "Long Program", matchFn: (t) => t.durationDays >= 56 },
+  { label: "Brutal", value: "Brutal", matchFn: (t) => t.difficulty === "Brutal" },
+  { label: "Nerve", value: "Nerve", matchFn: (t) => t.difficulty === "Nerve" },
+];
+
+const localNegotiationTemplates: CourseTemplate[] = [
+  {
+    id: "local-negotiation-sprint",
+    title: "7-Day Salary Negotiation Sprint",
+    category: "Negotiation",
+    durationDays: 7,
+    frequency: "daily",
+    difficulty: "Intermediate",
+    dailyMinutes: "15–20",
+    targetSkills: ["Anchoring", "Counter-offers", "Silence tolerance", "Value framing"],
+    description: "Rapid daily simulations to prepare you for salary, offer, or contract negotiation under pressure.",
+    whoFor: "Professionals with a salary or offer negotiation in the next one to two weeks.",
+    expectedTransformation: "Enter your negotiation anchored, calm, and ready to counter any pushback without caving.",
+    isActive: true,
+    sortOrder: 100,
+  },
+  {
+    id: "local-negotiation-mastery",
+    title: "21-Day Negotiation Mastery",
+    category: "Negotiation",
+    durationDays: 21,
+    frequency: "daily",
+    difficulty: "Brutal",
+    dailyMinutes: "20–25",
+    targetSkills: ["Anchoring", "BATNA framing", "Pressure resistance", "Concession strategy", "Closing tactics"],
+    description: "Build systematic negotiation tactics through progressive AI pressure — anchoring, framing, and closing under friction.",
+    whoFor: "Anyone who negotiates deals, clients, partnerships, or compensation as part of their role.",
+    expectedTransformation: "Negotiate confidently in any room without caving to silence, pressure, or lowball tactics.",
+    isActive: true,
+    sortOrder: 101,
+  },
+];
 
 export default function CourseTemplatesPage() {
   const { getToken } = useAuth();
-  const [templates, setTemplates] = useState<CourseTemplate[]>([]);
+  const [apiTemplates, setApiTemplates] = useState<CourseTemplate[]>([]);
   const [selected, setSelected] = useState("All");
   const [enrolling, setEnrolling] = useState<CourseTemplate | null>(null);
+
   useEffect(() => {
-    getToken().then((token) => getCourseTemplates(token)).then(setTemplates).catch(() => setTemplates([]));
+    getToken().then((token) => getCourseTemplates(token)).then(setApiTemplates).catch(() => setApiTemplates([]));
   }, [getToken]);
-  const visible = useMemo(() => templates.filter((template) => {
-    if (selected === "All") return true;
-    if (selected === "Short Sprint") return template.durationDays <= 14;
-    if (selected === "Long Program") return template.durationDays >= 56;
-    if (selected === "Negotiation") return template.title.toLowerCase().includes("negotiation");
-    return template.category === selected;
-  }), [selected, templates]);
+
+  const templates = useMemo(() => {
+    const apiIds = new Set(apiTemplates.map((t) => t.id));
+    const merged = [...apiTemplates, ...localNegotiationTemplates.filter((t) => !apiIds.has(t.id))];
+    return merged.sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [apiTemplates]);
+
+  const activeFilter = filters.find((f) => f.value === selected) ?? filters[0];
+
+  const visible = useMemo(() => {
+    if (activeFilter.value === "All") return templates;
+    if (activeFilter.matchFn) return templates.filter(activeFilter.matchFn);
+    return templates.filter((t) => t.category === activeFilter.value);
+  }, [activeFilter, templates]);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-white text-slate-950 dark:bg-[#07111f] dark:text-white">
@@ -40,11 +95,29 @@ export default function CourseTemplatesPage() {
             <p className="mt-5 text-lg font-medium leading-8 text-slate-600 dark:text-white/58">Pick a premium training path, set your schedule, and RehearseAI builds the calendar, reminders, milestones, and missions.</p>
           </div>
           <div className="mt-8 flex flex-wrap gap-2">
-            {filters.map((filter) => <button key={filter} onClick={() => setSelected(filter)} className={`rounded-full px-4 py-2 text-sm font-bold ${selected === filter ? "bg-[#6200a8] text-white" : "bg-white/75 text-slate-700 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}>{filter}</button>)}
+            {filters.map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => setSelected(filter.value)}
+                className={`rounded-full px-4 py-2 text-sm font-bold ${selected === filter.value ? "bg-[#6200a8] text-white" : "bg-white/75 text-slate-700 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}
+              >
+                {filter.label}
+              </button>
+            ))}
           </div>
-          <StaggeredGrid className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {visible.map((template) => <CourseTemplateCard key={template.id} template={template} onStart={setEnrolling} />)}
-          </StaggeredGrid>
+
+          {visible.length === 0 && templates.length > 0 ? (
+            <div className="mt-8 rounded-[2rem] bg-white/60 px-8 py-16 text-center ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
+              <p className="text-xl font-semibold text-slate-900 dark:text-white">Coming soon</p>
+              <p className="mt-2 font-medium text-slate-500 dark:text-white/50">No {activeFilter.label} courses are available yet. Check back soon or browse all paths.</p>
+              <button type="button" onClick={() => setSelected("All")} className="mt-6 inline-flex rounded-2xl bg-[#6200a8] px-5 py-3 font-semibold text-white">Browse all paths</button>
+            </div>
+          ) : (
+            <StaggeredGrid className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {visible.map((template) => <CourseTemplateCard key={template.id} template={template} onStart={setEnrolling} />)}
+            </StaggeredGrid>
+          )}
         </AnimatedPage>
       </ProtectedRoute>
       <CourseEnrollmentModal template={enrolling} onClose={() => setEnrolling(null)} />

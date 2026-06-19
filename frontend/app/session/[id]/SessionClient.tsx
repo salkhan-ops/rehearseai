@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, BrainCircuit, Camera, Clock3, Eye, EyeOff, Maximize2, Mic, MicOff, Send, Square, UsersRound, Volume2 } from "lucide-react";
+import { ArrowLeft, BrainCircuit, Camera, Clock3, Eye, EyeOff, Lightbulb, Maximize2, Mic, MicOff, Send, Square, UsersRound, Volume2 } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
@@ -162,6 +162,7 @@ export default function SessionPage() {
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(profile?.privacySettings || defaultPrivacySettings);
   const [latestHint, setLatestHint] = useState<SessionHint | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
+  const [hintsUsed, setHintsUsed] = useState(0);
   const [latestControl, setLatestControl] = useState<ConversationControl | null>(null);
   const [autoSubmitNotice, setAutoSubmitNotice] = useState("");
   const [naturalCountdown, setNaturalCountdown] = useState<number | null>(null);
@@ -203,6 +204,7 @@ export default function SessionPage() {
   const [messageEmotions, setMessageEmotions] = useState<Record<string, SpeechEmotionResult>>({});
   const practiceLanguage = getLanguage(session?.practiceLanguage);
   const beginnerMode = session?.difficulty === "Beginner" || session?.difficulty === "Friendly";
+  const coachingMode = beginnerMode || session?.difficulty === "Intermediate";
   const coordination = useConversationCoordination({ userId, sessionId: id, enabled: voiceMode });
   const adaptive = useAdaptiveTiming({ userId, enabled: adaptiveMode });
   const { analyze: analyzeCoordination } = coordination;
@@ -609,11 +611,13 @@ export default function SessionPage() {
         setLatestControl(result.conversationControl);
         setSession((current) => current ? { ...current, pressureLevel: result.conversationControl?.pressureLevel || current.pressureLevel } : current);
       }
-      if (beginnerMode && result.hint) {
+      if (coachingMode && result.hint) {
         setLatestHint(result.hint);
-        setHintVisible(true);
-        updateSessionHint(result.hint.hintId, { wasViewed: true }, token).catch(() => undefined);
-        window.setTimeout(() => setHintVisible(false), 6500);
+        if (beginnerMode) {
+          setHintVisible(true);
+          updateSessionHint(result.hint.hintId, { wasViewed: true }, token).catch(() => undefined);
+          window.setTimeout(() => setHintVisible(false), 6500);
+        }
       }
       if (session) {
         sendTurnTelemetry({
@@ -1259,11 +1263,13 @@ export default function SessionPage() {
         setLatestControl(result.conversationControl);
         setSession((current) => current ? { ...current, pressureLevel: result.conversationControl?.pressureLevel || current.pressureLevel } : current);
       }
-      if (beginnerMode && result.hint) {
+      if (coachingMode && result.hint) {
         setLatestHint(result.hint);
-        setHintVisible(true);
-        updateSessionHint(result.hint.hintId, { wasViewed: true }, token).catch(() => undefined);
-        window.setTimeout(() => setHintVisible(false), 6500);
+        if (beginnerMode) {
+          setHintVisible(true);
+          updateSessionHint(result.hint.hintId, { wasViewed: true }, token).catch(() => undefined);
+          window.setTimeout(() => setHintVisible(false), 6500);
+        }
       }
       if (session) {
         sendTurnTelemetry({
@@ -1477,7 +1483,24 @@ export default function SessionPage() {
           getToken().then((token) => updateSessionHint(latestHint.hintId, { wasViewed: true, wasExpanded: true }, token)).catch(() => undefined);
         }
       }} />}
-      {beginnerMode && session && <CoachPanel session={session} latestHint={latestHint} progress={Math.min(100, Math.round(((session.turnCount || 0) / 6) * 100))} />}
+      {coachingMode && session && (
+        <CoachPanel
+          session={session}
+          latestHint={latestHint}
+          progress={Math.min(100, Math.round(((session.turnCount || 0) / 6) * 100))}
+          turnCount={session.turnCount || 0}
+          hintsUsed={hintsUsed}
+          maxHints={beginnerMode ? Infinity : 1}
+          onShowHint={() => {
+            if (latestHint) {
+              setHintVisible(true);
+              setHintsUsed((n) => n + 1);
+              getToken().then((token) => updateSessionHint(latestHint.hintId, { wasViewed: true, wasExpanded: true }, token)).catch(() => undefined);
+              window.setTimeout(() => setHintVisible(false), 7000);
+            }
+          }}
+        />
+      )}
       <AnimatedPage className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-4 sm:px-6">
         <header className="flex items-center justify-between">
           <button type="button" onClick={exitChamber} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12]">
@@ -1634,7 +1657,11 @@ export default function SessionPage() {
             {beginnerMode && session && messages.length === 0 && (
               <div className="mt-8 grid gap-4 text-left">
                 <BeginnerBriefing session={session} />
-                <ConversationMap session={session} />
+              </div>
+            )}
+            {beginnerMode && session && (
+              <div className="mx-auto mt-6 w-full max-w-xs text-left">
+                <ConversationMap session={session} turnCount={session.turnCount || 0} />
               </div>
             )}
             {beginnerMode && (latestControl?.shouldSupport || coordination.state?.conversationControl?.shouldSupport) && (
@@ -1765,6 +1792,33 @@ export default function SessionPage() {
               />
             ) : (
               <>
+                {coachingMode && (
+                  <div className="mb-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={!latestHint || (!beginnerMode && hintsUsed >= 1)}
+                      onClick={() => {
+                        if (latestHint) {
+                          setHintVisible(true);
+                          setHintsUsed((n) => n + 1);
+                          getToken().then((token) => updateSessionHint(latestHint.hintId, { wasViewed: true, wasExpanded: true }, token)).catch(() => undefined);
+                          window.setTimeout(() => setHintVisible(false), 7000);
+                        }
+                      }}
+                      className="inline-flex items-center gap-2 rounded-full bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 ring-1 ring-cyan-400/20 transition hover:bg-cyan-400/18 disabled:cursor-default disabled:opacity-40"
+                    >
+                      <Lightbulb size={14} />
+                      {!latestHint
+                        ? "Hint available after first response"
+                        : !beginnerMode && hintsUsed >= 1
+                        ? "Hint used for this session"
+                        : "Get coaching hint"}
+                    </button>
+                    {!beginnerMode && latestHint && hintsUsed < 1 && (
+                      <span className="text-xs font-semibold text-white/38">1 hint available</span>
+                    )}
+                  </div>
+                )}
                 <form onSubmit={onSubmit} className="flex items-end gap-2">
                   <button
                     type="button"

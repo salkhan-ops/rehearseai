@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, BrainCircuit, CalendarDays, Flame, Target, type LucideIcon } from "lucide-react";
+import { ArrowRight, BrainCircuit, CalendarDays, Flame, Plus, Target, type LucideIcon } from "lucide-react";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { CourseGenerator } from "@/components/courses/CourseGenerator";
 import { Nav } from "@/components/Nav";
 import { getCourse, getUserCourses } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -51,14 +50,19 @@ export default function CoursesPage() {
                 <BrainCircuit size={16} /> Structured Cognitive Courses
               </div>
               <h1 className="mt-5 max-w-4xl text-5xl font-semibold leading-[0.94] tracking-[-0.06em] text-slate-950 dark:text-white md:text-7xl">
-                Train your reasoning daily.
+                My courses.
               </h1>
               <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-slate-600 dark:text-white/58">
-                Multi-day pressure programs that develop concise thinking, evidence use, composure, persuasion, and decision-making under stress.
+                Multi-day pressure programs that build concise thinking, evidence use, composure, and decision-making under stress.
               </p>
-              <Link href="/courses/templates" className="mt-7 inline-flex rounded-2xl bg-[#6200a8] px-6 py-4 font-bold text-white shadow-[0_18px_44px_rgba(98,0,168,0.25)]">
-                Choose a Training Path
-              </Link>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Link href="/courses/templates" className="inline-flex rounded-2xl bg-[#6200a8] px-6 py-4 font-bold text-white shadow-[0_18px_44px_rgba(98,0,168,0.25)]">
+                  Browse training paths
+                </Link>
+                <Link href="/courses/new" className="inline-flex items-center gap-2 rounded-2xl bg-white/80 px-6 py-4 font-bold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
+                  <Plus size={16} /> Create custom course
+                </Link>
+              </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               {heroStats.map(({ icon: Icon, label, copy }) => (
@@ -69,10 +73,6 @@ export default function CoursesPage() {
                 </AnimatedCard>
               ))}
             </div>
-          </div>
-
-          <div className="mt-10">
-            <CourseGenerator />
           </div>
 
           <section className="mt-10">

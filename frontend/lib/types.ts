@@ -6,7 +6,8 @@ export const practiceTypes = [
   "Salary Negotiation",
   "Difficult Conversation",
   "Teaching Session",
-  "Sales Pitch"
+  "Sales Pitch",
+  "Casual Chat",
 ] as const;
 
 export const difficulties = ["Beginner", "Intermediate", "Advanced", "Brutal", "Nerve"] as const;

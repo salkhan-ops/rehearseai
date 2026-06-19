@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Settings, ShieldCheck } from "lucide-react";
+import { LogOut, Mic, Settings, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { AnimatedPage } from "@/components/animations";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -91,7 +91,16 @@ export default function SettingsPage() {
 
           <section className="rounded-[2rem] surface-high p-6">
             <h2 className="text-3xl font-semibold tracking-[-0.045em]">Voice and notifications</h2>
-            <p className="mt-2 font-medium leading-7 text-secondary-token">Voice preferences, email reminders, and push notifications are structured for future expansion. Browser reminders are currently managed from the dashboard routine creator.</p>
+            <p className="mt-2 font-medium leading-7 text-secondary-token">Voice preferences, email reminders, and push notifications are structured for future expansion. Browser reminders are managed from the dashboard routine creator.</p>
+            <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-white/60 p-4 ring-1 ring-[var(--border-soft)] dark:bg-white/[0.04]">
+              <div>
+                <div className="flex items-center gap-2 font-semibold"><Mic size={16} className="text-[var(--accent-primary)]" /> Voice calibration</div>
+                <p className="mt-1 text-sm font-medium text-secondary-token">Calibrate your speaking pace so the AI knows when you have finished talking. Takes about 60 seconds.</p>
+              </div>
+              <Link href="/voice-calibration" className="shrink-0 rounded-2xl bg-[#6200a8] px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5">
+                Calibrate
+              </Link>
+            </div>
           </section>
 
           <section className="rounded-[2rem] surface-high p-6">
