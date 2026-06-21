@@ -53,6 +53,8 @@ class CrossExaminationService:
         analysis = await self.store.get_session_analysis(session.nerveAnalysisId) if session.nerveAnalysisId else self._analyze_material(session)
         persona = session.nervePersona or "Mixed Panel"
         attack_surface = PERSONA_ATTACKS.get(persona, PERSONA_ATTACKS["Mixed Panel"])
+        instruction = self._instruction(persona, pressure_level, weakness, attack_surface)
+        layers = 3 if pressure_level >= 9 else 2
         return {
             "mode": "Nerve",
             "entryType": session.nerveEntryType or "Topic",
@@ -63,7 +65,8 @@ class CrossExaminationService:
             "weaknessExposed": weakness["label"],
             "attackSurface": attack_surface,
             "analysis": analysis,
-            "instruction": self._instruction(persona, pressure_level, weakness, attack_surface),
+            "instruction": instruction,
+            "reasoningLayers": layers,
             "recentFailures": self._recent_failures(history),
         }
 
@@ -165,10 +168,34 @@ class CrossExaminationService:
 
     def _instruction(self, persona: str, pressure_level: int, weakness: dict, attack_surface: list[str]) -> str:
         interruption = "Interrupt immediately if the user evades, rambles, or fails to answer." if weakness["shouldInterrupt"] else "Do not interrupt unless the next answer becomes evasive or unsupported."
+        # Build layered attack chain — 3 vectors for Nerve, 2 for high-pressure Brutal-equivalent
+        if pressure_level >= 7 and len(attack_surface) >= 3:
+            chain = self._build_reasoning_chain(persona, pressure_level, weakness, attack_surface)
+            return (
+                f"Act as a {persona} at pressure level {pressure_level}/10. "
+                f"Current weakness: {weakness['label']}. {interruption} "
+                f"Execute this reasoning chain:\n{chain}"
+            )
         return (
-            f"Act as a {persona}. Pressure level {pressure_level}/10. Attack {', '.join(attack_surface[:4])}. "
-            f"Current weakness exposed: {weakness['label']}. {interruption} Ask one hard cross-examination question."
+            f"Act as a {persona}. Pressure level {pressure_level}/10. "
+            f"Attack {', '.join(attack_surface[:3])}. "
+            f"Current weakness exposed: {weakness['label']}. {interruption} "
+            "Ask one hard cross-examination question."
         )
+
+    def _build_reasoning_chain(self, persona: str, pressure_level: int, weakness: dict, attack_surface: list[str]) -> str:
+        """Generates a 2-layer chain for Brutal-equivalent pressure, 3-layer for Nerve-level (pressure >= 9)."""
+        vectors = attack_surface[:3]
+        v1, v2 = vectors[0], vectors[1]
+        layer1 = f"Layer 1 — Precision: Challenge the user's {v1} directly. Demand an exact definition, metric, or source. Do not accept approximate language."
+        layer2 = f"Layer 2 — Assumption: Surface the unstated assumption their answer about {v2} depends on. The user has not defended this assumption."
+        if pressure_level >= 9 and len(vectors) >= 3:
+            v3 = vectors[2]
+            layer3 = f"Layer 3 — Meta: Show that even if they fixed Layer 2, the conclusion still fails because of a second-order risk or alternative explanation involving {v3}."
+            closing = "Close with one question that cannot be answered without addressing all three layers."
+            return f"{layer1}\n{layer2}\n{layer3}\n{closing}"
+        closing = "Close with one question that cannot be answered without addressing both layers."
+        return f"{layer1}\n{layer2}\n{closing}"
 
     def _recent_failures(self, history: list[Message]) -> list[str]:
         failures = []

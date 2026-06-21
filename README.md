@@ -2,46 +2,48 @@
 
 Practice the moment before it matters.
 
-RehearseAI is a full-stack MVP for cognitive performance training: adaptive pressure simulation, communication intelligence, reasoning analytics, and structured feedback reports.
+RehearseAI is a full-stack cognitive performance training platform: adaptive pressure simulation, communication intelligence, reasoning analytics, structured feedback reports, subscription billing, course programs, and an admin operations console.
 
 ## Stack
 
-- Frontend: Next.js App Router, TypeScript, Tailwind CSS
-- Backend: FastAPI
-- Database: Google Firestore
-- AI: Google Gemini API, with mock fallback
-- Payments: Paddle placeholder
-- Hosting target: local/private frontend testing, Google Cloud Run-ready backend API
+- **Frontend:** Next.js 15 App Router, TypeScript, Tailwind CSS, Framer Motion, Firebase JS SDK
+- **Backend:** FastAPI (Python), Firebase Admin SDK
+- **Database:** Google Firestore (native mode)
+- **AI:** Google Gemini API (flash-lite for roleplay, flash for reports), with mock fallback
+- **Voice STT:** Deepgram, proxied through FastAPI WebSocket
+- **Voice TTS:** Cartesia Sonic, proxied through FastAPI
+- **Payments:** Paddle Billing v2 (sandbox configured, production-switchable)
+- **Hosting target:** Next.js frontend (local / private), FastAPI on Google Cloud Run
 
 ## Architecture and standards
 
-For a judge-facing technical overview, see `docs/architecture.md`. It explains the end-to-end architecture, runtime flows, Firestore data model, security/privacy controls, AI governance, deployment topology, and standards alignment with ISO/IEC, OWASP, GDPR-style privacy principles, WCAG, and NIST AI RMF.
+For a technical overview see [`docs/architecture.md`](docs/architecture.md). It covers the end-to-end architecture, runtime flows, Firestore data model, security/privacy controls, AI governance, billing pipeline, deployment topology, and standards alignment with ISO/IEC, OWASP, GDPR-style privacy principles, WCAG, and NIST AI RMF.
 
 ## Repository
 
-- GitHub repository: `https://github.com/salkhan-ops/rehearseai`
-- Frontend: local development at `http://localhost:3000`
-- Backend API: local development at `http://localhost:8000`
+- GitHub: `https://github.com/salkhan-ops/rehearseai`
+- Frontend dev: `http://localhost:3000`
+- Backend API dev: `http://localhost:8000`
 
 ## Project structure
 
 ```text
-frontend/
-backend/
-docs/
+frontend/          Next.js app — UI, auth, sessions, courses, billing, admin, SEO pages
+backend/           FastAPI API — AI, voice, billing, courses, reports, safety, admin
+docs/              Architecture, Firestore design, security, and compliance docs
+firestore.rules    Client-side Firestore security rules
+firestore.indexes.json
 docker-compose.yml
 .env.example
 ```
 
 ## Local setup
 
-Copy environment variables:
-
 ```bash
 cp .env.example .env
 ```
 
-Backend:
+### Backend
 
 ```bash
 cd backend
@@ -51,7 +53,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-Frontend:
+### Frontend
 
 ```bash
 cd frontend
@@ -59,7 +61,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. The backend runs on `http://localhost:8000`.
+Open `http://localhost:3000`. Backend at `http://localhost:8000`.
 
 ## Docker local development
 
@@ -67,258 +69,204 @@ Open `http://localhost:3000`. The backend runs on `http://localhost:8000`.
 docker compose up --build
 ```
 
-## GitHub setup
+## What's built
 
-```bash
-git init
-git add .
-git commit -m "Initial RehearseAI MVP"
-git branch -M main
-git remote add origin https://github.com/salkhan-ops/rehearseai.git
-git push -u origin main
-```
+### Core practice loop
 
-Use short feature branches such as `feature/session-flow`, `feature/firebase-auth`, or `fix/report-parsing`.
-
-## Frontend testing
-
-GitHub Pages deployment is disabled for this private repository. Use local development while testing:
-
-```bash
-cd frontend
-npm run dev
-```
-
-Open `http://localhost:3000`.
-
-## What works now
-
-- Landing page
-- Practice type selection
-- Setup form
+- Landing page, practice type selection, setup form
 - Session creation through FastAPI
-- Text and live voice roleplay session
-- Browser speech recognition and AI read-aloud
-- Scenario-specific animated 3D personas
-- Mock AI responses without Gemini credentials
-- Session ending
-- Structured mock report generation
-- Dashboard session listing
-- Pricing page with Paddle placeholder
-- Firebase email/password auth, Google sign-in, password reset, and protected dashboard
-- Admin console at `/admin` for plan templates, users, entitlements, user plan assignment, and billing placeholders
-- Firestore user profile creation with role-based admin access
-- Deepgram live speech-to-text through the FastAPI WebSocket proxy with browser fallback
-- Immersive resources hub, blog, long-form articles, contact page, Terms of Service, and Privacy Policy
-- Contact form submissions saved through FastAPI to `contactMessages`
-- Recurring practice routines, daily cognitive challenges, browser reminder architecture, quick-start AI scenario generation, and practice adherence history
-- Multilingual practice and feedback preferences for English, Arabic, Urdu, Hindi, Spanish, and French
-- Natural conversation mode with hands-free automatic turn-taking
-- Camera-assisted timing using MediaPipe face landmark signals
-- Local ML pause-intent classifier pipeline (rule-based with ONNX/TFLite upgrade path)
-- Voice calibration page at `/voice-calibration` to personalise silence thresholds
-- Dynamic cross-examination engine with persona-specific attack vectors
-- Adaptive pressure escalation that adjusts AI challenge level in real time
-- Conversation stance selection (supportive → hostile) driven by session context
-- Response breakdown detector that identifies confusion, evasion, and over-explanation
-- Prosody extractor for per-chunk RMS energy and pitch sent to coaching logic
+- Text and live voice roleplay with adaptive AI persona
+- Browser speech recognition and AI read-aloud (Cartesia or browser `speechSynthesis`)
+- Scenario-specific animated 3D AI personas
+- Session ending, structured report generation, 15-metric analytics
+- Dashboard with session listing, daily challenge, and practice routines
 
-## Content and legal pages
+### Voice and conversation modes
 
-The content layer is local-file based for MVP speed:
+- Deepgram live speech-to-text through FastAPI WebSocket proxy (browser fallback)
+- Cartesia text-to-speech through FastAPI (browser fallback)
+- Natural conversation mode — hands-free automatic turn-taking via client-side state machine
+- Camera-assisted timing via MediaPipe face landmarker (in-browser, no video leaves the device)
+- Local ML pause-intent classifier (rule-based, ONNX/TFLite upgrade path)
+- Voice calibration page at `/voice-calibration`
+- Immersive fullscreen session mode
 
-- `/resources`
-- `/blog` and `/blog/[slug]`
-- `/articles` and `/articles/[slug]`
-- `/contact`
+### Adaptive pressure engine
 
-Contact/support system:
+- Response breakdown detector (filler words, confusion, avoidance, evidence markers)
+- Prosody extractor (RMS energy and pitch via librosa)
+- Conversation stance service (supportive → hostile continuum)
+- Pressure escalation service with `AiAction` flags
+- Cross-examination engine with persona-specific attack vectors
 
-- `POST /api/contact` stores messages in `contactMessages/{messageId}`.
-- `/admin/contact` lets admins review messages, filter by category/status, and mark requests as `new`, `in_review`, or `resolved`.
-- Future TODOs: Mailtrap/SendGrid sending, auto-reply email, support ticket IDs, and file attachments.
-- `/legal/terms`
-- `/legal/privacy`
+### Courses and intake
 
-Blog and article content lives under `frontend/content`. The UI uses abstract AI cognition hero visuals instead of stock-human imagery.
+- Custom course builder (5-step wizard: Goal / Situation / Arenas + Weak Spots / Commitment / Self-Assessment)
+- Pre-course intake wizard (`CourseIntakeWizard`) — 3-step animated form per practice type
+- Intake answers (`IntakeAnswers`) stored on enrollment payload and feed the session AI system prompt
+- Auto-suggested difficulty from confidence + frequency + pressure self-ratings
+- Course detail page with sessions calendar, skill tree, progress, and streak stats
+- Course completion screen — banner with share button (`navigator.share` or clipboard fallback)
+- Course templates (admin-managed), enrollment via `CourseEnrollmentModal`
+
+### Progress and longitudinal tracking
+
+- `/progress` — cross-session sparkline charts for 5 key metrics, strengths/gaps breakdown, session timeline, trend badges
+- Session history at `/history` with type and difficulty filters
+- 15-metric `PerformanceAnalytics` stored per session and visualised on reports and the progress page
+
+### Dashboard intelligence
+
+- Pre-event countdown card — reads `intakeAnswers.eventDate` from active courses; urgency-coloured countdown (red ≤ 3 days, amber ≤ 7, violet)
+- Coaching insights panel showing reasoning support usage
+- Daily practice schedule management and daily cognitive challenge
+
+### Billing — Paddle Billing v2
+
+- `openCheckout()` passes Firebase UID as Paddle `customData`
+- Backend webhook (`POST /api/payments/paddle/webhook`) handles:
+  - `subscription.created/activated/updated` → assigns plan via `admin_assign_plan()`
+  - `subscription.canceled` → downgrades to free, logs churn event
+  - `transaction.completed` → activates course package on `userEntitlements/{uid}`
+- Frontend auto-refreshes on `paddle:payment-complete` DOM event
+- `BillingSection` on settings page: plan badge, session usage bar, active packages, two-phase cancel flow
+- Cancel confirmation shows feature-loss list; "Keep my plan" is primary CTA
+
+### Admin console
+
+- Plans, entitlements, user management, assign-plan, overrides
+- Products, course packages, course templates, practice templates
+- Billing, telemetry labels, local signals, safety events, logs
+- **Revenue Register** (`/admin/revenue`) — real Paddle transaction log; KPI cards; filter by product type
+- **Churn Register** (`/admin/churn`) — all cancellations with Paddle reason + comment; breakdowns by plan and reason
+- **Webhook Errors** (`/admin/webhook-errors`) — failed webhook events with payload snapshot and open/resolved status
+- Finance page (estimates), contact message review
+
+### First-session onboarding
+
+`FirstSessionGuide` modal appears once on a user's first session (localStorage flag). Explains the 15 metrics, scoring model, and how to get the best out of practice.
+
+### SEO landing pages
+
+Static pages at `/for/[slug]` with unique titles, meta descriptions, Open Graph tags, benefits, FAQs, and CTAs linked to the matching practice setup flow.
+
+| Slug | Target keyword |
+| --- | --- |
+| `interview-practice` | AI job interview practice |
+| `salary-negotiation-practice` | Salary negotiation simulator |
+| `public-speaking-practice` | Public speaking AI practice |
+| `difficult-conversations-practice` | Difficult conversations practice |
+| `sales-pitch-practice` | AI sales pitch practice |
+
+### Content and legal
+
+- Resources hub, blog (`/blog/[slug]`), articles (`/articles/[slug]`), contact page
+- `/terms`, `/privacy`, `/refund-policy`, `/cookies`, `/subscription`, `/settings`
+- Three-column footer: Product / Support / Legal
+- Contact form → `POST /api/contact` → `contactMessages`; admin review at `/admin/contact`
 
 ## Admin setup
 
 1. Sign up normally in the app.
-2. In Firebase Console, open `Firestore > users/{uid}`.
-3. Set `role` to `admin`.
-4. Reopen the app and visit `/admin`.
+2. In Firebase Console open `Firestore > users/{uid}`.
+3. Set `role` to `"admin"`.
+4. Reload the app and visit `/admin`.
 
-The current admin protection uses frontend Firestore role checks for MVP speed. Before production, enforce `/api/admin/*` with Firebase Admin token verification and admin custom claims. See `docs/firestore-security.md`.
+Before production, enforce `/api/admin/*` routes with Firebase Admin token verification and custom claims.
 
-## Firestore design, rules, and indexes
+## Firestore collections
 
-The full Firestore collection design is documented in `docs/firestore-design.md`.
-The security posture is documented in `docs/firestore-security.md`, and the architecture-level data flow is documented in `docs/architecture.md`.
+| Group | Collections |
+| --- | --- |
+| Identity | `users`, `userEntitlements`, `userSessionCounters`, `plans`, `featureUsage` |
+| Practice | `sessions`, `sessions/{id}/messages`, `reports`, `analytics`, `reasoningTrees`, `historicalPerformance` |
+| Habits | `practiceSchedules`, `practiceHistory`, `notifications`, `achievements`, `userProgress` |
+| Courses | `courses`, `courseModules`, `courseSessions`, `courseProgress`, `courseTemplates`, `coursePackages` |
+| Billing | `billing_customers`, `billing_subscriptions`, `billing_checkouts` |
+| Revenue ops | `revenueTransactions`, `churnEvents`, `webhookErrors` |
+| Operations | `adminLogs`, `contactMessages`, `safetyEvents` |
+| Telemetry | `conversationTelemetry`, `sessionOutcomes`, `voiceProfiles`, `privacySettings`, `telemetryLabels` |
 
-Deploy Firestore security rules:
+Deploy rules and indexes:
 
 ```bash
 firebase deploy --only firestore:rules
-```
-
-Deploy Firestore indexes:
-
-```bash
 firebase deploy --only firestore:indexes
 ```
 
-Seed default plans and optional first admin:
+## Seeding
 
 ```bash
 cd backend
 source venv/bin/activate
-FIRST_ADMIN_EMAIL=you@example.com FIRST_ADMIN_UID=YOUR_FIREBASE_UID python scripts/seed_firestore.py
+FIRST_ADMIN_EMAIL=you@example.com FIRST_ADMIN_UID=YOUR_UID python scripts/seed_firestore.py
 ```
 
-Backend writes that use Firebase Admin SDK or Google service-account credentials bypass Firestore security rules. Never expose service account keys or Gemini/Paddle secrets to the frontend.
+## Paddle billing setup
+
+```env
+# backend/.env
+PADDLE_API_KEY=your_sandbox_key
+PADDLE_WEBHOOK_SECRET=your_webhook_secret
+```
+
+Configure the Paddle sandbox webhook to point at `POST /api/payments/paddle/webhook`. The Firebase UID is passed automatically via `customData`.
 
 ## AI cost controls
 
-The backend is configured to keep per-user Gemini costs low:
+- `GEMINI_ROLEPLAY_MODEL=gemini-2.5-flash-lite` — cheap live turns
+- `GEMINI_MODEL=gemini-2.5-flash` — detailed final reports
+- `AI_HISTORY_MESSAGES=8` — only recent context per call
+- `AI_ROLEPLAY_MAX_OUTPUT_TOKENS=180` — short spoken replies
+- `AI_REPORT_MAX_OUTPUT_TOKENS=900` — capped report generation
+- Reports generated once and reused on repeat requests
+- Mock fallback active when `GEMINI_API_KEY` is empty
 
-- `GEMINI_ROLEPLAY_MODEL=gemini-2.5-flash-lite` for cheap live turns.
-- `GEMINI_MODEL=gemini-2.5-flash` for more detailed final reports.
-- `AI_HISTORY_MESSAGES=8` so each roleplay call sends only recent context.
-- `AI_ROLEPLAY_MAX_OUTPUT_TOKENS=180` to keep spoken replies short.
-- `AI_REPORT_MAX_OUTPUT_TOKENS=900` to cap report generation.
-- Reports are generated once per session and reused if requested again.
-- Mock fallback remains available when `GEMINI_API_KEY` is empty.
+## Voice setup
 
-More cost strategies for production:
-
-- Limit free plan sessions and turns per month.
-- Cache/reuse generated reports.
-- Summarize older conversation turns instead of sending full history.
-- Use flash-lite for all live turns and reserve larger models for paid tiers.
-- Add rate limits per `userId` and IP.
-- Stop sessions automatically after 8 turns unless the user upgrades.
-- Stream short responses rather than long coaching essays during roleplay.
-
-## Credentials needed for production
-
-- Firebase client config for frontend authentication
-- Google Cloud service account or workload identity for Firestore
-- `GEMINI_API_KEY` for real Gemini responses and reports
-- `DEEPGRAM_API_KEY` in the backend only for real streaming speech-to-text
-- `CARTESIA_API_KEY` in the backend only for realistic AI text-to-speech
-- Paddle sandbox or production API keys and webhook secret
-
-Do not commit secrets. Keep backend secrets in local `.env`, Cloud Run environment variables, or Google Cloud Secret Manager. GitHub repository variables should only contain `NEXT_PUBLIC_*` frontend build-time values.
-
-## Deepgram voice mode
-
-Set this only in backend `.env`:
+### Deepgram (STT)
 
 ```env
-DEEPGRAM_API_KEY=your_deepgram_key
+# backend/.env
+DEEPGRAM_API_KEY=your_key
 ```
 
-Set this in frontend `.env.local`:
-
 ```env
+# frontend/.env.local
 NEXT_PUBLIC_API_WS_URL=ws://localhost:8000
 ```
 
-The frontend opens `ws://localhost:8000/ws/voice/deepgram` and streams microphone chunks to FastAPI. FastAPI connects to Deepgram with the backend-only `DEEPGRAM_API_KEY` and forwards transcript JSON back to the browser. The Deepgram key is never sent to frontend code. If the proxy or Deepgram connection fails, the app falls back to browser speech recognition/mock voice mode.
-
-## Cartesia AI voice mode
-
-Set this only in backend `.env`:
+### Cartesia (TTS)
 
 ```env
-CARTESIA_API_KEY=your_cartesia_key
+# backend/.env
+CARTESIA_API_KEY=your_key
 CARTESIA_VOICE_ID=db6b0ed5-d5d3-463d-ae85-518a07d3c2b4
 CARTESIA_MODEL_ID=sonic-3
 CARTESIA_VERSION=2026-03-01
 ```
 
-The frontend sends AI response text and the selected voice ID to FastAPI at `/api/voice/tts`. FastAPI calls Cartesia and returns browser-playable MP3 audio. The Cartesia key is never exposed to frontend code. If Cartesia fails or is missing, the app falls back to browser `speechSynthesis`, preferring a natural female voice when available.
-
-The session page includes:
-
-- AI voice selector, defaulting to Skylar, a feminine Cartesia voice.
-- Session duration selector for 5, 10, 15, or 30 minutes.
-- Automatic report generation when the selected time limit expires.
-
-## Scheduling and daily practice
-
-RehearseAI includes a daily cognitive training loop:
-
-- Dashboard routine creator for Daily, Twice Weekly, Three Times Weekly, Weekdays, and Custom schedules.
-- Browser reminder permission request and tab-based reminder scheduling for MVP.
-- Backend-ready reminder service for future Google Cloud Scheduler, email, and push workers.
-- Daily Cognitive Challenge on the dashboard.
-- `Start Random Challenge` quick start from `/practice`.
-- `Generate Random Practice Scenario` from `/practice/setup`.
-- Post-report routine creation to turn one session into a recurring habit.
-
-Firestore collections:
-
-- `practiceSchedules/{scheduleId}`
-- `practiceHistory/{historyId}`
-
-Backend endpoints:
-
-- `POST /api/practice-schedules`
-- `GET /api/users/{user_id}/practice-schedules`
-- `PATCH /api/practice-schedules/{schedule_id}`
-- `POST /api/scenarios/random`
-- `POST /api/scenarios/quick-start`
-- `GET /api/users/{user_id}/daily-challenge`
-
-## Legal, compliance, and subscriptions
-
-Starter compliance pages exist at:
-
-- `/terms`
-- `/privacy`
-- `/refund-policy`
-- `/cookies`
-- `/subscription`
-- `/settings`
-- `/contact`
-
-Subscription management is Paddle-ready:
-
-- `GET /api/subscription/current`
-- `POST /api/subscription/cancel`
-- `POST /api/subscription/reactivate`
-- `GET /api/subscription/portal-link`
-- `POST /api/account/delete-request`
-
-For MVP, Paddle customer portal links are placeholders until Paddle portal/customer sessions are configured. Cancellation writes `cancelAtPeriodEnd`, `cancelledAt`, and optional `cancellationReason` into `billing_subscriptions`. Account deletion is a soft-delete request that marks `users/{uid}.deletionRequestedAt`, `deletedAt`, and `status=disabled`.
+Both keys stay backend-only and are never sent to the browser.
 
 ## Multilingual practice
 
-Users can choose separate languages for roleplay and feedback:
+Separate language preferences for roleplay and feedback: English, Arabic, Urdu, Hindi, Spanish, French. Arabic and Urdu sessions use RTL layout. Stored as `preferredPracticeLanguage` and `preferredFeedbackLanguage` on `users/{uid}`.
 
-- English
-- Arabic
-- Urdu
-- Hindi
-- Spanish
-- French
+## Credentials needed for production
 
-Examples:
+- Firebase client config (frontend auth)
+- Google Cloud service account / workload identity (Firestore + backend)
+- `GEMINI_API_KEY`
+- `DEEPGRAM_API_KEY` (backend only)
+- `CARTESIA_API_KEY` (backend only)
+- Paddle production API key and webhook secret
 
-- Practice in English and receive feedback in Urdu.
-- Practice in Arabic and receive feedback in English.
-- Practice in Spanish and receive feedback in Spanish.
+Keep secrets in backend `.env`, Cloud Run environment variables, or Google Cloud Secret Manager. Frontend variables must be `NEXT_PUBLIC_*` only.
 
-Language preferences are stored on `users/{uid}` as:
+## GitHub branch conventions
 
-- `preferredPracticeLanguage`
-- `preferredFeedbackLanguage`
+Use short feature branches:
 
-Sessions and reports also store:
-
-- `practiceLanguage`
-- `feedbackLanguage`
-
-Gemini is instructed to conduct roleplay in the practice language and generate reports in the feedback language. Deepgram receives the selected language code through the backend WebSocket proxy and falls back to English when an unsupported language is requested. Browser speech fallback attempts to use the selected language voice. Arabic and Urdu sessions/reports use RTL direction.
+- `feature/session-flow`
+- `feature/firebase-auth`
+- `fix/report-parsing`

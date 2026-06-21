@@ -1,11 +1,59 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import uuid4
 
 from app.config import get_settings
 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _log_revenue(store, uid: str, event_type: str, product_type: str, amount: float,
+                 currency: str = "USD", plan_id: str = "", plan_name: str = "",
+                 package_id: str = "", package_title: str = "",
+                 paddle_transaction_id: str = "", paddle_subscription_id: str = "",
+                 paddle_customer_id: str = "", price_id: str = "", status: str = "paid") -> None:
+    if not store.client:
+        return
+    try:
+        record = {
+            "id": str(uuid4()),
+            "uid": uid,
+            "eventType": event_type,
+            "productType": product_type,
+            "amount": amount,
+            "currency": currency,
+            "planId": plan_id,
+            "planName": plan_name,
+            "packageId": package_id,
+            "packageTitle": package_title,
+            "paddleTransactionId": paddle_transaction_id,
+            "paddleSubscriptionId": paddle_subscription_id,
+            "paddleCustomerId": paddle_customer_id,
+            "priceId": price_id,
+            "status": status,
+            "createdAt": _utc_now(),
+        }
+        store.client.collection("revenueTransactions").document(record["id"]).set(record)
+    except Exception:
+        pass
+
+
+def _log_webhook_error(store, event_type: str, uid: str, error: str, payload: dict) -> None:
+    if not store.client:
+        return
+    try:
+        store.client.collection("webhookErrors").document(str(uuid4())).set({
+            "eventType": event_type,
+            "uid": uid,
+            "error": error,
+            "payloadSnapshot": str(payload)[:2000],
+            "resolved": False,
+            "createdAt": _utc_now(),
+        })
+    except Exception:
+        pass
 
 
 class PaddleService:
@@ -65,12 +113,15 @@ class PaddleService:
         paddle_sub_id = data.get("id", "")
 
         if not uid:
+            _log_webhook_error(store, event_type, "", "no uid in custom_data", payload)
             return {"received": True, "warning": "no uid in custom_data — cannot sync entitlements", "event": event_type}
 
         # ── Subscription activated / updated ────────────────────────────────
         if event_type in ("subscription.created", "subscription.activated", "subscription.updated"):
             plan = await self._plan_by_price_id(store, price_id)
             plan_id = plan.get("planId", "pro") if plan else "pro"
+            plan_name = plan.get("name", plan_id.title()) if plan else plan_id.title()
+            price_monthly = float(plan.get("priceMonthly", 0)) if plan else 0.0
             await store.admin_assign_plan(uid, {
                 "planId": plan_id,
                 "status": "active",
@@ -79,10 +130,25 @@ class PaddleService:
                 "paddleCustomerId": paddle_customer_id,
                 "overrides": {},
             })
+            _log_revenue(store, uid, event_type, "subscription", price_monthly, "USD",
+                         plan_id=plan_id, plan_name=plan_name,
+                         paddle_subscription_id=paddle_sub_id,
+                         paddle_customer_id=paddle_customer_id, price_id=price_id)
             return {"received": True, "event": event_type, "uid": uid, "planId": plan_id}
 
         # ── Subscription canceled ────────────────────────────────────────────
         if event_type == "subscription.canceled":
+            # Read current entitlements to capture plan name for churn log
+            ent = {}
+            if store.client:
+                try:
+                    doc_snap = store.client.collection("userEntitlements").document(uid).get()
+                    if doc_snap.exists:
+                        ent = doc_snap.to_dict() or {}
+                except Exception:
+                    pass
+            canceled_plan = ent.get("planId", "unknown")
+            canceled_plan_name = ent.get("planName", canceled_plan.title())
             await store.admin_assign_plan(uid, {
                 "planId": "free",
                 "status": "canceled",
@@ -91,6 +157,28 @@ class PaddleService:
                 "paddleCustomerId": paddle_customer_id,
                 "overrides": {},
             })
+            # Revenue log (negative = churn)
+            _log_revenue(store, uid, event_type, "subscription", 0.0, "USD",
+                         plan_id=canceled_plan, plan_name=canceled_plan_name,
+                         paddle_subscription_id=paddle_sub_id,
+                         paddle_customer_id=paddle_customer_id, price_id=price_id,
+                         status="canceled")
+            # Churn register
+            if store.client:
+                try:
+                    store.client.collection("churnEvents").document(str(uuid4())).set({
+                        "uid": uid,
+                        "planId": canceled_plan,
+                        "planName": canceled_plan_name,
+                        "paddleSubscriptionId": paddle_sub_id,
+                        "paddleCustomerId": paddle_customer_id,
+                        "reason": data.get("cancellation_details", {}).get("reason", ""),
+                        "comment": data.get("cancellation_details", {}).get("comment", ""),
+                        "effectiveAt": data.get("canceled_at", _utc_now()),
+                        "createdAt": _utc_now(),
+                    })
+                except Exception:
+                    pass
             return {"received": True, "event": event_type, "uid": uid, "planId": "free"}
 
         # ── One-time purchase (course package) ───────────────────────────────
@@ -118,8 +206,15 @@ class PaddleService:
                         {"purchases": ArrayUnion([purchase]), "updatedAt": _utc_now()},
                         merge=True,
                     )
+                    pkg_price = float(package.get("price", 0))
+                    _log_revenue(store, uid, event_type, "course_package", pkg_price, "USD",
+                                 package_id=package.get("packageId", ""),
+                                 package_title=package.get("title", ""),
+                                 paddle_transaction_id=data.get("id", ""),
+                                 paddle_customer_id=paddle_customer_id, price_id=price_id)
                     return {"received": True, "event": event_type, "uid": uid, "packageId": package.get("packageId")}
                 except Exception as exc:
+                    _log_webhook_error(store, event_type, uid, str(exc), payload)
                     return {"received": True, "event": event_type, "error": str(exc)}
             return {"received": True, "event": event_type, "uid": uid, "warning": "package not found for price_id"}
 

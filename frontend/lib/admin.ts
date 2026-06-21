@@ -6,6 +6,7 @@ import {
   getDoc,
   getDocs,
   limit,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -956,4 +957,76 @@ export async function saveCoursePackage(pkg: CoursePackage): Promise<void> {
 export async function seedDefaultCoursePackages(): Promise<void> {
   const db = dbOrThrow();
   await Promise.all(defaultCoursePackages.map((pkg) => setDoc(doc(db, "coursePackages", pkg.packageId), { ...pkg, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true })));
+}
+
+// ── Revenue transactions ───────────────────────────────────────────────────
+
+export type RevenueTransaction = {
+  id: string;
+  uid: string;
+  eventType: string;
+  productType: "subscription" | "course_package";
+  amount: number;
+  currency: string;
+  planId: string;
+  planName: string;
+  packageId: string;
+  packageTitle: string;
+  paddleTransactionId: string;
+  paddleSubscriptionId: string;
+  paddleCustomerId: string;
+  priceId: string;
+  status: "paid" | "canceled" | "refunded";
+  createdAt: string;
+};
+
+export async function getRevenueTransactions(limitCount = 200): Promise<RevenueTransaction[]> {
+  const db = getFirebaseDb();
+  if (!db) return [];
+  const snap = await getDocs(query(collection(db, "revenueTransactions"), orderBy("createdAt", "desc"), limit(limitCount)));
+  return snap.docs.map((d) => d.data() as RevenueTransaction);
+}
+
+// ── Churn events ───────────────────────────────────────────────────────────
+
+export type ChurnEvent = {
+  uid: string;
+  planId: string;
+  planName: string;
+  paddleSubscriptionId: string;
+  paddleCustomerId: string;
+  reason: string;
+  comment: string;
+  effectiveAt: string;
+  createdAt: string;
+};
+
+export async function getChurnEvents(limitCount = 200): Promise<ChurnEvent[]> {
+  const db = getFirebaseDb();
+  if (!db) return [];
+  const snap = await getDocs(query(collection(db, "churnEvents"), orderBy("createdAt", "desc"), limit(limitCount)));
+  return snap.docs.map((d) => d.data() as ChurnEvent);
+}
+
+// ── Webhook errors ─────────────────────────────────────────────────────────
+
+export type WebhookError = {
+  eventType: string;
+  uid: string;
+  error: string;
+  payloadSnapshot: string;
+  resolved: boolean;
+  createdAt: string;
+};
+
+export async function getWebhookErrors(limitCount = 100): Promise<WebhookError[]> {
+  const db = getFirebaseDb();
+  if (!db) return [];
+  const snap = await getDocs(query(collection(db, "webhookErrors"), orderBy("createdAt", "desc"), limit(limitCount)));
+  return snap.docs.map((d) => d.data() as WebhookError);
+}
+
+export async function resolveWebhookError(errId: string): Promise<void> {
+  const db = dbOrThrow();
+  await updateDoc(doc(db, "webhookErrors", errId), { resolved: true });
 }

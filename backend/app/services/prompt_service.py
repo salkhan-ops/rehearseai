@@ -15,6 +15,70 @@ LANGUAGE_NAMES = {
 }
 
 
+def build_reasoning_chain_block(session: Session, history: list[Message], coordination_context: Optional[dict] = None) -> str:
+    """Returns a mode-specific reasoning chain instruction for Brutal and Nerve only. Empty string otherwise."""
+    mode = session.difficulty
+    if mode not in {"Brutal", "Nerve"}:
+        return ""
+
+    # Pull the last user turn for context-specific instructions
+    user_turns = [m.content for m in history if m.role == "user"]
+    last_user = user_turns[-1] if user_turns else ""
+    word_count = len(last_user.split())
+    has_evidence = any(w in last_user.lower() for w in ["because", "data", "example", "measured", "study", "result", "evidence", "metric", "showed", "found"])
+    has_evasion = any(w in last_user.lower() for w in ["it depends", "hard to say", "not sure", "i guess", "maybe", "probably", "generally"])
+    overlong = word_count > 80
+
+    # Derive specific attack hints from what the user just said
+    attack_note = ""
+    if has_evasion:
+        attack_note = "The user is currently evading. Call it out sharply in the first sentence before constructing your chain."
+    elif overlong and not has_evidence:
+        attack_note = "The user is over-explaining without evidence. Your layer-1 attack should name the specific claim buried in the verbosity."
+    elif has_evidence:
+        attack_note = "The user cited evidence. Your layer-1 attack should challenge the quality, scope, or sourcing of that evidence specifically — not reject it generically."
+    else:
+        attack_note = "The user made an unsupported assertion. Your layer-1 attack should name the exact claim and the missing proof type."
+
+    nerve_ctx = ""
+    if mode == "Nerve" and coordination_context:
+        nerve_ctx_raw = coordination_context.get("nerve") or {}
+        if isinstance(nerve_ctx_raw, dict):
+            attack_surface = nerve_ctx_raw.get("attackSurface") or []
+            weakness = nerve_ctx_raw.get("weaknessExposed") or "unknown"
+            if attack_surface:
+                nerve_ctx = f"\nActive attack surface for this turn: {', '.join(str(a) for a in attack_surface[:3])}.\nExposed weakness: {weakness}.\nPick the attack vector most exposed by the user's last answer."
+
+    if mode == "Brutal":
+        return f"""
+REASONING CHAIN — BRUTAL MODE (2 layers, mandatory):
+Do NOT produce a single direct question. You must construct a two-step reasoning attack in natural prose.
+
+  Layer 1 (surface): Identify the weakest element in the user's last answer — a vague term, a missing metric, an unsupported causal claim, or a circular premise. Name it precisely in one sentence.
+  Layer 2 (implication): From that weakness, expose what breaks in the broader argument. Does the conclusion become unsupported? Does a stronger counterexample emerge? Does a hidden dependency get exposed? State this in one sentence.
+  Closing question: One sharp question that forces the user to defend both the specific weakness and its implication simultaneously. Do not accept a partial answer.
+
+Attack note: {attack_note}
+Total response: 2–3 sentences maximum. No bullet points. No softening. Professionally adversarial throughout.
+"""
+
+    if mode == "Nerve":
+        return f"""
+REASONING CHAIN — NERVE MODE (3 layers, maximum depth, mandatory):
+You are cornering the user through a three-layer logical trap. Every layer must build on the one before. Do NOT ask three separate questions. Build toward one devastating closing question.
+
+  Layer 1 (precision attack): Isolate the single claim doing the most work in the user's answer. Attack its exact definition, scope, measurement basis, or sourcing. Be surgical, not general.
+  Layer 2 (assumption attack): Name the unstated assumption that claim depends on. The user has not defended this assumption — they may not even know it is there. Surface it explicitly in one sentence.
+  Layer 3 (meta-attack): Show that even if the user fixed Layer 2, the conclusion still fails. There is a second-order implication, an alternative causal explanation, a scope error, or a systemic risk they have not addressed. One sentence.
+  Closing question: A single question that cannot be answered without addressing all three layers at once. The user should feel the walls closing.
+
+Attack note: {attack_note}{nerve_ctx}
+Total response: 3–4 sentences maximum. No bullet points. No coaching. If the user evades, open with "Evasion." then restate the sharpest unanswered layer as a question.
+"""
+
+    return ""
+
+
 def narrate_conversation_state(conversation_state: Optional[dict]) -> str:
     if not conversation_state:
         return "[CONVERSATION STATE]\nNo fused multimodal state available."
@@ -123,13 +187,22 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
 - nerve cross-examination: {coordination_context.get("nerve")}
 """
     panel_block = build_panel_block(session.environmentMode) if is_panel_mode(session.environmentMode) else ""
-    reply_instruction = (
-        "Follow the Panel turn rule above. Prefix every line with the speaker's name. Keep total response under 60 words."
-        if panel_block
-        else f"Reply in character in 1-3 sentences in {practice_language}. Ask one pointed follow-up or objection."
-    )
+    reasoning_chain_block = build_reasoning_chain_block(session, history, coordination_context)
+    if panel_block:
+        reply_instruction = "Follow the Panel turn rule above. Prefix every line with the speaker's name. Keep total response under 60 words."
+    elif reasoning_chain_block:
+        reply_instruction = f"Follow the REASONING CHAIN above exactly. Reply in {practice_language}."
+    else:
+        reply_instruction = f"Reply in character in 1-3 sentences in {practice_language}. Ask one pointed follow-up or objection."
     return f"""
 Run a Cognitive Performance Training pressure simulation. Reply only as the counterpart, not as a coach.
+
+HARD GUARDRAILS — enforce these before writing any response:
+1. SCOPE LOCK: You are playing the role of {PERSONAS.get(session.practiceType, "a realistic counterpart").split(".")[0].lower().replace("act as a ", "")} in a {session.practiceType} scenario about "{session.topic}". That is the only topic you may engage with. You are not a teacher, tutor, AI assistant, search engine, or knowledge base.
+2. OFF-TOPIC DEFLECTION: If the user asks you to explain any subject unrelated to the practice scenario — mathematics, science, history, geography, coding, algorithms, literature, or anything not directly relevant to "{session.topic}" — do NOT comply. Respond in one sentence in character to redirect. Examples: "That's outside what we're here to discuss — let's get back to {session.topic}." or "I'm not here to teach {session.topic.split()[0] if session.topic else "that"} — what's your answer to my question?" Do not explain why you are declining. Just redirect and immediately ask a follow-up question on topic.
+3. RESPONSE LENGTH: Keep every reply to 1–3 sentences maximum. Never write lists, bullet points, multi-paragraph answers, or extended explanations. If a follow-up warrants more, pick the single sharpest point and ask it as a question. This applies even if the user explicitly asks for a long explanation.
+4. CROSS-QUESTIONING LIMIT: If the user challenges you with a factual question (e.g. "but what exactly is X?" or "explain how Y works"), answer only what is strictly required to continue the scenario — one sentence at most — then immediately redirect back with a pointed question. Do not get drawn into an explanation loop.
+5. KNOWLEDGE DUMPS FORBIDDEN: Never provide comprehensive explanations of any subject, framework, technology, concept, or field — even if the user insists. Respond with what your character would naturally say, then steer back to the practice topic.
 
 Persona:
 {persona}
@@ -159,7 +232,7 @@ Adaptive behavior signals:
 
 Conversation coordination instructions:
 {coordination_block}
-
+{reasoning_chain_block}
 Apply coordination before writing the response:
 - Treat conversationControl as the governing control layer for this turn.
 - Use the selected stance: supportive, curious, neutral, skeptical, opposing, or hostile. Hostile means professionally adversarial, never abusive.
@@ -201,6 +274,11 @@ def build_opening_prompt(session: Session) -> str:
     )
     return f"""
 Start a Cognitive Performance Training pressure simulation. You are the counterpart, not the coach.
+
+HARD GUARDRAILS:
+- You are strictly playing a {session.practiceType} counterpart discussing "{session.topic}". You are not a teacher, tutor, or knowledge assistant.
+- If at any point the user asks you to explain unrelated topics, decline in one sentence in character and redirect to the practice scenario.
+- Keep all replies to 1–3 sentences. No lists. No lectures. Ask one focused follow-up question.
 
 Persona:
 {persona}

@@ -301,6 +301,14 @@ export type DailyChallenge = {
 
 export type CourseSkillLevel = "beginner" | "intermediate" | "advanced";
 
+export type IntakeAnswers = {
+  situation?: string;
+  eventDate?: string;
+  weakSpots?: string[];
+  confidenceLevel?: number;
+  practiceFrequency?: number;
+};
+
 export type CourseGeneratePayload = {
   userId: string;
   goal: string;
@@ -313,6 +321,7 @@ export type CourseGeneratePayload = {
   difficulty: Difficulty;
   practiceLanguage?: string;
   feedbackLanguage?: string;
+  intakeAnswers?: IntakeAnswers;
 };
 
 export type Course = {
@@ -414,6 +423,7 @@ export type CourseTemplateEnrollmentPayload = {
   difficulty: Difficulty;
   practiceLanguage?: string;
   feedbackLanguage?: string;
+  intakeAnswers?: IntakeAnswers;
 };
 
 export type NotificationItem = {

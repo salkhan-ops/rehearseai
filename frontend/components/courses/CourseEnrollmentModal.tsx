@@ -7,23 +7,44 @@ import { enrollCourseTemplate } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { categoryToPracticeType, getCourseConfig } from "@/lib/courseConfig";
 import { courseHref } from "@/lib/routes";
-import type { CourseTemplate, Difficulty } from "@/lib/types";
+import type { CourseTemplate, Difficulty, IntakeAnswers } from "@/lib/types";
 import { difficulties } from "@/lib/types";
+import { CourseIntakeWizard } from "./CourseIntakeWizard";
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function CourseEnrollmentModal({ template, onClose }: { template: CourseTemplate | null; onClose: () => void }) {
   const router = useRouter();
   const { getToken, profile, userId } = useAuth();
+
+  // Two-phase flow: intake → schedule
+  const [phase, setPhase] = useState<"intake" | "schedule">("intake");
+  const [intakeAnswers, setIntakeAnswers] = useState<IntakeAnswers>({});
+
+  // Schedule fields
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [days, setDays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [time, setTime] = useState("20:00");
   const [reminder, setReminder] = useState(15);
   const [difficulty, setDifficulty] = useState<Difficulty>("Intermediate");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
   if (!template) return null;
-  const selectedTemplate = template;
+  const resolvedTemplate = template;
+
+  const practiceType = categoryToPracticeType[resolvedTemplate.category];
+
+  function handleIntakeComplete(answers: IntakeAnswers) {
+    setIntakeAnswers(answers);
+    // Auto-suggest difficulty from self-rating
+    const avg = ((answers.confidenceLevel ?? 3) + (answers.practiceFrequency ?? 2)) / 2;
+    if (avg <= 2) setDifficulty("Beginner");
+    else if (avg <= 3.5) setDifficulty("Intermediate");
+    else setDifficulty("Advanced");
+    setPhase("schedule");
+  }
 
   function toggleDay(day: number) {
     setDays((current) => current.includes(day) ? current.filter((item) => item !== day) : [...current, day].sort());
@@ -39,7 +60,7 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
       const token = await getToken();
       const bundle = await enrollCourseTemplate({
         userId,
-        templateId: selectedTemplate.id,
+        templateId: resolvedTemplate.id,
         preferredStartDate: startDate,
         preferredDays: days,
         preferredTime: time,
@@ -48,6 +69,7 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
         difficulty,
         practiceLanguage: profile?.preferredPracticeLanguage || "en",
         feedbackLanguage: profile?.preferredFeedbackLanguage || "en",
+        intakeAnswers: Object.keys(intakeAnswers).length ? intakeAnswers : undefined,
       }, token);
       router.push(courseHref(bundle.course.id));
     } catch (caught) {
@@ -60,57 +82,147 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4 backdrop-blur-xl">
       <div className="w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-2xl ring-1 ring-slate-200 dark:bg-[#101827] dark:ring-white/10">
+
+        {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.16em] text-violet-700 dark:text-cyan-100/60">Enroll in training path</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-950 dark:text-white">{template.title}</h2>
+            {phase === "intake" ? (
+              <>
+                <p className="text-sm font-bold uppercase tracking-[0.16em] text-violet-700 dark:text-cyan-100/60">Course intake</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-950 dark:text-white">{resolvedTemplate.title}</h2>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-bold uppercase tracking-[0.16em] text-violet-700 dark:text-cyan-100/60">Set your schedule</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-950 dark:text-white">{resolvedTemplate.title}</h2>
+              </>
+            )}
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="grid size-10 place-items-center rounded-full bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white"><X size={18} /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="grid size-10 place-items-center rounded-full bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white">
+            <X size={18} />
+          </button>
         </div>
-        <div className="mt-6 grid gap-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-white/70">Start date<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white" /></label>
-            <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-white/70">Practice time<input type="time" value={time} onChange={(event) => setTime(event.target.value)} className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white" /></label>
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-slate-700 dark:text-white/70">Practice days</div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {weekDays.map((label, index) => <button key={label} onClick={() => toggleDay(index)} className={`rounded-full px-4 py-2 text-sm font-bold ${days.includes(index) ? "bg-[#6200a8] text-white" : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white/60"}`}>{label}</button>)}
+
+        <div className="mt-6">
+          {/* ── Phase 1: Intake wizard ─────────────────────────────────────── */}
+          {phase === "intake" && practiceType && (
+            <CourseIntakeWizard
+              practiceType={practiceType}
+              onComplete={handleIntakeComplete}
+              onSkip={() => setPhase("schedule")}
+            />
+          )}
+
+          {/* Fallback: no practice type mapped — skip straight to schedule */}
+          {phase === "intake" && !practiceType && (
+            <div className="py-4">
+              <p className="font-medium text-slate-500 dark:text-white/50">No intake questions for this course type.</p>
+              <button type="button" onClick={() => setPhase("schedule")} className="mt-4 rounded-2xl bg-[#6200a8] px-5 py-3 font-semibold text-white">
+                Set schedule →
+              </button>
             </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-white/70">Reminder<select value={reminder} onChange={(event) => setReminder(Number(event.target.value))} className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white"><option value={0}>At scheduled time</option><option value={15}>15 min before</option><option value={30}>30 min before</option><option value={60}>60 min before</option></select></label>
-            <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-white/70">Difficulty<select value={difficulty} onChange={(event) => setDifficulty(event.target.value as Difficulty)} className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white">{difficulties.map((item) => <option key={item}>{item}</option>)}</select></label>
-          </div>
+          )}
+
+          {/* ── Phase 2: Schedule + confirm ───────────────────────────────── */}
+          {phase === "schedule" && (
+            <div className="grid gap-4">
+              {/* Intake summary banner */}
+              {intakeAnswers.situation && (
+                <div className="rounded-2xl bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-700 ring-1 ring-violet-100 dark:bg-violet-400/10 dark:text-violet-300 dark:ring-violet-400/20">
+                  Your AI will know: <span className="font-medium">{intakeAnswers.situation}</span>
+                  {intakeAnswers.weakSpots && intakeAnswers.weakSpots.length > 0 && (
+                    <span className="ml-1 text-violet-500 dark:text-violet-400/70">
+                      · focusing on {intakeAnswers.weakSpots.slice(0, 2).join(", ")}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-white/70">
+                  Start date
+                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white" />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-white/70">
+                  Practice time
+                  <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white" />
+                </label>
+              </div>
+
+              <div>
+                <div className="text-sm font-semibold text-slate-700 dark:text-white/70">Practice days</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {weekDays.map((label, index) => (
+                    <button key={label} type="button" onClick={() => toggleDay(index)} className={`rounded-full px-4 py-2 text-sm font-bold ${days.includes(index) ? "bg-[#6200a8] text-white" : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white/60"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-white/70">
+                  Reminder
+                  <select value={reminder} onChange={(e) => setReminder(Number(e.target.value))} className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white">
+                    <option value={0}>At scheduled time</option>
+                    <option value={15}>15 min before</option>
+                    <option value={30}>30 min before</option>
+                    <option value={60}>60 min before</option>
+                  </select>
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-white/70">
+                  Difficulty
+                  <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty)} className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white">
+                    {difficulties.map((item) => <option key={item}>{item}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              {/* Session preview */}
+              {(() => {
+                if (!practiceType) return null;
+                const cfg = getCourseConfig(practiceType);
+                return (
+                  <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+                    <div className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400 dark:text-white/35">What to expect each session</div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
+                      <Clock size={14} className="shrink-0 text-[#6200a8]" />
+                      {cfg.defaultDuration} min default · {cfg.minDuration}–{cfg.maxDuration} min range
+                    </div>
+                    <p className="mt-2 text-sm font-medium leading-6 text-slate-600 dark:text-white/60">{cfg.aiPersona}</p>
+                    <div className="mt-3 flex items-start gap-2 rounded-2xl bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-800 ring-1 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-200 dark:ring-emerald-400/20">
+                      <Check size={14} className="mt-0.5 shrink-0" />
+                      {cfg.successLooks}
+                    </div>
+                    <div className="mt-3 rounded-2xl bg-white px-3 py-2.5 text-sm font-medium leading-6 text-slate-600 ring-1 ring-slate-200 dark:bg-white/5 dark:text-white/55 dark:ring-white/10">
+                      <span className="font-semibold text-slate-800 dark:text-white">Pressure arc:</span>{" "}
+                      <span className="text-slate-600 dark:text-white/60">{cfg.pressureArc}</span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-slate-400 dark:text-white/35">
+                      <BookOpen size={12} /> A personalised briefing card is shown before each session starts.
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {error && <div className="rounded-2xl bg-rose-50 p-4 font-semibold text-rose-700 dark:bg-rose-400/10 dark:text-rose-100">{error}</div>}
+
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => setPhase("intake")} className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white/60">
+                  ← Edit intake
+                </button>
+                <button
+                  type="button"
+                  onClick={enroll}
+                  disabled={loading || days.length === 0}
+                  className="flex-1 rounded-2xl bg-[#6200a8] px-5 py-4 text-lg font-bold text-white shadow-[0_18px_44px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 disabled:opacity-60"
+                >
+                  {loading ? "Creating calendar..." : "Start this training program"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-        {/* What to expect each session */}
-        {(() => {
-          const practiceType = categoryToPracticeType[template.category];
-          if (!practiceType) return null;
-          const cfg = getCourseConfig(practiceType);
-          return (
-            <div className="mt-5 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.04]">
-              <div className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400 dark:text-white/35">What to expect each session</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
-                <Clock size={14} className="shrink-0 text-[#6200a8]" />
-                {cfg.defaultDuration} min default · {cfg.minDuration}–{cfg.maxDuration} min range
-              </div>
-              <p className="mt-2 text-sm font-medium leading-6 text-slate-600 dark:text-white/60">{cfg.aiPersona}</p>
-              <div className="mt-3 flex items-start gap-2 rounded-2xl bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-800 ring-1 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-200 dark:ring-emerald-400/20">
-                <Check size={14} className="mt-0.5 shrink-0" />
-                {cfg.successLooks}
-              </div>
-              <div className="mt-3 rounded-2xl bg-white px-3 py-2.5 text-sm font-medium leading-6 text-slate-600 ring-1 ring-slate-200 dark:bg-white/5 dark:text-white/55 dark:ring-white/10">
-                <span className="font-semibold text-slate-800 dark:text-white">Pressure arc:</span> <span className="text-slate-600 dark:text-white/60">{cfg.pressureArc}</span>
-              </div>
-              <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-slate-400 dark:text-white/35">
-                <BookOpen size={12} /> A personalised briefing card is shown before each session starts.
-              </div>
-            </div>
-          );
-        })()}
-        {error && <div className="mt-4 rounded-2xl bg-rose-50 p-4 font-semibold text-rose-700 dark:bg-rose-400/10 dark:text-rose-100">{error}</div>}
-        <button onClick={enroll} disabled={loading || days.length === 0} className="mt-6 w-full rounded-2xl bg-[#6200a8] px-5 py-4 text-lg font-bold text-white disabled:opacity-60">{loading ? "Creating calendar..." : "Start this training program"}</button>
       </div>
     </div>
   );

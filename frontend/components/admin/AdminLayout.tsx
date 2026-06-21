@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, BookOpen, Box, Camera, CreditCard, FileText, LayoutDashboard, ListChecks, LogOut, Package, RefreshCw, Settings, ShieldCheck, Users } from "lucide-react";
+import { AlertTriangle, BarChart2, BookOpen, Box, Camera, CreditCard, DollarSign, FileText, LayoutDashboard, ListChecks, LogOut, Package, RefreshCw, Settings, ShieldCheck, TrendingDown, Users } from "lucide-react";
 import { AdminRoute } from "./AdminRoute";
 import { useAuth } from "@/lib/auth";
 
@@ -45,6 +45,9 @@ const navGroups: NavGroup[] = [
     label: "Billing & Ops",
     items: [
       ["/admin/billing", "Billing", CreditCard],
+      ["/admin/revenue", "Revenue Register", DollarSign],
+      ["/admin/churn", "Churn Register", TrendingDown],
+      ["/admin/webhook-errors", "Webhook Errors", AlertTriangle],
       ["/admin/logs", "Logs", FileText],
       ["/admin/local-signals", "Local Signals", Camera],
       ["/admin/settings", "Settings", Settings],

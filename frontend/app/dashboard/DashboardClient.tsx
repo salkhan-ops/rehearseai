@@ -8,6 +8,7 @@ import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animatio
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Nav } from "@/components/Nav";
 import { PlanUsageCard } from "@/components/billing/PlanUsageCard";
+import { EventCountdownCard } from "@/components/dashboard/EventCountdownCard";
 import { DailyChallengeCard } from "@/components/scheduling/DailyChallengeCard";
 import { PracticeRoutinePanel } from "@/components/scheduling/PracticeRoutinePanel";
 import { generateReport, getDailyChallenge, getPracticeHistory, getPracticeSchedules, getUserCourses, getUserHintSummary, getUserSessions, updatePracticeSchedule } from "@/lib/api";
@@ -146,6 +147,7 @@ function DashboardContent() {
           {/* ── Today tab ── */}
           {activeTab === "today" && (
             <div className="mt-6 space-y-6">
+              <EventCountdownCard />
               <PlanUsageCard />
               <div className="grid gap-4 lg:grid-cols-2">
                 <DailyChallengeCard challenge={challenge} />

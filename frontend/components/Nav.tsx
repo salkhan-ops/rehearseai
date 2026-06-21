@@ -14,6 +14,8 @@ const trainLinks = [
 ];
 
 const secondaryLinks = [
+  { href: "/progress", label: "My Progress" },
+  { href: "/history", label: "Session History" },
   { href: "/resources", label: "Resources" },
   { href: "/blog", label: "Blog" },
   { href: "/settings", label: "Settings" },
@@ -27,7 +29,7 @@ export function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const trainRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
-  const { loading, logout, user } = useAuth();
+  const { loading, logout, user, profile } = useAuth();
 
   useEffect(() => {
     const stored = window.localStorage.getItem("theme");
@@ -142,9 +144,20 @@ export function Nav() {
           {/* Desktop auth */}
           <div className="hidden md:flex items-center gap-2">
             {user ? (
-              <button type="button" onClick={logout} className="inline-flex items-center gap-2 rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
-                <LogOut size={16} /> Sign out
-              </button>
+              <div className="flex items-center gap-2">
+                {/* User identity pill */}
+                <div className="flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/15">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white">
+                    {(profile?.displayName || user.displayName || user.email || "U").charAt(0).toUpperCase()}
+                  </span>
+                  <span className="max-w-[140px] truncate text-sm font-semibold text-slate-800 dark:text-white">
+                    {profile?.displayName || user.displayName || user.email?.split("@")[0] || "Account"}
+                  </span>
+                </div>
+                <button type="button" onClick={logout} className="inline-flex items-center gap-2 rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
+                  <LogOut size={16} /> Sign out
+                </button>
+              </div>
             ) : (
               <Link href="/?auth=signin" onClick={() => openAuth("signin")} className="rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
                 {loading ? "..." : "Sign in"}
@@ -215,9 +228,19 @@ export function Nav() {
             {/* Auth footer */}
             <div className="border-t border-slate-100 px-4 py-4 dark:border-white/10">
               {user ? (
-                <button type="button" onClick={() => { logout(); setMobileOpen(false); }} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 dark:bg-white/10 dark:text-white">
-                  <LogOut size={16} /> Sign out
-                </button>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 ring-1 ring-slate-200 dark:bg-white/8 dark:ring-white/10">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white">
+                      {(profile?.displayName || user.displayName || user.email || "U").charAt(0).toUpperCase()}
+                    </span>
+                    <span className="truncate text-sm font-semibold text-slate-800 dark:text-white">
+                      {profile?.displayName || user.displayName || user.email?.split("@")[0] || "Account"}
+                    </span>
+                  </div>
+                  <button type="button" onClick={() => { logout(); setMobileOpen(false); }} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 dark:bg-white/10 dark:text-white">
+                    <LogOut size={16} /> Sign out
+                  </button>
+                </div>
               ) : (
                 <div className="grid gap-2">
                   <Link href="/?auth=signup" onClick={() => openAuth("signup")} className="block rounded-2xl bg-[#6200a8] px-5 py-3 text-center text-sm font-semibold text-white">

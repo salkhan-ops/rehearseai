@@ -8,6 +8,7 @@ import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
 import { AnimatedMessage, AnimatedPage, TypingIndicator } from "@/components/animations";
 import { BeginnerBriefing } from "@/components/learning/BeginnerBriefing";
+import { FirstSessionGuide } from "@/components/session/FirstSessionGuide";
 import { CoachPanel } from "@/components/learning/CoachPanel";
 import { ConversationMap } from "@/components/learning/ConversationMap";
 import { FloatingHint } from "@/components/learning/FloatingHint";
@@ -1476,6 +1477,7 @@ export default function SessionPage() {
       onStart={startNaturalConversation}
     />
     <main className={`relative min-h-screen overflow-hidden bg-[#07111f] text-white transition-colors ${hintVisible && latestHint ? "bg-[#0b182b]" : ""}`} dir={isRtlLanguage(session?.practiceLanguage) ? "rtl" : "ltr"}>
+      <FirstSessionGuide />
       <AmbientField mode={orbMode} />
       {beginnerMode && <FloatingHint hint={hintVisible ? latestHint : null} onExpand={() => {
         if (latestHint) {

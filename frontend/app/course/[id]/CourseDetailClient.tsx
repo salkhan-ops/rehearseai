@@ -2,7 +2,7 @@
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Bell, CalendarDays, Clock, Flame, Target, TrendingUp, type LucideIcon } from "lucide-react";
+import { Award, Bell, CalendarDays, Clock, Flame, PartyPopper, Share2, Target, TrendingUp, type LucideIcon } from "lucide-react";
 import { AnimatedCard, AnimatedPage } from "@/components/animations";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { CourseCalendar } from "@/components/courses/CourseCalendar";
@@ -35,8 +35,16 @@ export default function CourseDetailPage() {
       .catch(() => setError("Could not load this course."));
   }, [getToken, id]);
 
+  const [shareCopied, setShareCopied] = useState(false);
   const nextMission = useMemo(() => bundle?.sessions.find((session) => !session.completed) || bundle?.sessions[0], [bundle]);
   const progress = bundle?.progress.totalSessions ? Math.round((bundle.progress.completedSessions / bundle.progress.totalSessions) * 100) : 0;
+  const isCompleted = progress === 100 && (bundle?.progress.completedSessions ?? 0) > 0;
+
+  function shareCompletion() {
+    const text = `I just completed "${bundle?.course.title}" on RehearseAI — ${bundle?.progress.totalSessions} sessions, ready for anything. 🎯`;
+    if (navigator.share) { navigator.share({ text, url: window.location.href }).catch(() => undefined); }
+    else { navigator.clipboard.writeText(`${text}\n${window.location.href}`); setShareCopied(true); setTimeout(() => setShareCopied(false), 3000); }
+  }
 
   async function startMission(session: CourseSession) {
     setLoadingMission(session.id);
@@ -89,6 +97,36 @@ export default function CourseDetailPage() {
       <Nav />
       <ProtectedRoute>
         <AnimatedPage className="relative mx-auto max-w-7xl px-4 py-14">
+          {/* ── Course completion banner ──────────────────────────────── */}
+          {isCompleted && (
+            <section className="mb-6 rounded-[2.5rem] bg-gradient-to-br from-violet-900 via-[#1a0040] to-slate-900 p-8 text-white ring-1 ring-violet-700/40 shadow-[0_30px_80px_rgba(98,0,168,0.3)]">
+              <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-violet-500/20 ring-2 ring-violet-400/40">
+                  <Award size={40} className="text-yellow-300" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-center gap-2 sm:justify-start">
+                    <PartyPopper size={18} className="text-yellow-300" />
+                    <span className="text-sm font-bold uppercase tracking-[0.18em] text-violet-300">Course complete</span>
+                  </div>
+                  <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">{bundle?.course.title}</h2>
+                  <p className="mt-2 text-base text-white/70">You completed all {bundle?.progress.totalSessions} sessions. Your preparation is done — now go perform.</p>
+                  <div className="mt-5 flex flex-wrap items-center gap-3">
+                    <button type="button" onClick={shareCompletion} className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-2.5 text-sm font-semibold hover:bg-white/20 transition">
+                      <Share2 size={15} /> {shareCopied ? "Link copied!" : "Share achievement"}
+                    </button>
+                    <a href="/progress" className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-5 py-2.5 text-sm font-semibold hover:bg-violet-500 transition shadow-[0_8px_24px_rgba(98,0,168,0.35)]">
+                      <TrendingUp size={15} /> View my progress
+                    </a>
+                    <a href="/courses" className="text-sm font-semibold text-white/60 underline underline-offset-4 hover:text-white transition">
+                      Start another course
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className="rounded-[2.5rem] bg-white/75 p-6 ring-1 ring-slate-200/80 backdrop-blur-2xl dark:bg-white/[0.07] dark:ring-white/12 md:p-8">
             <div className="grid gap-8 lg:grid-cols-[1fr_0.72fr] lg:items-end">
               <div>
