@@ -1,61 +1,37 @@
+"use client";
+
 import Link from "next/link";
-import { CheckCircle2, ChevronDown, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, CheckCircle2, ChevronDown, Clock, PartyPopper, Sparkles, Zap } from "lucide-react";
 import { Nav } from "@/components/Nav";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
+import { PaddleCheckoutButton } from "@/components/billing/PaddleCheckoutButton";
+import { defaultCoursePackages, defaultPlans, getCoursePackages, getPublicPlans, type CoursePackage, type Plan } from "@/lib/admin";
 
-const plans = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "",
-    signal: "Get started",
-    cta: "Start free",
-    href: "/practice",
-    featured: false,
-    features: [
-      "3 sessions per month",
-      "Basic AI feedback",
-      "Text rehearsal mode",
-      "Starter performance reports",
-    ],
-  },
-  {
-    name: "Pro",
-    price: "$19",
-    period: "/mo",
-    signal: "Most popular",
-    cta: "Upgrade to Pro",
-    href: process.env.NEXT_PUBLIC_PADDLE_PRO_CHECKOUT_URL || "/contact",
-    featured: true,
-    features: [
-      "Unlimited sessions",
-      "Voice + text rehearsal",
-      "Advanced performance reports",
-      "Brutal pressure mode",
-      "Nerve Mode cross-examination",
-      "Decision tree analysis",
-      "Practice routines & reminders",
-    ],
-  },
-  {
-    name: "Coach",
-    price: "$49",
-    period: "/mo",
-    signal: "Deep intelligence",
-    cta: "Upgrade to Coach",
-    href: process.env.NEXT_PUBLIC_PADDLE_COACH_CHECKOUT_URL || "/contact",
-    featured: false,
-    features: [
-      "Everything in Pro",
-      "Advanced AI personas",
-      "Nerve panel defense mode",
-      "Deep analytics & benchmarking",
-      "Full session history",
-      "Shareable report cards",
-      "Priority support",
-    ],
-  },
-];
+const stakeLabel: Record<CoursePackage["stakeLevel"], string> = {
+  high: "High stakes",
+  medium: "Skill building",
+  low: "Confidence & fluency",
+};
+const stakeColor: Record<CoursePackage["stakeLevel"], string> = {
+  high: "bg-rose-50 text-rose-700 ring-rose-100 dark:bg-rose-400/10 dark:text-rose-300 dark:ring-rose-400/20",
+  medium: "bg-violet-50 text-violet-700 ring-violet-100 dark:bg-violet-400/10 dark:text-violet-300 dark:ring-violet-400/20",
+  low: "bg-sky-50 text-sky-700 ring-sky-100 dark:bg-sky-400/10 dark:text-sky-300 dark:ring-sky-400/20",
+};
+
+const ctaLabel = (plan: Plan) => {
+  if (plan.priceMonthly === 0) return "Start free";
+  return `Upgrade to ${plan.name}`;
+};
+
+const paddleMonthlyPriceId = (plan: Plan) => plan.paddleMonthlyPriceId || "";
+
+const currencySymbol = (currency: string) => (currency === "GBP" ? "£" : "$");
+
+const formatPrice = (plan: Plan) => {
+  if (plan.priceMonthly === 0) return "Free";
+  return `${currencySymbol(plan.currency)}${plan.priceMonthly}`;
+};
 
 const faqs = [
   {
@@ -64,7 +40,7 @@ const faqs = [
   },
   {
     q: "What is Nerve Mode?",
-    a: "Nerve Mode is a cross-examination engine. You upload or paste your thesis, pitch, or proposal and an AI panel challenges your evidence, logic, and assumptions. It is not coaching — it is structured pressure.",
+    a: "Nerve Mode is a cross-examination engine. You upload or paste your thesis, pitch, or proposal and an AI panel challenges your evidence, logic, and assumptions. It is not coaching — it is structured pressure. Available on the Coach plan.",
   },
   {
     q: "Does RehearseAI record my sessions?",
@@ -72,19 +48,55 @@ const faqs = [
   },
   {
     q: "What practice types are included?",
-    a: "Job interviews, public speaking, panel discussions, thesis defense, salary negotiation, difficult conversations, teaching sessions, and sales pitches. New arenas are added regularly.",
+    a: "Job interviews, public speaking, panel discussions, thesis defense, salary negotiation, difficult conversations, teaching sessions, sales pitches, and casual conversation. New arenas are added regularly.",
   },
   {
     q: "Is there a student discount?",
     a: "Yes. Contact us at support and we will apply a student discount to your account.",
   },
+  {
+    q: "What happens when I hit my session limit?",
+    a: "You will be notified when approaching your monthly limit. You can upgrade at any time to get more sessions. Sessions reset on the 1st of each month.",
+  },
 ];
 
 export default function PricingPage() {
+  const [plans, setPlans] = useState<Plan[]>(defaultPlans.filter((p) => p.isPublic && p.isActive));
+  const [packages, setPackages] = useState<CoursePackage[]>(defaultCoursePackages.filter((p) => p.isActive));
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    getPublicPlans().then(setPlans).catch(() => undefined);
+    getCoursePackages().then(setPackages).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    function onPayment(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      const label = detail?.items?.[0]?.product?.name ?? "your purchase";
+      setSuccessMsg(`Payment complete — ${label} is now active. Check Settings → Billing for details.`);
+      if (successTimer.current) clearTimeout(successTimer.current);
+      successTimer.current = setTimeout(() => setSuccessMsg(null), 12_000);
+    }
+    window.addEventListener("paddle:payment-complete", onPayment);
+    return () => {
+      window.removeEventListener("paddle:payment-complete", onPayment);
+      if (successTimer.current) clearTimeout(successTimer.current);
+    };
+  }, []);
+
   return (
     <main className="cog-bg min-h-screen text-primary-token">
       <Nav />
       <AnimatedPage className="mx-auto max-w-6xl px-4 py-14">
+        {successMsg && (
+          <div className="mb-8 flex items-center gap-3 rounded-2xl bg-emerald-50 px-5 py-4 font-semibold text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20">
+            <PartyPopper size={18} className="shrink-0" />
+            <span>{successMsg}</span>
+            <Link href="/settings#billing" className="ml-auto shrink-0 text-sm underline underline-offset-2">View in settings →</Link>
+          </div>
+        )}
         <div className="mx-auto max-w-3xl text-center">
           <p className="mx-auto inline-flex items-center gap-2 rounded-full surface-low px-4 py-2 text-sm font-semibold text-secondary-token">
             <Sparkles size={16} /> Simple, transparent pricing
@@ -99,37 +111,102 @@ export default function PricingPage() {
 
         <StaggeredGrid className="mt-12 grid gap-4 md:grid-cols-3">
           {plans.map((plan) => (
-            <AnimatedCard key={plan.name} className={`relative flex flex-col overflow-hidden rounded-[2rem] p-6 ${plan.featured ? "surface-high ring-2 ring-[var(--accent-primary)]" : "surface-low"}`}>
+            <AnimatedCard key={plan.planId} className={`relative flex flex-col overflow-hidden rounded-[2rem] p-6 ${plan.isFeatured ? "surface-high ring-2 ring-[var(--accent-primary)]" : "surface-low"}`}>
               <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-cyan-300/30 via-violet-400/30 to-blue-400/20 blur-3xl" />
               <div className="relative flex flex-1 flex-col">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-2xl font-semibold tracking-[-0.04em]">{plan.name}</div>
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${plan.featured ? "bg-[var(--accent-primary)] text-white ring-transparent" : "bg-[var(--surface-secondary)] text-secondary-token ring-[var(--border-soft)]"}`}>
-                    {plan.signal}
-                  </span>
+                  {plan.signal && (
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${plan.isFeatured ? "bg-[var(--accent-primary)] text-white ring-transparent" : "bg-[var(--surface-secondary)] text-secondary-token ring-[var(--border-soft)]"}`}>
+                      {plan.signal}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-5 flex items-end gap-1">
-                  <span className="text-5xl font-semibold tracking-[-0.055em]">{plan.price}</span>
-                  {plan.period && <span className="mb-1.5 text-lg font-medium text-secondary-token">{plan.period}</span>}
+                  <span className="text-5xl font-semibold tracking-[-0.055em]">{formatPrice(plan)}</span>
+                  {plan.priceMonthly > 0 && <span className="mb-1.5 text-lg font-medium text-secondary-token">/mo</span>}
                 </div>
+                {plan.priceYearly > 0 && (
+                  <p className="mt-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                    or {currencySymbol(plan.currency)}{plan.priceYearly}/yr — save {currencySymbol(plan.currency)}{(plan.priceMonthly * 12) - plan.priceYearly}
+                  </p>
+                )}
                 <ul className="mt-7 flex-1 space-y-3 font-medium text-secondary-token">
-                  {plan.features.map((feature) => (
+                  {(plan.features || []).map((feature) => (
                     <li key={feature} className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 shrink-0 text-[var(--accent-secondary)]" size={18} />
                       {feature}
                     </li>
                   ))}
                 </ul>
-                <Link
-                  href={plan.href}
-                  className={`mt-8 block w-full rounded-2xl px-5 py-3.5 text-center font-semibold transition hover:-translate-y-0.5 ${plan.featured ? "bg-[var(--accent-primary)] text-white shadow-[0_18px_42px_rgba(109,40,217,0.24)]" : "surface-medium text-primary-token ring-1 ring-[var(--border-soft)]"}`}
-                >
-                  {plan.cta}
-                </Link>
+                {plan.priceMonthly === 0 ? (
+                  <Link
+                    href="/practice"
+                    className={`mt-8 block w-full rounded-2xl px-5 py-3.5 text-center font-semibold transition hover:-translate-y-0.5 surface-medium text-primary-token ring-1 ring-[var(--border-soft)]`}
+                  >
+                    {ctaLabel(plan)}
+                  </Link>
+                ) : (
+                  <PaddleCheckoutButton
+                    priceId={paddleMonthlyPriceId(plan)}
+                    fallbackHref="/contact"
+                    className={`mt-8 block w-full rounded-2xl px-5 py-3.5 text-center font-semibold transition hover:-translate-y-0.5 disabled:opacity-60 ${plan.isFeatured ? "bg-[var(--accent-primary)] text-white shadow-[0_18px_42px_rgba(109,40,217,0.24)]" : "surface-medium text-primary-token ring-1 ring-[var(--border-soft)]"}`}
+                  >
+                    {ctaLabel(plan)}
+                  </PaddleCheckoutButton>
+                )}
               </div>
             </AnimatedCard>
           ))}
         </StaggeredGrid>
+
+        {/* Course packages */}
+        <div className="mt-20">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="inline-flex items-center gap-2 rounded-full surface-low px-4 py-2 text-sm font-semibold text-secondary-token">
+              <Zap size={15} /> One-time course packages
+            </p>
+            <h2 className="mt-4 text-4xl font-semibold tracking-[-0.05em]">Preparing for one specific moment?</h2>
+            <p className="mx-auto mt-4 max-w-2xl font-medium leading-7 text-secondary-token">
+              Buy a focused course package outright — no subscription needed. Each session is included in the price.
+              One human coaching session costs £100–200. These packages deliver 7–21 days of daily practice for a fraction of that.
+            </p>
+          </div>
+          <StaggeredGrid className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {packages.map((pkg) => (
+              <AnimatedCard key={pkg.packageId} className="relative flex flex-col overflow-hidden rounded-[2rem] surface-low p-6 ring-1 ring-[var(--border-soft)]">
+                <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-gradient-to-br from-cyan-300/20 via-violet-400/20 to-transparent blur-3xl" />
+                <div className="relative flex flex-1 flex-col">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${stakeColor[pkg.stakeLevel]}`}>
+                      {stakeLabel[pkg.stakeLevel]}
+                    </span>
+                    <span className="text-xs font-semibold text-secondary-token">
+                      <Clock size={11} className="mr-1 inline" />{pkg.durationDays} days
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-xl font-semibold tracking-[-0.04em]">{pkg.title}</h3>
+                  <p className="mt-2 flex-1 text-sm font-medium leading-6 text-secondary-token">{pkg.description}</p>
+                  <div className="mt-4 flex items-end gap-1">
+                    <span className="text-4xl font-semibold tracking-[-0.05em]">{currencySymbol(pkg.currency || "USD")}{pkg.price}</span>
+                    <span className="mb-1 text-sm font-medium text-secondary-token">one-time</span>
+                  </div>
+                  <p className="mt-1 text-xs font-semibold text-secondary-token">{pkg.sessionsIncluded} sessions included · no subscription</p>
+                  <PaddleCheckoutButton
+                    priceId={pkg.paddlePriceId}
+                    fallbackHref="/contact"
+                    className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-[var(--accent-primary)] px-5 py-3 text-center font-semibold text-white transition hover:-translate-y-0.5 disabled:opacity-60"
+                  >
+                    {pkg.paddlePriceId ? "Buy now" : "Get access"} <ArrowRight size={16} />
+                  </PaddleCheckoutButton>
+                </div>
+              </AnimatedCard>
+            ))}
+          </StaggeredGrid>
+          <p className="mt-6 text-center text-sm font-medium text-secondary-token">
+            Have a subscription? Course sessions are in addition to your monthly quick sessions.
+          </p>
+        </div>
 
         {/* FAQ */}
         <div className="mt-16">

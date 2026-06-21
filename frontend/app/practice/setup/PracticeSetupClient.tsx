@@ -14,7 +14,7 @@ import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { createPracticeSchedule, createSession, generateRandomScenario } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { getCourseConfig } from "@/lib/courseConfig";
-import { canUsePracticeType, getUserEntitlements } from "@/lib/entitlements";
+import { canUsePracticeType, getUserEntitlements, getSessionUsage, incrementMonthlySessionCount, type UsageInfo } from "@/lib/entitlements";
 import { sessionHref } from "@/lib/routes";
 import { updateTelemetryConsent } from "@/lib/telemetry";
 import type { LanguageCode } from "@/lib/languages";
@@ -94,6 +94,7 @@ function SetupForm() {
   const [difficulty, setDifficulty] = useState<Difficulty>((params.get("difficulty") as Difficulty) || "Intermediate");
   const [loading, setLoading] = useState(false);
   const [entitlements, setEntitlements] = useState<Entitlements | null>(null);
+  const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [error, setError] = useState("");
   const [topic, setTopic] = useState("");
   const [context, setContext] = useState("");
@@ -117,7 +118,10 @@ function SetupForm() {
   const [cameraAssistedTiming, setCameraAssistedTiming] = useState(Boolean(profile?.privacySettings?.allowCameraAssistedTiming));
 
   useEffect(() => {
-    getUserEntitlements(userId).then(setEntitlements).catch(() => undefined);
+    getUserEntitlements(userId).then((e) => {
+      setEntitlements(e);
+      getSessionUsage(userId, e).then(setUsage).catch(() => undefined);
+    }).catch(() => undefined);
   }, [userId]);
 
   useEffect(() => {
@@ -153,6 +157,10 @@ function SetupForm() {
       if (difficulty === "Brutal" && !entitlements.allowBrutalMode) { setError("Brutal mode requires Pro or Coach."); return; }
       if (difficulty === "Nerve" && !entitlements.allowNerveMode && !entitlements.allowBrutalMode) { setError("Nerve Mode requires Pro or Coach."); return; }
       if (!canUsePracticeType(entitlements, practiceType)) { setError("This practice mode is not included in your current plan."); return; }
+      if (usage && usage.limit !== "unlimited" && usage.remaining === 0) {
+        setError(`You've used all ${usage.limit} sessions this month. Upgrade your plan for more. Resets ${usage.resetDate}.`);
+        return;
+      }
     }
     setLoading(true);
     const token = await getToken();
@@ -164,6 +172,7 @@ function SetupForm() {
       practiceLanguage, feedbackLanguage, durationPreference, environmentMode, preferredConversationMode,
       ...(difficulty === "Nerve" ? { nerveEntryType, nervePersona, nerveMaterialName, nerveMaterialText } : {}),
     }, token);
+    incrementMonthlySessionCount(userId).catch(() => undefined);
     if (createRoutine) {
       await createPracticeSchedule({
         userId, frequencyType,
@@ -564,12 +573,35 @@ function SetupForm() {
 
               {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
 
+              {usage && usage.limit !== "unlimited" && (
+                <div className="mt-5 rounded-[1.25rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/[0.05] dark:ring-white/10">
+                  <div className="flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-white/70">
+                    <span>{usage.used} of {usage.limit as number} sessions used this month</span>
+                    <span className="text-xs text-slate-400 dark:text-white/38">Resets {usage.resetDate}</span>
+                  </div>
+                  <progress
+                    value={usage.used}
+                    max={usage.limit as number}
+                    className={`mt-2 h-2 w-full rounded-full [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-slate-200 dark:[&::-webkit-progress-bar]:bg-white/10 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:transition-all ${(usage.used / (usage.limit as number)) >= 0.9 ? "[&::-webkit-progress-value]:bg-rose-500" : "[&::-webkit-progress-value]:bg-[#6200a8]"}`}
+                  />
+                  {usage.remaining === 0 && (
+                    <p className="mt-2 text-sm font-semibold text-rose-600 dark:text-rose-400">
+                      No sessions remaining. <a href="/pricing" className="underline">Upgrade your plan</a> to continue.
+                    </p>
+                  )}
+                  {typeof usage.remaining === "number" && usage.remaining > 0 && usage.remaining <= 3 && (
+                    <p className="mt-2 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                      {usage.remaining} session{usage.remaining !== 1 ? "s" : ""} remaining this month.
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="mt-6 flex gap-3">
                 <button type="button" aria-label="Back to briefing" onClick={() => setStep(4)} className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-5 py-4 font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/15">
                   <ArrowLeft size={18} />
                 </button>
-                <button type="submit" disabled={loading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-4 font-semibold text-white shadow-[0_18px_38px_rgba(98,0,168,0.22)] transition hover:-translate-y-0.5 hover:bg-[#50008b] disabled:opacity-60">
-                  {loading ? "Building the room..." : "Enter rehearsal room"} <ArrowRight size={18} />
+                <button type="submit" disabled={loading || (usage?.remaining === 0 && usage?.limit !== "unlimited")} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-4 font-semibold text-white shadow-[0_18px_38px_rgba(98,0,168,0.22)] transition hover:-translate-y-0.5 hover:bg-[#50008b] disabled:opacity-60">
+                  {loading ? "Building the room..." : usage?.remaining === 0 && usage?.limit !== "unlimited" ? "Session limit reached" : "Enter rehearsal room"} <ArrowRight size={18} />
                 </button>
               </div>
             </div>

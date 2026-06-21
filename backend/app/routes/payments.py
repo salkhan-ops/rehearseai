@@ -12,4 +12,4 @@ async def plans():
 @router.post("/api/payments/paddle/webhook")
 async def paddle_webhook(request: Request):
     payload = await request.json()
-    return await PaddleService().verify_webhook(payload)
+    return await PaddleService().process_webhook(payload, request.app.state.store)

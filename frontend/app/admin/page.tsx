@@ -32,6 +32,7 @@ export default function AdminPage() {
       </AdminSection>
       <AdminSection title="Catalog">
         <AdminCard href="/admin/products" icon={Box} title="Products & Packages" subtitle="Cards that will later power pricing, courses, and practice pages" />
+        <AdminCard href="/admin/course-packages" icon={CreditCard} title="Course Packages" subtitle="One-time purchasable packages shown on the pricing page — price, duration, Paddle ID" />
         <AdminCard href="/admin/practice-templates" icon={ListChecks} title="Practice Templates" subtitle="Reusable scenarios for quick-start practice flows" />
         <AdminCard href="/admin/course-templates" icon={BookOpen} title="Course Templates" subtitle="Fixed-duration courses and training paths" />
       </AdminSection>
@@ -41,6 +42,7 @@ export default function AdminPage() {
         <AdminCard href="/admin/contact" icon={Inbox} title="Contact Messages" subtitle="Review support, billing, privacy, and partnership requests" />
       </AdminSection>
       <AdminSection title="Billing">
+        <AdminCard href="/admin/finance" icon={CreditCard} title="Finance Dashboard" subtitle="Estimated MRR, ARR, plan distribution, and revenue by tier" />
         <AdminCard href="/admin/billing" icon={CreditCard} title="Pending Subscriptions" subtitle="Review Paddle checkout attempts, subscription states, and provider mapping" />
         <AdminCard href="/admin/logs" icon={ScrollText} title="Admin Logs" subtitle="Audit create, update, role, and assignment actions" />
       </AdminSection>

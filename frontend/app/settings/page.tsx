@@ -9,7 +9,7 @@ import { CameraSignalControls } from "@/components/local-signals/CameraSignalCon
 import { Nav } from "@/components/Nav";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection";
-import { SubscriptionManager } from "@/components/subscription/SubscriptionManager";
+import { BillingSection } from "@/components/billing/BillingSection";
 import { useAuth } from "@/lib/auth";
 import type { LanguageCode } from "@/lib/languages";
 import { getPersonalSpeechProfile, getTelemetryConsent, type PrivacySettings, updateTelemetryConsent } from "@/lib/telemetry";
@@ -163,7 +163,7 @@ export default function SettingsPage() {
             <Link href="/contact" className="mt-4 inline-flex rounded-2xl bg-[#6200a8] px-5 py-3 font-semibold text-white">Open contact support</Link>
           </section>
 
-          <SubscriptionManager />
+          <BillingSection />
           <DeleteAccountSection />
           <button onClick={logout} className="inline-flex items-center gap-2 rounded-2xl surface-low px-5 py-3 font-semibold text-secondary-token ring-1 ring-[var(--border-soft)]"><LogOut size={16} /> Sign out</button>
         </AnimatedPage>

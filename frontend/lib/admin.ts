@@ -60,6 +60,9 @@ export type Plan = {
   paddleYearlyPriceId: string;
   isActive: boolean;
   isPublic?: boolean;
+  isFeatured?: boolean;
+  signal?: string;
+  features?: string[];
   sortOrder: number;
   entitlements: Entitlements;
   createdAt?: unknown;
@@ -88,6 +91,265 @@ export type Product = {
   createdAt?: string;
   updatedAt?: string;
 };
+
+export type CoursePackage = {
+  packageId: string;
+  title: string;
+  description: string;
+  practiceType: string;
+  stakeLevel: "high" | "medium" | "low";
+  durationDays: number;
+  sessionsIncluded: number;
+  price: number;
+  currency: string;
+  paddlePriceId: string;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+export const defaultCoursePackages: CoursePackage[] = [
+  // ── Job Interview ─────────────────────────────────────────────────────────
+  {
+    packageId: "interview-7",
+    title: "Job Interview Sprint",
+    description: "Daily simulations with a demanding hiring manager. Build STAR answers, handle behavioural traps, and walk in composed. One session per day — 45 minutes of focused pressure.",
+    practiceType: "Job Interview",
+    stakeLevel: "high",
+    durationDays: 7,
+    sessionsIncluded: 7,
+    price: 29,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 10,
+  },
+  {
+    packageId: "interview-14",
+    title: "Interview Mastery",
+    description: "Two weeks of escalating interviews — warm-up questions week one, exec-level panel stress in week two. Covers behavioural, competency, and technical framing. Leave no question unanswered.",
+    practiceType: "Job Interview",
+    stakeLevel: "high",
+    durationDays: 14,
+    sessionsIncluded: 14,
+    price: 59,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 11,
+  },
+
+  // ── Salary Negotiation ────────────────────────────────────────────────────
+  {
+    packageId: "negotiation-7",
+    title: "Salary Negotiation Sprint",
+    description: "Seven sessions covering anchoring, countering low-ball offers, and holding silence under pressure. Enter any offer or promotion conversation knowing exactly what to say and when to stop.",
+    practiceType: "Salary Negotiation",
+    stakeLevel: "high",
+    durationDays: 7,
+    sessionsIncluded: 7,
+    price: 29,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 20,
+  },
+  {
+    packageId: "negotiation-21",
+    title: "Negotiation Mastery",
+    description: "Three weeks of systematic negotiation training — anchoring, BATNA framing, concession strategy, and closing under pushback. Covers salary, contract terms, vendor deals, and internal influence.",
+    practiceType: "Salary Negotiation",
+    stakeLevel: "high",
+    durationDays: 21,
+    sessionsIncluded: 21,
+    price: 89,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 21,
+  },
+
+  // ── Presentation / Public Speaking ────────────────────────────────────────
+  {
+    packageId: "speaking-7",
+    title: "Public Speaking Boost",
+    description: "Hook, structure, Q&A. Seven sessions with a skeptical audience to build composure and clarity. Covers opening strong, holding attention, and fielding tough questions without losing your thread.",
+    practiceType: "Presentation / Public Speaking",
+    stakeLevel: "medium",
+    durationDays: 7,
+    sessionsIncluded: 7,
+    price: 29,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 30,
+  },
+  {
+    packageId: "speaking-14",
+    title: "Presentation Mastery",
+    description: "Fourteen days of increasingly hostile audiences. Week one: structure and delivery. Week two: hostile Q&A, executive boardroom pressure, and landing under time constraints. For anyone with a high-stakes presentation on the horizon.",
+    practiceType: "Presentation / Public Speaking",
+    stakeLevel: "medium",
+    durationDays: 14,
+    sessionsIncluded: 14,
+    price: 59,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 31,
+  },
+
+  // ── Sales Pitch ───────────────────────────────────────────────────────────
+  {
+    packageId: "sales-7",
+    title: "Sales Pitch Sprint",
+    description: "Handle ROI objections, budget pushback, timing resistance, and competitive questions without caving. Close naturally. Seven daily sessions simulating a tough buyer who has heard it all before.",
+    practiceType: "Sales Pitch",
+    stakeLevel: "high",
+    durationDays: 7,
+    sessionsIncluded: 7,
+    price: 29,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 40,
+  },
+  {
+    packageId: "sales-14",
+    title: "Sales Mastery",
+    description: "From first call to close in two weeks. Covers discovery, demo delivery, objection handling, multi-stakeholder navigation, and negotiating final terms. Simulates the full sales cycle under pressure.",
+    practiceType: "Sales Pitch",
+    stakeLevel: "high",
+    durationDays: 14,
+    sessionsIncluded: 14,
+    price: 59,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 41,
+  },
+
+  // ── Difficult Conversation ─────────────────────────────────────────────────
+  {
+    packageId: "difficult-7",
+    title: "Difficult Conversations",
+    description: "Seven sessions covering the conversations most people avoid — performance feedback, conflict resolution, setting limits, and saying no without burning bridges. Each session simulates a different emotionally charged dynamic.",
+    practiceType: "Difficult Conversation",
+    stakeLevel: "high",
+    durationDays: 7,
+    sessionsIncluded: 7,
+    price: 29,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 50,
+  },
+  {
+    packageId: "difficult-14",
+    title: "Conflict & Communication Mastery",
+    description: "Two weeks of high-stakes interpersonal scenarios — layoffs, underperformance conversations, relationship repair, and professional limit-setting. Builds the language and composure to handle what most leaders avoid.",
+    practiceType: "Difficult Conversation",
+    stakeLevel: "high",
+    durationDays: 14,
+    sessionsIncluded: 14,
+    price: 59,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 51,
+  },
+
+  // ── Panel Discussion ───────────────────────────────────────────────────────
+  {
+    packageId: "panel-7",
+    title: "Panel Defense",
+    description: "Seven sessions simulating a multi-person panel — interviewers, investors, or examiners — each with a different angle of attack. Builds the ability to stay coherent, pivot gracefully, and hold your position under cross-examination.",
+    practiceType: "Panel Discussion",
+    stakeLevel: "high",
+    durationDays: 7,
+    sessionsIncluded: 7,
+    price: 29,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 60,
+  },
+
+  // ── Thesis Defense ─────────────────────────────────────────────────────────
+  {
+    packageId: "thesis-7",
+    title: "Thesis Defense Sprint",
+    description: "Seven sessions with a rigorous academic examiner challenging your methodology, findings, and conclusions. Covers viva structure, literature critiques, and handling 'what would you do differently.' For anyone defending in under two weeks.",
+    practiceType: "Thesis Defense",
+    stakeLevel: "high",
+    durationDays: 7,
+    sessionsIncluded: 7,
+    price: 29,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 70,
+  },
+  {
+    packageId: "thesis-14",
+    title: "Thesis Defense Mastery",
+    description: "Two weeks of structured viva preparation. Week one: defending methodology and literature. Week two: handling hostile examiner pressure, bridging gaps in evidence, and closing with confidence. For PhD, MRes, and professional doctorates.",
+    practiceType: "Thesis Defense",
+    stakeLevel: "high",
+    durationDays: 14,
+    sessionsIncluded: 14,
+    price: 59,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 71,
+  },
+
+  // ── Teaching Session ────────────────────────────────────────────────────────
+  {
+    packageId: "teaching-7",
+    title: "Teaching Confidence",
+    description: "Seven sessions simulating a class or workshop audience — disengaged students, challenging questions, and off-topic tangents. Builds structure, pacing, and the ability to hold a room without losing momentum.",
+    practiceType: "Teaching Session",
+    stakeLevel: "medium",
+    durationDays: 7,
+    sessionsIncluded: 7,
+    price: 29,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 80,
+  },
+
+  // ── Casual Chat ─────────────────────────────────────────────────────────────
+  {
+    packageId: "casual-7",
+    title: "Casual Chat Confidence",
+    description: "Seven low-pressure daily conversations to build natural fluency, comfort with small talk, and the habit of expressing yourself freely without overthinking. Ideal after a period of isolation or when English isn't your first language.",
+    practiceType: "Casual Chat",
+    stakeLevel: "low",
+    durationDays: 7,
+    sessionsIncluded: 7,
+    price: 29,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 90,
+  },
+  {
+    packageId: "casual-14",
+    title: "Fluency Builder",
+    description: "Two weeks of progressively deeper conversations — everyday topics, opinions, storytelling, and debate. Designed to build genuine conversational fluency and reduce the mental effort of speaking spontaneously.",
+    practiceType: "Casual Chat",
+    stakeLevel: "low",
+    durationDays: 14,
+    sessionsIncluded: 14,
+    price: 59,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 91,
+  },
+];
 
 export type PracticeTemplate = {
   templateId: string;
@@ -294,7 +556,7 @@ export const defaultPlans: Plan[] = [
   {
     planId: "free",
     name: "Free",
-    description: "3 sessions/month, basic feedback, limited history.",
+    description: "5 sessions/month. Beginner and Intermediate modes. Voice + text. Basic reports.",
     priceMonthly: 0,
     priceYearly: 0,
     currency: "USD",
@@ -303,29 +565,49 @@ export const defaultPlans: Plan[] = [
     paddleYearlyPriceId: "",
     isActive: true,
     isPublic: true,
+    isFeatured: false,
+    signal: "Get started",
+    features: [
+      "5 sessions per month",
+      "Beginner & Intermediate modes",
+      "Voice + text rehearsal",
+      "Basic performance reports",
+      "Coaching hints & conversation map",
+    ],
     sortOrder: 1,
-    entitlements: baseEntitlements,
+    entitlements: { ...baseEntitlements, maxSessionsPerMonth: 5 },
   },
   {
     planId: "pro",
     name: "Pro",
-    description: "Unlimited sessions, advanced reports, brutal mode, history, shareable reports, decision trees, and challenge mode.",
+    description: "20 sessions/month. All modes up to Advanced. Course templates. Advanced analytics and reports.",
     priceMonthly: 19,
-    priceYearly: 190,
+    priceYearly: 149,
     currency: "USD",
     paddleProductId: "",
     paddleMonthlyPriceId: "",
     paddleYearlyPriceId: "",
     isActive: true,
     isPublic: true,
+    isFeatured: true,
+    signal: "Most popular",
+    features: [
+      "20 sessions per month",
+      "All modes up to Advanced",
+      "Voice + text rehearsal",
+      "Advanced performance reports",
+      "Course templates access",
+      "Coaching hints & conversation map",
+      "Practice routines & reminders",
+    ],
     sortOrder: 2,
     entitlements: {
       ...baseEntitlements,
-      maxSessionsPerMonth: "unlimited",
+      maxSessionsPerMonth: 20,
       maxMessagesPerSession: 40,
       maxSessionMinutes: 45,
-      allowBrutalMode: true,
-      allowNerveMode: true,
+      allowBrutalMode: false,
+      allowNerveMode: false,
       allowChallengeMode: true,
       allowAdvancedAnalytics: true,
       allowDecisionTree: true,
@@ -336,25 +618,36 @@ export const defaultPlans: Plan[] = [
       allowCourseTemplates: true,
       reportDepth: "advanced",
       historyRetentionDays: 365,
-      monthlyGeminiTokenLimit: 400000,
+      monthlyGeminiTokenLimit: 300000,
     },
   },
   {
     planId: "coach",
     name: "Coach",
-    description: "Everything in Pro plus advanced personas, benchmarking, priority features, extended history, and advanced replay intelligence.",
-    priceMonthly: 49,
-    priceYearly: 490,
+    description: "45 sessions/month. Brutal & Nerve pressure modes. Advanced personas, deep analytics, shareable reports.",
+    priceMonthly: 29,
+    priceYearly: 229,
     currency: "USD",
     paddleProductId: "",
     paddleMonthlyPriceId: "",
     paddleYearlyPriceId: "",
     isActive: true,
     isPublic: true,
+    isFeatured: false,
+    signal: "Maximum pressure",
+    features: [
+      "45 sessions per month",
+      "Everything in Pro",
+      "Brutal & Nerve pressure modes",
+      "Advanced AI personas",
+      "Deep analytics & benchmarking",
+      "Shareable report cards",
+      "Priority support",
+    ],
     sortOrder: 3,
     entitlements: {
       ...baseEntitlements,
-      maxSessionsPerMonth: "unlimited",
+      maxSessionsPerMonth: 45,
       maxMessagesPerSession: 80,
       maxSessionMinutes: 90,
       allowBrutalMode: true,
@@ -392,6 +685,53 @@ export async function getPlans() {
   const snapshot = await getDocs(collection(db, "plans"));
   const plans = snapshot.docs.map((item) => item.data() as Plan).sort((a, b) => a.sortOrder - b.sortOrder);
   return plans.length ? plans : defaultPlans;
+}
+
+export async function getPublicPlans(): Promise<Plan[]> {
+  try {
+    const db = getFirebaseDb();
+    if (!db) return defaultPlans.filter((p) => p.isPublic && p.isActive);
+    const snapshot = await getDocs(query(collection(db, "plans"), where("isPublic", "==", true), where("isActive", "==", true)));
+    const plans = snapshot.docs.map((d) => d.data() as Plan).sort((a, b) => a.sortOrder - b.sortOrder);
+    return plans.length ? plans : defaultPlans.filter((p) => p.isPublic && p.isActive);
+  } catch {
+    return defaultPlans.filter((p) => p.isPublic && p.isActive);
+  }
+}
+
+export type FinanceStats = {
+  estimatedMrr: number;
+  estimatedArr: number;
+  totalSubscribers: number;
+  byPlan: { planId: string; planName: string; count: number; priceMonthly: number; revenue: number }[];
+  totalUsers: number;
+  freeUsers: number;
+  currency: string;
+};
+
+export async function getFinanceStats(): Promise<FinanceStats> {
+  const [plans, users] = await Promise.all([getPlans(), getUsers()]);
+  const planMap = Object.fromEntries(plans.map((p) => [p.planId, p]));
+  const byPlanMap: Record<string, { planId: string; planName: string; count: number; priceMonthly: number; revenue: number }> = {};
+  for (const u of users) {
+    const pid = u.planId || "free";
+    const plan = planMap[pid];
+    if (!byPlanMap[pid]) byPlanMap[pid] = { planId: pid, planName: plan?.name || pid, count: 0, priceMonthly: plan?.priceMonthly || 0, revenue: 0 };
+    byPlanMap[pid].count++;
+    byPlanMap[pid].revenue += plan?.priceMonthly || 0;
+  }
+  const byPlan = Object.values(byPlanMap).sort((a, b) => b.revenue - a.revenue);
+  const estimatedMrr = byPlan.reduce((sum, p) => sum + p.revenue, 0);
+  const freeUsers = byPlanMap["free"]?.count || 0;
+  return {
+    estimatedMrr,
+    estimatedArr: estimatedMrr * 12,
+    totalSubscribers: users.length - freeUsers,
+    byPlan,
+    totalUsers: users.length,
+    freeUsers,
+    currency: plans[0]?.currency || "GBP",
+  };
 }
 
 export async function savePlan(plan: Plan) {
@@ -594,4 +934,26 @@ export async function getSafetyEvents(category = "", riskLevel = "") {
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/admin/safety-events${params.toString() ? `?${params}` : ""}`, { cache: "no-store" });
   if (!response.ok) throw new Error("Could not load safety events.");
   return response.json() as Promise<SafetyEvent[]>;
+}
+
+export async function getCoursePackages(): Promise<CoursePackage[]> {
+  try {
+    const db = getFirebaseDb();
+    if (!db) return defaultCoursePackages.filter((p) => p.isActive);
+    const snap = await getDocs(query(collection(db, "coursePackages"), where("isActive", "==", true)));
+    const pkgs = snap.docs.map((d) => d.data() as CoursePackage).sort((a, b) => a.sortOrder - b.sortOrder);
+    return pkgs.length ? pkgs : defaultCoursePackages.filter((p) => p.isActive);
+  } catch {
+    return defaultCoursePackages.filter((p) => p.isActive);
+  }
+}
+
+export async function saveCoursePackage(pkg: CoursePackage): Promise<void> {
+  const db = dbOrThrow();
+  await setDoc(doc(db, "coursePackages", pkg.packageId), { ...pkg, updatedAt: serverTimestamp(), createdAt: pkg.packageId ? serverTimestamp() : serverTimestamp() }, { merge: true });
+}
+
+export async function seedDefaultCoursePackages(): Promise<void> {
+  const db = dbOrThrow();
+  await Promise.all(defaultCoursePackages.map((pkg) => setDoc(doc(db, "coursePackages", pkg.packageId), { ...pkg, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true })));
 }
