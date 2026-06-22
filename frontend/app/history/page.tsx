@@ -47,6 +47,7 @@ export default function HistoryPage() {
 
   const filtered = useMemo(() => {
     return sessions.filter((s) => {
+      if (s.status === "abandoned") return false;
       if (typeFilter !== ALL && s.practiceType !== typeFilter) return false;
       if (difficultyFilter !== ALL && s.difficulty !== difficultyFilter) return false;
       if (search.trim()) {

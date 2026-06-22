@@ -116,9 +116,10 @@ export type Session = {
   nerveMaterialText?: string;
   nerveAnalysisId?: string;
   pressureLevel?: number;
-  status: "active" | "completed";
+  status: "active" | "completed" | "abandoned";
   turnCount: number;
   createdAt: string;
+  lastActivityAt?: string;
   completedAt?: string;
 };
 

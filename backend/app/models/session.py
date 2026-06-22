@@ -77,7 +77,8 @@ class Session(BaseModel):
     documentName: Optional[str] = None
     documentMode: Optional[DocumentMode] = None
     pressureLevel: int = Field(default=1, ge=1, le=10)
-    status: Literal["active", "completed"] = "active"
+    status: Literal["active", "completed", "abandoned"] = "active"
     turnCount: int = 0
     createdAt: str
+    lastActivityAt: Optional[str] = None
     completedAt: Optional[str] = None

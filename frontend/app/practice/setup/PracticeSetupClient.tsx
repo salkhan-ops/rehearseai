@@ -189,7 +189,6 @@ function SetupForm() {
       ...(difficulty === "Nerve" ? { nerveEntryType, nervePersona, nerveMaterialName, nerveMaterialText } : {}),
       ...(useDocument && documentText.trim() ? { documentText: documentText.trim(), documentName: "pasted document", documentMode } : {}),
     }, token);
-    incrementMonthlySessionCount(userId).catch(() => undefined);
     if (useDocument && documentText.trim()) {
       incrementDailyDocCount(userId).catch(() => undefined);
     }

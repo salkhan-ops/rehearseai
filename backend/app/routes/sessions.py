@@ -137,8 +137,12 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
         })
     if not safety.allow_response:
         ai_message = await store.add_message(session_id, "ai", safety.redirect_message or "I can help keep this as safe communication practice.")
+        is_first_turn = session.turnCount == 0
         session.turnCount += 1
+        session.lastActivityAt = utc_now_iso()
         await store.update_session(session)
+        if is_first_turn:
+            await store.increment_monthly_session_count(session.userId)
         return {"userMessage": user_message, "aiMessage": ai_message, "turnCount": session.turnCount, "safety": safety.model_dump()}
     history = await store.get_messages(session_id)
     coordination_state = await get_coordination(request).analyze(
@@ -190,9 +194,13 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
     ai_content = await get_ai(request).generate_roleplay_response(session, history, coordination_context)
     hint = await request.app.state.coach.maybe_generate_hint(session, history, payload.content, coordination_state)
     ai_message = await store.add_message(session_id, "ai", ai_content)
+    is_first_turn = session.turnCount == 0
     session.turnCount += 1
+    session.lastActivityAt = utc_now_iso()
     dynamics = await get_coordination(request).log_dynamics(user_id=session.userId, session_id=session_id, turn_id=user_message.id, state=coordination_state)
     await store.update_session(session)
+    if is_first_turn:
+        await store.increment_monthly_session_count(session.userId)
     return {"userMessage": user_message, "aiMessage": ai_message, "turnCount": session.turnCount, "hint": hint, "dynamics": dynamics, "conversationControl": coordination_state.conversationControl.model_dump()}
 
 
@@ -216,6 +224,14 @@ async def update_session_hint(hint_id: str, payload: dict, request: Request, cur
     if not hint:
         raise HTTPException(status_code=404, detail="Hint not found")
     return hint
+
+
+@router.post("/api/sessions/admin/cleanup-ghosts")
+async def cleanup_ghost_sessions(request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
+    if not current_user_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    cleaned = await get_store(request).cleanup_ghost_sessions()
+    return {"cleaned": cleaned}
 
 
 @router.post("/api/sessions/{session_id}/end")

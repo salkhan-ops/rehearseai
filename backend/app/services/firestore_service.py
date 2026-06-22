@@ -1,6 +1,7 @@
 from typing import Optional
 from uuid import uuid4
 from google.cloud import firestore
+from google.api_core import exceptions as google_exceptions
 from app.config import get_settings
 from app.models.message import Message
 from app.models.course import Achievement, Course, CourseBundle, CourseModule, CourseProgress, CourseSession, Notification, UserProgress
@@ -108,6 +109,7 @@ class FirestoreService:
         self.admin_course_templates: dict[str, dict] = {item["templateId"]: item for item in DEFAULT_COURSE_TEMPLATES}
         self.admin_logs: dict[str, dict] = {}
         self.doc_counters: dict[str, dict] = {}
+        self.session_counters: dict[str, dict] = {}
 
     async def create_session(self, payload: SessionCreate) -> Session:
         session = Session(id=str(uuid4()), createdAt=utc_now_iso(), **payload.model_dump())
@@ -449,13 +451,16 @@ class FirestoreService:
 
     async def list_conversation_dynamics(self, user_id: Optional[str] = None, session_id: Optional[str] = None, limit_count: int = 100) -> list[dict]:
         if self.client:
-            query = self.client.collection("conversationDynamics")
-            if user_id:
-                query = query.where("userId", "==", user_id)
-            if session_id:
-                query = query.where("sessionId", "==", session_id)
-            docs = query.order_by("createdAt", direction=firestore.Query.ASCENDING).limit(limit_count).stream()
-            return [doc.to_dict() for doc in docs]
+            try:
+                query = self.client.collection("conversationDynamics")
+                if user_id:
+                    query = query.where("userId", "==", user_id)
+                if session_id:
+                    query = query.where("sessionId", "==", session_id)
+                docs = query.order_by("createdAt", direction=firestore.Query.ASCENDING).limit(limit_count).stream()
+                return [doc.to_dict() for doc in docs]
+            except google_exceptions.FailedPrecondition:
+                return []
         records = list(self.conversation_dynamics.values())
         if user_id:
             records = [record for record in records if record.get("userId") == user_id]
@@ -472,13 +477,16 @@ class FirestoreService:
 
     async def list_conversation_telemetry(self, user_id: Optional[str] = None, session_id: Optional[str] = None, limit_count: int = 100) -> list[dict]:
         if self.client:
-            query = self.client.collection("conversationTelemetry")
-            if user_id:
-                query = query.where("userId", "==", user_id)
-            if session_id:
-                query = query.where("sessionId", "==", session_id)
-            docs = query.order_by("createdAt", direction=firestore.Query.DESCENDING).limit(limit_count).stream()
-            return [doc.to_dict() for doc in docs]
+            try:
+                query = self.client.collection("conversationTelemetry")
+                if user_id:
+                    query = query.where("userId", "==", user_id)
+                if session_id:
+                    query = query.where("sessionId", "==", session_id)
+                docs = query.order_by("createdAt", direction=firestore.Query.DESCENDING).limit(limit_count).stream()
+                return [doc.to_dict() for doc in docs]
+            except google_exceptions.FailedPrecondition:
+                return []
         records = list(self.conversation_telemetry.values())
         if user_id:
             records = [record for record in records if record.get("userId") == user_id]
@@ -1173,6 +1181,49 @@ class FirestoreService:
         else:
             user_counters = self.doc_counters.setdefault(user_id, {})
             user_counters[day_key] = user_counters.get(day_key, 0) + 1
+
+    async def increment_monthly_session_count(self, user_id: str) -> None:
+        if not user_id or user_id == "guest":
+            return
+        month_key = utc_now_iso()[:7]  # YYYY-MM
+        if self.client:
+            ref = self.client.collection("userSessionCounters").document(user_id)
+            snap = ref.get()
+            if snap.exists:
+                ref.update({month_key: firestore.Increment(1)})
+            else:
+                ref.set({month_key: 1})
+        else:
+            user_counters = self.session_counters.setdefault(user_id, {})
+            user_counters[month_key] = user_counters.get(month_key, 0) + 1
+
+    async def cleanup_ghost_sessions(self) -> int:
+        """Mark sessions with 0 turns older than 1 hour as abandoned. Returns count cleaned."""
+        from datetime import datetime, timezone, timedelta
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S")
+        cleaned = 0
+        if self.client:
+            try:
+                docs = (
+                    self.client.collection("sessions")
+                    .where("status", "==", "active")
+                    .where("turnCount", "==", 0)
+                    .stream()
+                )
+                for doc in docs:
+                    data = doc.to_dict()
+                    if data.get("createdAt", "") < cutoff:
+                        doc.reference.update({"status": "abandoned", "completedAt": utc_now_iso()})
+                        cleaned += 1
+            except google_exceptions.FailedPrecondition:
+                pass
+        else:
+            for session in list(self.sessions.values()):
+                if session.status == "active" and session.turnCount == 0 and session.createdAt < cutoff:
+                    session.status = "abandoned"
+                    session.completedAt = utc_now_iso()
+                    cleaned += 1
+        return cleaned
 
     async def admin_billing(self) -> dict:
         if self.client:
