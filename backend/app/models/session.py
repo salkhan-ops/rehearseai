@@ -1,6 +1,8 @@
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
+DocumentMode = Literal["neutral", "harsh_critical", "socratic", "supportive"]
+
 PracticeType = Literal[
     "Job Interview",
     "Presentation / Public Speaking",
@@ -47,6 +49,9 @@ class SessionCreate(BaseModel):
     nervePersona: Optional[NervePersona] = None
     nerveMaterialName: Optional[str] = Field(default=None, max_length=180)
     nerveMaterialText: Optional[str] = Field(default=None, max_length=8000)
+    documentText: Optional[str] = Field(default=None, max_length=15000)
+    documentName: Optional[str] = Field(default=None, max_length=180)
+    documentMode: Optional[DocumentMode] = None
 
 
 class Session(BaseModel):
@@ -68,6 +73,9 @@ class Session(BaseModel):
     nerveMaterialName: Optional[str] = None
     nerveMaterialText: Optional[str] = None
     nerveAnalysisId: Optional[str] = None
+    documentText: Optional[str] = None
+    documentName: Optional[str] = None
+    documentMode: Optional[DocumentMode] = None
     pressureLevel: int = Field(default=1, ge=1, le=10)
     status: Literal["active", "completed"] = "active"
     turnCount: int = 0

@@ -233,6 +233,8 @@ export type PerformanceAnalytics = {
   createdAt: string;
 };
 
+export type DocumentMode = "neutral" | "harsh_critical" | "socratic" | "supportive";
+
 export type SessionPayload = {
   userId: string;
   practiceType: PracticeType;
@@ -250,6 +252,9 @@ export type SessionPayload = {
   nervePersona?: NervePersona;
   nerveMaterialName?: string;
   nerveMaterialText?: string;
+  documentText?: string;
+  documentName?: string;
+  documentMode?: DocumentMode;
 };
 
 export type PracticeSchedule = {

@@ -42,12 +42,13 @@ DEFAULT_ENTITLEMENTS = {
     "reportDepth": "basic",
     "historyRetentionDays": 30,
     "monthlyGeminiTokenLimit": 50000,
+    "docGroundingDocsPerDay": 1,
 }
 
 DEFAULT_PLANS = [
     {"planId": "free", "slug": "free", "name": "Free", "description": "3 sessions/month, basic feedback, limited history.", "priceMonthly": 0, "priceYearly": 0, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 1, "entitlements": DEFAULT_ENTITLEMENTS},
-    {"planId": "pro", "slug": "pro", "name": "Pro", "description": "Unlimited sessions, advanced reports, brutal mode, Nerve Mode, history, shareable reports, decision trees, and challenge mode.", "priceMonthly": 19, "priceYearly": 190, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 2, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "maxMessagesPerSession": 40, "maxSessionMinutes": 45, "allowBrutalMode": True, "allowNerveMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "allowCourseTemplates": True, "reportDepth": "advanced", "historyRetentionDays": 365, "monthlyGeminiTokenLimit": 400000}},
-    {"planId": "coach", "slug": "coach", "name": "Coach", "description": "Everything in Pro plus advanced personas, benchmarking, priority features, extended history, and advanced replay intelligence.", "priceMonthly": 49, "priceYearly": 490, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 3, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "maxMessagesPerSession": 80, "maxSessionMinutes": 90, "allowBrutalMode": True, "allowNerveMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowBenchmarking": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "allowCustomPersonas": True, "allowCourseTemplates": True, "reportDepth": "coach", "historyRetentionDays": "unlimited", "monthlyGeminiTokenLimit": 1200000}},
+    {"planId": "pro", "slug": "pro", "name": "Pro", "description": "Unlimited sessions, advanced reports, brutal mode, Nerve Mode, history, shareable reports, decision trees, and challenge mode.", "priceMonthly": 19, "priceYearly": 190, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 2, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "maxMessagesPerSession": 40, "maxSessionMinutes": 45, "allowBrutalMode": True, "allowNerveMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "allowCourseTemplates": True, "reportDepth": "advanced", "historyRetentionDays": 365, "monthlyGeminiTokenLimit": 400000, "docGroundingDocsPerDay": 3}},
+    {"planId": "coach", "slug": "coach", "name": "Coach", "description": "Everything in Pro plus advanced personas, benchmarking, priority features, extended history, and advanced replay intelligence.", "priceMonthly": 49, "priceYearly": 490, "currency": "USD", "paddleProductId": "", "paddleMonthlyPriceId": "", "paddleYearlyPriceId": "", "isActive": True, "isPublic": True, "sortOrder": 3, "entitlements": {**DEFAULT_ENTITLEMENTS, "maxSessionsPerMonth": "unlimited", "maxMessagesPerSession": 80, "maxSessionMinutes": 90, "allowBrutalMode": True, "allowNerveMode": True, "allowChallengeMode": True, "allowAdvancedAnalytics": True, "allowDecisionTree": True, "allowHistoricalTrends": True, "allowBenchmarking": True, "allowShareableReports": True, "allowReportExport": True, "allowLongitudinalMemory": True, "allowCustomPersonas": True, "allowCourseTemplates": True, "reportDepth": "coach", "historyRetentionDays": "unlimited", "monthlyGeminiTokenLimit": 1200000, "docGroundingDocsPerDay": "unlimited"}},
 ]
 
 DEFAULT_PRODUCTS = [
@@ -106,6 +107,7 @@ class FirestoreService:
         self.admin_practice_templates: dict[str, dict] = {item["templateId"]: item for item in DEFAULT_PRACTICE_TEMPLATES}
         self.admin_course_templates: dict[str, dict] = {item["templateId"]: item for item in DEFAULT_COURSE_TEMPLATES}
         self.admin_logs: dict[str, dict] = {}
+        self.doc_counters: dict[str, dict] = {}
 
     async def create_session(self, payload: SessionCreate) -> Session:
         session = Session(id=str(uuid4()), createdAt=utc_now_iso(), **payload.model_dump())
@@ -1149,6 +1151,28 @@ class FirestoreService:
         self.admin_users.setdefault(uid, {"uid": uid}).update({"planId": assignment["planId"], "planName": assignment["planName"], "status": assignment["status"]})
         await self.log_admin_action("system", "assign plan", "user", uid, before=before, after=assignment)
         return assignment
+
+    async def get_daily_doc_count(self, user_id: str) -> int:
+        day_key = utc_now_iso()[:10]  # YYYY-MM-DD
+        if self.client:
+            snap = self.client.collection("userDocCounters").document(user_id).get()
+            if snap.exists:
+                return int(snap.to_dict().get(day_key, 0))
+            return 0
+        return int(self.doc_counters.get(user_id, {}).get(day_key, 0))
+
+    async def increment_daily_doc_count(self, user_id: str) -> None:
+        day_key = utc_now_iso()[:10]
+        if self.client:
+            ref = self.client.collection("userDocCounters").document(user_id)
+            snap = ref.get()
+            if snap.exists:
+                ref.update({day_key: firestore.Increment(1)})
+            else:
+                ref.set({day_key: 1})
+        else:
+            user_counters = self.doc_counters.setdefault(user_id, {})
+            user_counters[day_key] = user_counters.get(day_key, 0) + 1
 
     async def admin_billing(self) -> dict:
         if self.client:

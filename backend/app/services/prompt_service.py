@@ -1,7 +1,7 @@
 from app.models.message import Message
 from app.models.session import Session
 from app.prompts.report_prompts import REPORT_SCHEMA
-from app.prompts.roleplay_prompts import DIFFICULTY_BEHAVIOR, PERSONAS
+from app.prompts.roleplay_prompts import DIFFICULTY_BEHAVIOR, DOCUMENT_GUARDRAIL, DOCUMENT_MODES, PERSONAS
 from app.prompts.panel_prompts import build_panel_block, is_panel_mode
 from typing import Optional
 
@@ -59,7 +59,7 @@ Do NOT produce a single direct question. You must construct a two-step reasoning
   Closing question: One sharp question that forces the user to defend both the specific weakness and its implication simultaneously. Do not accept a partial answer.
 
 Attack note: {attack_note}
-Total response: 2–3 sentences maximum. No bullet points. No softening. Professionally adversarial throughout.
+Total response: 2–3 sentences. On rare occasions when the logical structure genuinely requires it, 4–5 sentences are permitted. No bullet points. No softening. Professionally adversarial throughout.
 """
 
     if mode == "Nerve":
@@ -73,7 +73,7 @@ You are cornering the user through a three-layer logical trap. Every layer must 
   Closing question: A single question that cannot be answered without addressing all three layers at once. The user should feel the walls closing.
 
 Attack note: {attack_note}{nerve_ctx}
-Total response: 3–4 sentences maximum. No bullet points. No coaching. If the user evades, open with "Evasion." then restate the sharpest unanswered layer as a question.
+Total response: 3–4 sentences. On rare occasions when a three-layer trap genuinely requires full construction, up to 5 sentences are permitted. No bullet points. No coaching. If the user evades, open with "Evasion." then restate the sharpest unanswered layer as a question.
 """
 
     return ""
@@ -139,6 +139,28 @@ def narrate_conversation_state(conversation_state: Optional[dict]) -> str:
     )
 
 
+def build_document_block(session: Session) -> str:
+    if not session.documentText:
+        return ""
+    doc_mode = session.documentMode or "neutral"
+    mode_instruction = DOCUMENT_MODES.get(doc_mode, DOCUMENT_MODES["neutral"])
+    word_count = len(session.documentText.split())
+    non_alpha = sum(1 for c in session.documentText if not c.isalpha() and not c.isspace())
+    symbol_ratio = non_alpha / max(1, len(session.documentText))
+    symbol_note = (
+        "\nNote: This document contains significant mathematical or code notation. "
+        "Focus on conceptual understanding and reasoning — do not attempt to verify calculations, run code, or solve equations."
+    ) if symbol_ratio > 0.15 else ""
+    return (
+        f"\n{DOCUMENT_GUARDRAIL}\n"
+        f"Document mode: {doc_mode.replace('_', ' ').title()}\n"
+        f"{mode_instruction}\n\n"
+        f"DOCUMENT ({word_count} words):\n"
+        f"---\n{session.documentText}\n---"
+        f"{symbol_note}\n"
+    )
+
+
 def build_roleplay_prompt(session: Session, history: list[Message], max_history_messages: int = 8, coordination_context: Optional[dict] = None) -> str:
     turns = "\n".join([f"{message.role.upper()}: {message.content}" for message in history[-max_history_messages:]])
     persona = PERSONAS[session.practiceType]
@@ -161,6 +183,42 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
         adaptation += " In brutal mode, interruptions are allowed, but keep them professional and never abusive."
     if session.difficulty == "Nerve":
         adaptation += " In Nerve Mode, do not coach. Cross-examine the user's idea and expose weak logic, missing evidence, unsupported assumptions, and feasibility risk."
+
+    # In-conversation pressure escalation — pressure must build turn by turn within ANY conversation
+    turn_count = len(user_turns)
+    diff = session.difficulty
+    if diff in {"Beginner", "Friendly"}:
+        turn_pressure_note = f"Turn {turn_count}: stay warm and patient. A small challenge is fine only if the user is performing well."
+    elif diff == "Intermediate":
+        if turn_count <= 3:
+            turn_pressure_note = f"Turn {turn_count} (opening): stay conversational and curious. Probe once."
+        elif turn_count <= 6:
+            turn_pressure_note = f"Turn {turn_count} (building): raise skepticism noticeably. Push for evidence."
+        else:
+            turn_pressure_note = f"Turn {turn_count} (late): be sharper than you were at the start — the user should feel this conversation has escalated."
+    elif diff == "Advanced":
+        if turn_count <= 3:
+            turn_pressure_note = f"Turn {turn_count} (opening): establish high expectations. Professional and probing."
+        elif turn_count <= 6:
+            turn_pressure_note = f"Turn {turn_count} (building): push for precise evidence. Sharper language. Light sarcasm is fine."
+        else:
+            turn_pressure_note = f"Turn {turn_count} (late): maximum scrutiny. Precision attacks, sharper wit — the hardest point in the conversation."
+    elif diff == "Brutal":
+        if turn_count <= 2:
+            turn_pressure_note = f"Turn {turn_count}: adversarial from the first sentence. No warmup."
+        elif turn_count <= 5:
+            turn_pressure_note = f"Turn {turn_count}: deepen the attack. Reference earlier vague answers if they exist — you remember everything."
+        else:
+            turn_pressure_note = f"Turn {turn_count}: maximum adversarial intensity. The user should feel the cumulative weight of this entire conversation."
+    elif diff == "Nerve":
+        if turn_count <= 2:
+            turn_pressure_note = f"Turn {turn_count}: maximum pressure from the opening. Establish the trap immediately."
+        elif turn_count <= 5:
+            turn_pressure_note = f"Turn {turn_count}: the trap is set. Begin cross-referencing earlier answers and calling out inconsistencies across turns."
+        else:
+            turn_pressure_note = f"Turn {turn_count}: full panel pressure. Every weakness surfaced across this entire conversation is now in play. Leave no escape."
+    else:
+        turn_pressure_note = f"Turn {turn_count}: maintain appropriate pressure for this difficulty."
     coordination_block = "No live conversation coordination context provided."
     if coordination_context:
         conversation_control = coordination_context.get("conversationControl") or {}
@@ -186,6 +244,7 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
 - future Cartesia delivery: {coordination_context.get("cartesia")}
 - nerve cross-examination: {coordination_context.get("nerve")}
 """
+    document_block = build_document_block(session)
     panel_block = build_panel_block(session.environmentMode) if is_panel_mode(session.environmentMode) else ""
     reasoning_chain_block = build_reasoning_chain_block(session, history, coordination_context)
     if panel_block:
@@ -209,7 +268,7 @@ Persona:
 
 Difficulty:
 {difficulty}
-
+{document_block}
 Scenario:
 - Practice type: {session.practiceType}
 - Topic: {session.topic}
@@ -223,7 +282,8 @@ Scenario:
 - Nerve pressure level: {session.pressureLevel}/10
 {panel_block}
 Adaptive behavior signals:
-- User turns: {len(user_turns)}
+- User turns: {turn_count}
+- In-conversation pressure stage: {turn_pressure_note}
 - Filler markers: {filler_count}
 - Generic/vague markers: {generic_count}
 - Evidence markers: {evidence_count}
@@ -255,8 +315,9 @@ Conversation so far:
 
 {reply_instruction}
 Respond directly to the user's latest words; do not repeat generic goal reminders, slogans, or the same coaching phrase across turns.
-Use natural emotion appropriate to the role: curious, skeptical, concerned, impatient, warm, or impressed. Vary sentence openings and rhythm.
-Adapt pressure dynamically based on the user's behavior. Challenge vague logic, probe unsupported assumptions, and increase depth when performance is strong. If the user appears overwhelmed, soften the tone slightly while staying realistic. Never be abusive. Do not give a feedback report yet.
+Use natural emotion appropriate to the role: curious, skeptical, concerned, impatient, warm, or impressed — and let that emotion shift and intensify as the conversation deepens. Vary sentence openings and rhythm. At Advanced, Brutal, and Nerve levels, sarcasm and dry wit are permitted and expected; deploy them when the user is vague, circular, or evasive.
+Be creative in how you challenge: sometimes use a sharp analogy, sometimes a historical parallel, sometimes a reductio ad absurdum — not just a direct objection. Occasionally attack the same weak claim from multiple angles (definitional, evidential, consequential) in a single tight response to create synonymic pressure.
+Adapt pressure dynamically based on the user's behavior AND the turn count — it must escalate within this conversation, not stay flat. Challenge vague logic, probe unsupported assumptions, and increase depth when performance is strong. If the user appears overwhelmed, soften tone slightly while staying realistic. Never be abusive. Do not give a feedback report yet.
 """
 
 
@@ -264,6 +325,7 @@ def build_opening_prompt(session: Session) -> str:
     persona = PERSONAS[session.practiceType]
     difficulty = DIFFICULTY_BEHAVIOR[session.difficulty]
     practice_language = LANGUAGE_NAMES.get(session.practiceLanguage, "English")
+    document_block = build_document_block(session)
     panel_block = build_panel_block(session.environmentMode) if is_panel_mode(session.environmentMode) else ""
     opening_instruction = (
         "Open the discussion: one panel member greets the candidate and asks the first question. "
@@ -285,7 +347,7 @@ Persona:
 
 Difficulty:
 {difficulty}
-
+{document_block}
 Scenario:
 - Practice type: {session.practiceType}
 - Topic: {session.topic}
@@ -300,7 +362,7 @@ Scenario:
 {panel_block}
 {opening_instruction}
 Do not explain the product. Do not give generic advice. Do not say "stay focused on your goal."
-Use a natural emotional tone appropriate to the role.
+Use a natural emotional tone appropriate to the role — personality should be evident from the very first sentence. At Intermediate and above, a dry observation or light irony in the opener signals immediately that this is a real, engaging counterpart. At Brutal and Nerve, the first line should put the user on notice.
 """
 
 

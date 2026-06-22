@@ -47,6 +47,14 @@ async def create_session(payload: SessionCreate, request: Request, current_user_
         flags = entitlements.get("entitlements") or {}
         if not (flags.get("allowNerveMode", False) or flags.get("allowBrutalMode", False)):
             raise HTTPException(status_code=403, detail="Nerve Mode requires Pro or Coach.")
+    if payload.documentText and current_user_id:
+        ents = await get_store(request).get_user_entitlements(current_user_id)
+        daily_limit = (ents.get("entitlements") or {}).get("docGroundingDocsPerDay", 1)
+        if daily_limit != "unlimited":
+            daily_count = await get_store(request).get_daily_doc_count(current_user_id)
+            if daily_count >= int(daily_limit):
+                raise HTTPException(status_code=429, detail=f"Daily document limit reached ({daily_limit}/day). Resets at midnight UTC.")
+            await get_store(request).increment_daily_doc_count(current_user_id)
     session = await get_store(request).create_session(payload)
     if session.difficulty == "Nerve":
         session = await get_cross_examination(request).prepare_session(session)

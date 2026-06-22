@@ -35,6 +35,35 @@ export async function getSessionUsage(uid: string, entitlements: Entitlements, p
   return { used, limit, remaining, resetDate, planName };
 }
 
+function currentDayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+export async function getDailyDocUsage(uid: string, entitlements: import("./admin").Entitlements): Promise<{ used: number; limit: number | "unlimited"; remaining: number | "unlimited" }> {
+  const limit = entitlements.docGroundingDocsPerDay ?? 1;
+  if (limit === "unlimited") return { used: 0, limit: "unlimited", remaining: "unlimited" };
+  const db = getFirebaseDb();
+  if (!db || !uid || uid === "guest") return { used: 0, limit, remaining: limit };
+  const snap = await getDoc(doc(db, "userDocCounters", uid));
+  const used: number = snap.exists() ? (snap.data()[currentDayKey()] || 0) : 0;
+  const remaining = Math.max(0, (limit as number) - used);
+  return { used, limit, remaining };
+}
+
+export async function incrementDailyDocCount(uid: string): Promise<void> {
+  const db = getFirebaseDb();
+  if (!db || !uid || uid === "guest") return;
+  const ref = doc(db, "userDocCounters", uid);
+  const snap = await getDoc(ref);
+  const day = currentDayKey();
+  if (snap.exists()) {
+    await updateDoc(ref, { [day]: increment(1) });
+  } else {
+    await setDoc(ref, { [day]: 1 });
+  }
+}
+
 export async function incrementMonthlySessionCount(uid: string): Promise<void> {
   const db = getFirebaseDb();
   if (!db || !uid || uid === "guest") return;

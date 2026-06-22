@@ -46,6 +46,7 @@ export type Entitlements = {
   reportDepth: "basic" | "advanced" | "coach";
   historyRetentionDays: number | "unlimited";
   monthlyGeminiTokenLimit: number;
+  docGroundingDocsPerDay: number | "unlimited";
 };
 
 export type Plan = {
@@ -536,6 +537,7 @@ const baseEntitlements: Entitlements = {
   reportDepth: "basic",
   historyRetentionDays: 30,
   monthlyGeminiTokenLimit: 50000,
+  docGroundingDocsPerDay: 1,
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -620,6 +622,7 @@ export const defaultPlans: Plan[] = [
       reportDepth: "advanced",
       historyRetentionDays: 365,
       monthlyGeminiTokenLimit: 300000,
+      docGroundingDocsPerDay: 3,
     },
   },
   {
@@ -666,6 +669,7 @@ export const defaultPlans: Plan[] = [
       reportDepth: "coach",
       historyRetentionDays: "unlimited",
       monthlyGeminiTokenLimit: 1200000,
+      docGroundingDocsPerDay: "unlimited",
     },
   },
 ];

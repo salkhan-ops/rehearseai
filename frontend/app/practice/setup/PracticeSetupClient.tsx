@@ -14,12 +14,12 @@ import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { createPracticeSchedule, createSession, generateRandomScenario } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { getCourseConfig } from "@/lib/courseConfig";
-import { canUsePracticeType, getUserEntitlements, getSessionUsage, incrementMonthlySessionCount, type UsageInfo } from "@/lib/entitlements";
+import { canUsePracticeType, getDailyDocUsage, getUserEntitlements, getSessionUsage, incrementDailyDocCount, incrementMonthlySessionCount, type UsageInfo } from "@/lib/entitlements";
 import { sessionHref } from "@/lib/routes";
 import { updateTelemetryConsent } from "@/lib/telemetry";
 import type { LanguageCode } from "@/lib/languages";
 import { difficulties, Difficulty, environmentModes, nerveEntryTypes, nervePersonas, practiceTypes, PracticeType } from "@/lib/types";
-import type { ConversationMode, EnvironmentMode, NerveEntryType, NervePersona } from "@/lib/types";
+import type { ConversationMode, DocumentMode, EnvironmentMode, NerveEntryType, NervePersona } from "@/lib/types";
 import type { Entitlements } from "@/lib/admin";
 
 const frequencyOptions = [
@@ -107,6 +107,10 @@ function SetupForm() {
   const [nervePersona, setNervePersona] = useState<NervePersona>("Mixed Panel");
   const [nerveMaterialName, setNerveMaterialName] = useState("");
   const [nerveMaterialText, setNerveMaterialText] = useState("");
+  const [useDocument, setUseDocument] = useState(false);
+  const [documentText, setDocumentText] = useState("");
+  const [documentMode, setDocumentMode] = useState<DocumentMode>("neutral");
+  const [docUsage, setDocUsage] = useState<{ used: number; limit: number | "unlimited"; remaining: number | "unlimited" } | null>(null);
   const [customDuration, setCustomDuration] = useState(false);
   const [createRoutine, setCreateRoutine] = useState(false);
   const [frequencyType, setFrequencyType] = useState<"daily" | "twice_weekly" | "three_times_weekly" | "weekdays" | "custom">("daily");
@@ -121,6 +125,7 @@ function SetupForm() {
     getUserEntitlements(userId).then((e) => {
       setEntitlements(e);
       getSessionUsage(userId, e).then(setUsage).catch(() => undefined);
+      getDailyDocUsage(userId, e).then(setDocUsage).catch(() => undefined);
     }).catch(() => undefined);
   }, [userId]);
 
@@ -161,6 +166,17 @@ function SetupForm() {
         setError(`You've used all ${usage.limit} sessions this month. Upgrade your plan for more. Resets ${usage.resetDate}.`);
         return;
       }
+      if (useDocument && documentText.trim()) {
+        const docWordCount = documentText.trim().split(/\s+/).length;
+        if (docWordCount < 50) {
+          setError("Document is too short — paste at least 50 words for meaningful grounding.");
+          return;
+        }
+        if (docUsage && docUsage.limit !== "unlimited" && docUsage.remaining === 0) {
+          setError(`You've reached your daily document limit (${docUsage.limit}/day). Resets at midnight UTC.`);
+          return;
+        }
+      }
     }
     setLoading(true);
     const token = await getToken();
@@ -171,8 +187,12 @@ function SetupForm() {
       userId, practiceType, difficulty, topic, context, goal, optionalNotes,
       practiceLanguage, feedbackLanguage, durationPreference, environmentMode, preferredConversationMode,
       ...(difficulty === "Nerve" ? { nerveEntryType, nervePersona, nerveMaterialName, nerveMaterialText } : {}),
+      ...(useDocument && documentText.trim() ? { documentText: documentText.trim(), documentName: "pasted document", documentMode } : {}),
     }, token);
     incrementMonthlySessionCount(userId).catch(() => undefined);
+    if (useDocument && documentText.trim()) {
+      incrementDailyDocCount(userId).catch(() => undefined);
+    }
     if (createRoutine) {
       await createPracticeSchedule({
         userId, frequencyType,
@@ -420,6 +440,88 @@ function SetupForm() {
 
               <section className="mt-5 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
                 <ConversationModeToggle value={preferredConversationMode} onChange={setPreferredConversationMode} />
+              </section>
+
+              {/* ── Document grounding ── */}
+              <section className="mt-5 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
+                    <BookOpen size={16} /> Ground in a document
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setUseDocument((v) => !v); if (useDocument) setDocumentText(""); }}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-bold ring-1 transition ${useDocument ? "bg-slate-950 text-white ring-slate-950 dark:bg-white dark:text-slate-950" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white/60 dark:ring-white/10"}`}
+                  >
+                    {useDocument ? "On" : "Off"}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs font-medium text-slate-500 dark:text-white/45">
+                  Conversation stays strictly within your pasted text — ideal for thesis defences, pitch decks, CVs, or any document you want to defend.
+                </p>
+
+                {useDocument && (
+                  <div className="mt-4 space-y-4">
+                    {docUsage && docUsage.limit !== "unlimited" && (
+                      <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
+                        <span className="text-xs font-semibold text-slate-600 dark:text-white/60">
+                          {docUsage.remaining} of {docUsage.limit as number} documents remaining today
+                        </span>
+                        {docUsage.remaining === 0 && (
+                          <span className="text-xs font-bold text-rose-600">Limit reached — resets midnight UTC</span>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <div className="mb-2 text-xs font-semibold text-slate-600 dark:text-white/60">Review mode</div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {([ ["neutral", "Neutral"], ["harsh_critical", "Harsh Critical"], ["socratic", "Socratic"], ["supportive", "Supportive"] ] as [DocumentMode, string][]).map(([id, label]) => (
+                          <button key={id} type="button" onClick={() => setDocumentMode(id)}
+                            className={`rounded-xl py-2.5 text-xs font-bold ring-1 transition ${documentMode === id ? "bg-slate-950 text-white ring-slate-950 shadow-[0_8px_20px_rgba(15,23,42,0.14)] dark:bg-white dark:text-slate-950" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white/60 dark:ring-white/10"}`}
+                          >{label}</button>
+                        ))}
+                      </div>
+                      {documentMode === "harsh_critical" && <p className="mt-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">Every gap, contradiction, and unsupported claim gets attacked. No softening.</p>}
+                      {documentMode === "socratic" && <p className="mt-1.5 text-xs font-medium text-slate-500 dark:text-white/40">You'll be guided to discover weaknesses yourself through questions — no direct attacks.</p>}
+                      {documentMode === "supportive" && <p className="mt-1.5 text-xs font-medium text-slate-500 dark:text-white/40">Strengths acknowledged first, then gaps probed constructively.</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-white/60">
+                        Paste your document
+                        <textarea
+                          value={documentText}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const words = val.trim() ? val.trim().split(/\s+/).length : 0;
+                            if (words <= 2500) setDocumentText(val);
+                          }}
+                          rows={7}
+                          className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
+                          placeholder="Paste your thesis, pitch deck, research proposal, CV, or any text you want to defend…"
+                        />
+                      </label>
+                      {(() => {
+                        const words = documentText.trim() ? documentText.trim().split(/\s+/).length : 0;
+                        const nonAlpha = documentText.split("").filter((c) => !c.match(/[a-zA-Z\s]/)).length;
+                        const symbolHeavy = documentText.length > 50 && nonAlpha / documentText.length > 0.15;
+                        return (
+                          <div className="mt-1.5 flex items-center justify-between gap-2">
+                            <span className={`text-xs font-medium ${words > 2400 ? "text-rose-600" : "text-slate-400 dark:text-white/30"}`}>
+                              {words.toLocaleString()} / 2,500 words
+                            </span>
+                            {symbolHeavy && (
+                              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                                Math / code detected — AI will focus on reasoning, not calculations
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
               </section>
 
               {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
