@@ -18,6 +18,8 @@ import { CameraAssistedTimingToggle } from "@/components/session/CameraAssistedT
 import { ImmersiveMode } from "@/components/session/ImmersiveMode";
 import { CameraDebugPanel } from "@/components/session/CameraDebugPanel";
 import { CameraTimingStatus } from "@/components/session/CameraTimingStatus";
+import { CameraSetupGuide } from "@/components/session/CameraSetupGuide";
+import { CameraDetectionIssueCard } from "@/components/session/CameraDetectionIssueCard";
 import { ConversationModeToggle } from "@/components/session/ConversationModeToggle";
 import { LiveTranscriptPanel } from "@/components/session/LiveTranscriptPanel";
 import { NaturalConversationControls } from "@/components/session/NaturalConversationControls";
@@ -203,6 +205,11 @@ export default function SessionPage() {
   const [debugLogFile, setDebugLogFile] = useState("");
   const [showDebugLog, setShowDebugLog] = useState(false);
   const [messageEmotions, setMessageEmotions] = useState<Record<string, SpeechEmotionResult>>({});
+  const [aiWaitStage, setAiWaitStage] = useState<0 | 1 | 2 | 3>(0);
+  const [isOffline, setIsOffline] = useState(false);
+  const aiAbortControllerRef = useRef<AbortController | null>(null);
+  const aiWaitTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const lastSentContentRef = useRef<string>("");
   const practiceLanguage = getLanguage(session?.practiceLanguage);
   const beginnerMode = session?.difficulty === "Beginner" || session?.difficulty === "Friendly";
   const coachingMode = beginnerMode || session?.difficulty === "Intermediate";
@@ -244,6 +251,26 @@ export default function SessionPage() {
     naturalTimerRefs.current = [];
     naturalIntervalRefs.current = [];
     setNaturalCountdown(null);
+  }
+
+  function clearAiWaitTimers() {
+    aiWaitTimersRef.current.forEach(clearTimeout);
+    aiWaitTimersRef.current = [];
+    setAiWaitStage(0);
+  }
+
+  function startAiWaitTimers(controller: AbortController) {
+    const t1 = setTimeout(() => setAiWaitStage(1), 3000);
+    const t2 = setTimeout(() => setAiWaitStage(2), 10000);
+    const t3 = setTimeout(() => controller.abort(), 20000);
+    aiWaitTimersRef.current = [t1, t2, t3];
+  }
+
+  function retryLastMessage() {
+    const content = lastSentContentRef.current;
+    if (!content) return;
+    setError("");
+    submitContent(content);
   }
 
   function resetNaturalTurnBuffers() {
@@ -566,6 +593,10 @@ export default function SessionPage() {
     setDraft("");
     setLoading(true);
     setError("");
+    lastSentContentRef.current = outboundContent;
+    const abortController = new AbortController();
+    aiAbortControllerRef.current = abortController;
+    startAiWaitTimers(abortController);
     // Capture the emotion snapshot before resetNaturalTurnBuffers clears it
     const capturedEmotion = metrics.speechEmotion;
     naturalConversation.dispatch("ai_processing");
@@ -600,7 +631,7 @@ export default function SessionPage() {
         },
         conversationState: latestConversationStateRef.current || undefined,
         speechEmotion: capturedEmotion ?? undefined,
-      });
+      }, abortController.signal);
       const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
       if (capturedEmotion && capturedEmotion.label !== "unclear") {
@@ -704,10 +735,12 @@ export default function SessionPage() {
         scheduleNaturalBoundedWait(0, false);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not send your response.";
+      const isAborted = err instanceof Error && err.name === "AbortError";
+      const message = isAborted
+        ? "No response in time — connection may be slow. Tap Retry to resend."
+        : (err instanceof Error ? err.message : "Could not send your response.");
       naturalConversation.dispatch("error");
       setError(message);
-      // Restart listening after error so the session doesn't freeze
       window.setTimeout(() => {
         if (sessionActiveRef.current && latestVoiceModeRef.current && naturalModeActive) {
           dblogRef.current({ event: "LISTEN_RESTART", reason: "send_error_recovery", decision: voice.voiceState });
@@ -716,6 +749,8 @@ export default function SessionPage() {
         }
       }, 500);
     } finally {
+      clearAiWaitTimers();
+      aiAbortControllerRef.current = null;
       naturalGentlePromptShownRef.current = false;
       setAutoSubmitNotice("");
       setLoading(false);
@@ -727,6 +762,18 @@ export default function SessionPage() {
     setPrivacySettings(normalizePrivacySettings(profile.privacySettings));
     setCameraAssistedTiming(Boolean(profile.privacySettings.allowCameraAssistedTiming));
   }, [profile?.privacySettings]);
+
+  useEffect(() => {
+    setIsOffline(!navigator.onLine);
+    const goOffline = () => setIsOffline(true);
+    const goOnline = () => setIsOffline(false);
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("online", goOnline);
+    return () => {
+      window.removeEventListener("offline", goOffline);
+      window.removeEventListener("online", goOnline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!userId || userId === "guest") return;
@@ -1225,6 +1272,10 @@ export default function SessionPage() {
     voice.resetTranscript();
     if (fromVoice && naturalModeActive) naturalConversation.dispatch("ai_processing");
     setLoading(true);
+    lastSentContentRef.current = outboundContent;
+    const abortController = new AbortController();
+    aiAbortControllerRef.current = abortController;
+    startAiWaitTimers(abortController);
     try {
       const token = await getToken();
       const requestStartedAt = Date.now();
@@ -1256,7 +1307,7 @@ export default function SessionPage() {
         } : undefined,
         conversationState: latestConversationStateRef.current || undefined,
         speechEmotion: submitEmotion ?? undefined,
-      });
+      }, abortController.signal);
       const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
       setSession((current) => current ? { ...current, turnCount: result.turnCount } : current);
@@ -1321,17 +1372,24 @@ export default function SessionPage() {
         scheduleNaturalBoundedWait(0, false);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not send your response.";
-      if (message.includes("Session already completed")) {
-        setVoiceMode(false);
-        voice.stopListening();
-        setSession((current) => current ? { ...current, status: "completed" } : current);
-        setError("This session is already completed. Start a new practice session for hands-free voice.");
-      } else {
+      if (err instanceof Error && err.name === "AbortError") {
         if (fromVoice && naturalModeActive) naturalConversation.dispatch("error");
-        setError(message);
+        setError("No response in time — connection may be slow. Tap Retry to resend.");
+      } else {
+        const message = err instanceof Error ? err.message : "Could not send your response.";
+        if (message.includes("Session already completed")) {
+          setVoiceMode(false);
+          voice.stopListening();
+          setSession((current) => current ? { ...current, status: "completed" } : current);
+          setError("This session is already completed. Start a new practice session for hands-free voice.");
+        } else {
+          if (fromVoice && naturalModeActive) naturalConversation.dispatch("error");
+          setError(message);
+        }
       }
     } finally {
+      clearAiWaitTimers();
+      aiAbortControllerRef.current = null;
       setAutoSubmitNotice("");
       setLoading(false);
     }
@@ -1478,6 +1536,13 @@ export default function SessionPage() {
     />
     <main className={`relative min-h-screen overflow-hidden bg-[#07111f] text-white transition-colors ${hintVisible && latestHint ? "bg-[#0b182b]" : ""}`} dir={isRtlLanguage(session?.practiceLanguage) ? "rtl" : "ltr"}>
       <FirstSessionGuide />
+      <CameraSetupGuide trigger={cameraAssistedTiming} />
+      <CameraDetectionIssueCard
+        enabled={cameraAssistedTiming}
+        cameraState={cameraSignals.state}
+        lightingScore={cameraSignals.signals.lightingScore}
+        faceDetected={cameraSignals.signals.faceDetected}
+      />
       <AmbientField mode={orbMode} />
       {beginnerMode && <FloatingHint hint={hintVisible ? latestHint : null} onExpand={() => {
         if (latestHint) {
@@ -1675,9 +1740,23 @@ export default function SessionPage() {
         </section>
 
         <section className="relative mx-auto w-full max-w-5xl pb-4">
+          {isOffline && (
+            <div className="mb-3 rounded-[1.25rem] bg-amber-400/10 p-4 text-sm font-semibold text-amber-200 ring-1 ring-amber-300/20 backdrop-blur-2xl">
+              You appear to be offline — check your connection.
+            </div>
+          )}
           {error && (
-            <div className="mb-3 rounded-[1.25rem] bg-rose-400/12 p-4 text-sm font-semibold text-rose-100 ring-1 ring-rose-200/20 backdrop-blur-2xl">
-              {error}
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-[1.25rem] bg-rose-400/12 p-4 text-sm font-semibold text-rose-100 ring-1 ring-rose-200/20 backdrop-blur-2xl">
+              <span>{error}</span>
+              {lastSentContentRef.current && !error.includes("completed") && (
+                <button
+                  type="button"
+                  onClick={retryLastMessage}
+                  className="shrink-0 rounded-xl bg-white/15 px-3 py-1.5 text-xs font-bold text-white ring-1 ring-white/20 transition hover:bg-white/25"
+                >
+                  Retry
+                </button>
+              )}
             </div>
           )}
 
@@ -1700,7 +1779,29 @@ export default function SessionPage() {
                 <div className="text-base font-medium leading-7">{message.role === "ai" ? stripSpeakerTags(message.content) : message.content}</div>
               </AnimatedMessage>
             ))}
-            {loading && <TypingIndicator />}
+            {loading && (
+              <div className="space-y-2 text-center">
+                <TypingIndicator />
+                {aiWaitStage >= 1 && (
+                  <motion.p
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-xs font-medium text-white/40"
+                  >
+                    Still thinking…
+                  </motion.p>
+                )}
+                {aiWaitStage >= 2 && (
+                  <motion.p
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-xs font-medium text-amber-300/60"
+                  >
+                    Taking longer than usual — slow connection?
+                  </motion.p>
+                )}
+              </div>
+            )}
           </div>
 
           <LiveTranscriptPanel transcript={voice.transcript} interimTranscript={voice.interimTranscript} />

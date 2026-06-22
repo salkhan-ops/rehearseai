@@ -35,11 +35,12 @@ export function getSession(id: string, token?: string | null) {
   return request<{ session: Session; messages: Message[] }>(`/api/sessions/${id}`, { token });
 }
 
-export function sendMessage(sessionId: string, content: string, userId = "guest", token?: string | null, coordination?: Partial<ConversationAnalyzePayload>) {
+export function sendMessage(sessionId: string, content: string, userId = "guest", token?: string | null, coordination?: Partial<ConversationAnalyzePayload>, signal?: AbortSignal) {
   return request<{ userMessage: Message; aiMessage: Message; turnCount: number; hint?: SessionHint; dynamics?: Record<string, unknown>; conversationControl?: ConversationControl }>(`/api/sessions/${sessionId}/message`, {
     method: "POST",
     body: JSON.stringify({ userId, content, ...(coordination || {}) }),
-    token
+    token,
+    signal,
   });
 }
 
