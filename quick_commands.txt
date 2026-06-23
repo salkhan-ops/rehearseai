@@ -10,3 +10,21 @@ uvicorn app.main:app --reload --port 8000
 cd frontend
 npm install
 npm run dev
+
+
+
+***Live
+***backend
+
+
+cd /Users/salmankhan/StudioProjects/rehearseAI/backend
+
+gcloud builds submit \
+  --tag gcr.io/rehearseai-prod/rehearseai-backend \
+  --project rehearseai-prod \
+  . && \
+gcloud run deploy rehearseai-backend \
+  --image gcr.io/rehearseai-prod/rehearseai-backend \
+  --platform managed \
+  --region us-central1 \
+  --project rehearseai-prod

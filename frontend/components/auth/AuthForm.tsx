@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import type { ReactNode } from "react";
-import { Check, LockKeyhole, Sparkles } from "lucide-react";
+import { Check, Mail, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import type { LanguageCode } from "@/lib/languages";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
@@ -24,13 +24,14 @@ export function AuthForm({
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [verifyState, setVerifyState] = useState<{ email: string; password: string } | null>(null);
   const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>("en");
   const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>("en");
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [minorConsentAcknowledged, setMinorConsentAcknowledged] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
-  const title = mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Reset password";
+  const title = mode === "signin" ? "Sign in" : mode === "signup" ? "Sign up" : "Reset password";
   const subtitle = mode === "signup"
     ? "Save your practice history, reports, and language preferences."
     : mode === "forgot"
@@ -52,10 +53,18 @@ export function AuthForm({
     try {
       if (mode === "forgot") {
         await auth.resetPassword(email);
-        setMessage("Password reset email sent.");
+        setMessage("Password reset email sent. Check your inbox.");
       } else if (mode === "signin") {
-        await auth.signInWithEmail(email, password);
-        await routeAfterLogin();
+        try {
+          await auth.signInWithEmail(email, password);
+          await routeAfterLogin();
+        } catch (err) {
+          if (err instanceof Error && err.message === "EMAIL_NOT_VERIFIED") {
+            setVerifyState({ email, password });
+          } else {
+            throw err;
+          }
+        }
       } else {
         await auth.signUpWithEmail(email, password, practiceLanguage, feedbackLanguage, {
           ageConfirmed,
@@ -63,7 +72,7 @@ export function AuthForm({
           termsAccepted,
           privacyAccepted,
         });
-        await routeAfterLogin();
+        setVerifyState({ email, password });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
@@ -120,6 +129,57 @@ export function AuthForm({
     return <Link href={`/?auth=${nextMode}`}>{children}</Link>;
   }
 
+  if (verifyState) {
+    return (
+      <div className="relative overflow-hidden rounded-[1.5rem] bg-white p-6 shadow-[0_22px_70px_rgba(35,45,75,0.12)] ring-1 ring-slate-200/75 dark:bg-slate-950 dark:ring-white/10 sm:p-8">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-cyan-200/40 blur-3xl dark:bg-cyan-300/10" />
+        <div className="pointer-events-none absolute -bottom-24 left-8 h-48 w-48 rounded-full bg-violet-200/50 blur-3xl dark:bg-violet-400/12" />
+        <div className="relative text-center">
+          <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 shadow-[0_12px_32px_rgba(109,40,217,0.3)]">
+            <Mail size={28} className="text-white" />
+          </div>
+          <h2 className="text-3xl font-semibold tracking-[-0.045em] text-slate-950 dark:text-white">Check your inbox</h2>
+          <p className="mt-3 text-base font-medium leading-7 text-slate-600 dark:text-white/60">
+            We sent a verification link to <span className="font-semibold text-slate-950 dark:text-white">{verifyState.email}</span>. Click the link to activate your account.
+          </p>
+          <p className="mt-2 text-sm font-medium text-slate-400 dark:text-white/40">
+            Once verified, come back and sign in.
+          </p>
+          <div className="mt-6 space-y-3">
+            <button
+              type="button"
+              onClick={async () => {
+                setLoading(true);
+                setError("");
+                try {
+                  await auth.resendVerification(verifyState.email, verifyState.password);
+                  setMessage("Verification email resent.");
+                } catch {
+                  setError("Could not resend. Try signing in again.");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-violet-300 hover:text-violet-700 dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:border-violet-400/40"
+            >
+              {loading ? "Sending..." : "Resend verification email"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setVerifyState(null); onModeChange?.("signin"); }}
+              className="w-full rounded-2xl bg-gradient-to-r from-[#6200a8] via-[#7c00d8] to-[#3b82f6] px-5 py-3 text-sm font-bold text-white shadow-[0_12px_32px_rgba(98,0,168,0.24)] transition hover:-translate-y-0.5"
+            >
+              Go to sign in
+            </button>
+          </div>
+          {message && <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300">{message}</p>}
+          {error && <p className="mt-4 rounded-2xl bg-red-50 p-3 text-sm font-semibold text-red-700 dark:bg-red-400/10 dark:text-red-300">{error}</p>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative overflow-hidden rounded-[1.5rem] bg-white p-6 shadow-[0_22px_70px_rgba(35,45,75,0.12)] ring-1 ring-slate-200/75 dark:bg-slate-950 dark:ring-white/10 sm:p-7">
       <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-cyan-200/40 blur-3xl dark:bg-cyan-300/10" />
@@ -159,16 +219,11 @@ export function AuthForm({
       {mode !== "forgot" && <div className="relative mt-3"><GoogleSignInButton onClick={google} disabled={loading || (mode === "signup" && (!ageConfirmed || !termsAccepted || !privacyAccepted))} /></div>}
       <div className="relative mt-5 flex flex-wrap justify-center gap-4 text-sm font-bold text-slate-600 dark:text-white/60">
         {mode !== "signin" && <ModeLink nextMode="signin">Sign in</ModeLink>}
-        {mode !== "signup" && <ModeLink nextMode="signup">Create account</ModeLink>}
+        {mode !== "signup" && <ModeLink nextMode="signup">Sign up</ModeLink>}
         {mode !== "forgot" && <ModeLink nextMode="forgot">Forgot password?</ModeLink>}
       </div>
       {message && <p className="relative mt-4 rounded-2xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{message}</p>}
       {error && <p className="relative mt-4 rounded-2xl bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
-      {mode !== "forgot" && (
-        <div className="relative mt-5 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-white/35">
-          <LockKeyhole size={14} /> Secured by Firebase Auth
-        </div>
-      )}
     </div>
   );
 }

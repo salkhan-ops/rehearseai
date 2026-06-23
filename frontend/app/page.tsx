@@ -9,6 +9,7 @@ import { AuthDialog } from "@/components/auth/AuthDialog";
 import type { AuthMode } from "@/components/auth/AuthForm";
 import { ButtonLink } from "@/components/ButtonLink";
 import { Nav } from "@/components/Nav";
+import { Footer } from "@/components/content/Footer";
 import { PracticeType, practiceTypes } from "@/lib/types";
 
 const steps = [
@@ -406,6 +407,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <Footer />
       <AuthDialog mode={authMode} onClose={closeAuth} onModeChange={openAuth} />
     </main>
   );

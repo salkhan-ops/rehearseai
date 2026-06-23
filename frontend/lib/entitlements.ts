@@ -79,6 +79,7 @@ export async function incrementMonthlySessionCount(uid: string): Promise<void> {
 
 export async function getUserEntitlements(uid: string): Promise<Entitlements> {
   const db = getFirebaseDb();
+  if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "false") return defaultPlans[0].entitlements;
   if (!db || !uid || uid === "guest") return defaultPlans[0].entitlements;
   const userEntitlements = await getDoc(doc(db, "userEntitlements", uid));
   if (userEntitlements.exists()) return userEntitlements.data().entitlements as Entitlements;
@@ -90,6 +91,9 @@ export async function getUserEntitlements(uid: string): Promise<Entitlements> {
 export async function getUserPlanInfo(uid: string): Promise<{ entitlements: Entitlements; planName: string; planId: string }> {
   const db = getFirebaseDb();
   const freePlan = defaultPlans.find((p) => p.planId === "free") || defaultPlans[0];
+  if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "false") {
+    return { entitlements: freePlan.entitlements, planName: freePlan.name, planId: "free" };
+  }
   if (!db || !uid || uid === "guest") {
     return { entitlements: freePlan.entitlements, planName: freePlan.name, planId: "free" };
   }

@@ -1,24 +1,28 @@
 import type { Metadata } from "next";
-import { LegalLayout } from "@/components/content/LegalLayout";
+import { LegalLayout, LegalSection } from "@/components/content/LegalLayout";
 
 export const metadata: Metadata = {
   title: "Cookie Policy | RehearseAI",
   description: "Cookie and local storage policy for RehearseAI.",
 };
 
-const sections = [
-  ["Overview", "RehearseAI uses cookies, local storage, and similar browser technologies to operate the product, preserve preferences, and support future analytics and performance measurement."],
+const sections: [string, string][] = [
+  ["Overview", "RehearseAI uses cookies, local storage, and similar browser technologies to operate the product, preserve preferences, and support analytics and performance measurement."],
   ["Essential Storage", "Essential storage supports authentication state, security, theme preferences, language preferences, and cookie consent. The service may not work correctly without these."],
-  ["Analytics Placeholder", "Analytics cookies are not required for core use. They may later help us understand usage patterns and improve onboarding, training loops, and product reliability."],
-  ["Performance Placeholder", "Performance technologies may later help measure page speed, errors, and feature reliability."],
-  ["Managing Consent", "The MVP cookie banner stores your choice in localStorage. You can clear site data in your browser to reset consent."],
-  ["Contact", "For cookie questions, contact privacy@rehearseai.app."],
+  ["Analytics", "Analytics cookies help us understand usage patterns and improve onboarding, training loops, and product reliability. These are not required for core product use."],
+  ["Performance", "Performance technologies help measure page speed, errors, and feature reliability to improve the product experience."],
+  ["Managing Consent", "Your cookie preference is stored in localStorage. You can clear site data in your browser to reset consent at any time."],
+  ["Contact", "For cookie questions, email support@rehearseai.dev."],
 ];
 
 export default function CookiePolicyPage() {
   return (
-    <LegalLayout title="Cookie Policy" updated="May 29, 2026">
-      {sections.map(([title, body]) => <section key={title}><h2>{title}</h2><p>{body}</p></section>)}
+    <LegalLayout title="Cookie Policy" updated="June 23, 2026" badge="Privacy">
+      {sections.map(([title, body], i) => (
+        <LegalSection key={title} index={i + 1} title={title}>
+          <p>{body}</p>
+        </LegalSection>
+      ))}
     </LegalLayout>
   );
 }

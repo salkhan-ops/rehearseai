@@ -18,6 +18,14 @@ export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", class
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
+  if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "false") {
+    return (
+      <button type="button" disabled className={className} title="Paid plans coming soon">
+        Coming soon
+      </button>
+    );
+  }
+
   if (!priceId) {
     return (
       <Link href={fallbackHref} className={className}>

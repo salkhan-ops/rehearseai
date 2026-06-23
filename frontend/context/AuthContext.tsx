@@ -5,6 +5,7 @@ import {
   User,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInAnonymously,
   signInWithEmailAndPassword,
@@ -65,6 +66,7 @@ type AuthContextValue = {
   signInGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  resendVerification: (email: string, password: string) => Promise<void>;
   continueAsGuest: () => Promise<void>;
   updateLanguagePreferences: (practiceLanguage: LanguageCode, feedbackLanguage: LanguageCode) => Promise<void>;
   confirmAgeEligibility: (minorConsentAcknowledged?: boolean) => Promise<void>;
@@ -200,6 +202,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function signInWithEmailAction(email: string, password: string) {
       const auth = requireAuthClient();
       const result = await signInWithEmailAndPassword(auth, email, password);
+      if (!result.user.emailVerified) {
+        await firebaseSignOut(auth);
+        throw new Error("EMAIL_NOT_VERIFIED");
+      }
       setProfile(await upsertUserProfile(result.user));
     }
 
@@ -209,7 +215,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const auth = requireAuthClient();
       const result = await createUserWithEmailAndPassword(auth, email, password);
-      setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance));
+      await sendEmailVerification(result.user);
+      await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance);
+      await firebaseSignOut(auth);
     }
 
     async function signInWithGoogleAction(practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) {
@@ -287,6 +295,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword: async (email) => {
       const auth = requireAuthClient();
       await sendPasswordResetEmail(auth, email);
+    },
+    resendVerification: async (email, password) => {
+      const auth = requireAuthClient();
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      if (!result.user.emailVerified) {
+        await sendEmailVerification(result.user);
+        await firebaseSignOut(auth);
+      }
     },
     continueAsGuest: async () => {
       const auth = requireAuthClient();
