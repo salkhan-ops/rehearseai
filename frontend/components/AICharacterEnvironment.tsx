@@ -205,8 +205,8 @@ function AvatarFigure({ figure, index, compact = false, isActiveSpeaker = false 
             </>
           ) : (
             <>
-              <motion.path d="M51 145c-15 24-20 46-15 68" stroke={`url(#${skinGradientId})`} strokeWidth="17" strokeLinecap="round" fill="none" animate={armGesture ? { d: ["M51 145c-15 24-20 46-15 68", "M51 145c-7 24 3 43 21 57", "M51 145c-15 24-20 46-15 68"] } : undefined} transition={{ duration: 3.6, delay: tone.delay, repeat: Infinity, ease: "easeInOut" }} />
-              <motion.path d="M139 145c15 24 20 46 15 68" stroke={`url(#${skinGradientId})`} strokeWidth="17" strokeLinecap="round" fill="none" animate={armGesture ? { d: ["M139 145c15 24 20 46 15 68", "M139 145c7 24-3 43-21 57", "M139 145c15 24 20 46 15 68"] } : undefined} transition={{ duration: 3.8, delay: tone.delay + 0.2, repeat: Infinity, ease: "easeInOut" }} />
+              <path d="M51 145c-15 24-20 46-15 68" stroke={`url(#${skinGradientId})`} strokeWidth="17" strokeLinecap="round" fill="none" />
+              <path d="M139 145c15 24 20 46 15 68" stroke={`url(#${skinGradientId})`} strokeWidth="17" strokeLinecap="round" fill="none" />
             </>
           )}
           {(figure.tone === "notes" || index % 5 === 0) && (

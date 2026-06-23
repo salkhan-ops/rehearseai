@@ -150,10 +150,10 @@ async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, fe
       },
       ageConfirmed: existingData.ageConfirmed || Boolean(compliance?.ageConfirmed),
       minorConsentAcknowledged: existingData.minorConsentAcknowledged || Boolean(compliance?.minorConsentAcknowledged),
-      termsAcceptedAt: existingData.termsAcceptedAt,
-      privacyAcceptedAt: existingData.privacyAcceptedAt,
-      ageConfirmedAt: existingData.ageConfirmedAt,
       ...compliancePayload(compliance),
+      ...(existingData.termsAcceptedAt !== undefined && { termsAcceptedAt: existingData.termsAcceptedAt }),
+      ...(existingData.privacyAcceptedAt !== undefined && { privacyAcceptedAt: existingData.privacyAcceptedAt }),
+      ...(existingData.ageConfirmedAt !== undefined && { ageConfirmedAt: existingData.ageConfirmedAt }),
     };
     await setDoc(userRef, profile, { merge: true });
     return {
@@ -170,9 +170,9 @@ async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, fe
       privacySettings: profile.privacySettings,
       ageConfirmed: Boolean(profile.ageConfirmed),
       minorConsentAcknowledged: Boolean(profile.minorConsentAcknowledged),
-      termsAcceptedAt: profile.termsAcceptedAt,
-      privacyAcceptedAt: profile.privacyAcceptedAt,
-      ageConfirmedAt: profile.ageConfirmedAt,
+      ...(profile.termsAcceptedAt !== undefined && { termsAcceptedAt: profile.termsAcceptedAt }),
+      ...(profile.privacyAcceptedAt !== undefined && { privacyAcceptedAt: profile.privacyAcceptedAt }),
+      ...(profile.ageConfirmedAt !== undefined && { ageConfirmedAt: profile.ageConfirmedAt }),
     } as AppUserProfile;
   } catch (error) {
     console.warn("Firebase Auth succeeded, but Firestore profile sync failed. Deploy firestore.rules to enable profile writes.", error);

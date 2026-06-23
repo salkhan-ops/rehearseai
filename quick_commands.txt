@@ -16,7 +16,6 @@ npm run dev
 ***Live
 ***backend
 
-
 cd /Users/salmankhan/StudioProjects/rehearseAI/backend
 
 gcloud builds submit \
@@ -28,3 +27,19 @@ gcloud run deploy rehearseai-backend \
   --platform managed \
   --region us-central1 \
   --project rehearseai-prod
+
+
+*****frontend
+cd /Users/salmankhan/StudioProjects/rehearseAI/frontend && \
+gcloud builds submit \
+  --tag gcr.io/rehearseai-prod/rehearseai-frontend \
+  --project rehearseai-prod \
+  . && \
+gcloud run deploy rehearseai-frontend \
+  --image gcr.io/rehearseai-prod/rehearseai-frontend \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --update-env-vars NEXT_PUBLIC_PAYMENTS_ENABLED=false \
+  --project rehearseai-prod
+

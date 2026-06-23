@@ -51,8 +51,8 @@ function MiniCharacter({ x, tone, delay }: { x: string; tone: "cyan" | "violet" 
         <motion.ellipse cx="53" cy="53" rx="2.5" ry="3.5" fill="#111827" animate={{ scaleY: [1, 0.08, 1] }} transition={{ duration: 3.5, delay, repeat: Infinity }} />
         <motion.ellipse cx="73" cy="53" rx="2.5" ry="3.5" fill="#111827" animate={{ scaleY: [1, 0.08, 1] }} transition={{ duration: 3.5, delay, repeat: Infinity }} />
         <path d="M52 66c6 4 13 4 20 0" stroke="#7c2d12" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.62" />
-        <motion.path d="M28 95c-10 15-12 27-5 42" stroke="#efb27f" strokeWidth="11" strokeLinecap="round" fill="none" animate={{ d: ["M28 95c-10 15-12 27-5 42", "M28 95c-2 16 7 25 20 34", "M28 95c-10 15-12 27-5 42"] }} transition={{ duration: 3.4, delay, repeat: Infinity, ease: "easeInOut" }} />
-        <motion.path d="M85 95c10 15 12 27 5 42" stroke="#efb27f" strokeWidth="11" strokeLinecap="round" fill="none" animate={{ d: ["M85 95c10 15 12 27 5 42", "M85 95c2 16-7 25-20 34", "M85 95c10 15 12 27 5 42"] }} transition={{ duration: 3.5, delay: delay + 0.2, repeat: Infinity, ease: "easeInOut" }} />
+        <path d="M28 95c-10 15-12 27-5 42" stroke="#efb27f" strokeWidth="11" strokeLinecap="round" fill="none" />
+        <path d="M85 95c10 15 12 27 5 42" stroke="#efb27f" strokeWidth="11" strokeLinecap="round" fill="none" />
       </svg>
     </motion.div>
   );
