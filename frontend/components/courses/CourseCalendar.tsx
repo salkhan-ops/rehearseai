@@ -43,7 +43,7 @@ export function CourseCalendar({ sessions, onStart }: { sessions: CourseSession[
   }
 
   return (
-    <section className="rounded-[2rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-2xl dark:bg-white/[0.07] dark:ring-white/12">
+    <section className="rounded-[2rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-2xl dark:bg-white/[0.07] dark:ring-white/10">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-cyan-100/60">Training calendar</p>
@@ -83,7 +83,7 @@ export function CourseCalendar({ sessions, onStart }: { sessions: CourseSession[
             <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-white/58">{session.reasoningFocus} · pressure {session.pressureLevel}/100</p>
             <div className="mt-4 flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-white/42"><Clock size={14} /> {session.durationMinutes} min</span>
-              <button onClick={() => onStart?.(session)} className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white transition group-hover:bg-[#6200a8] dark:bg-white/12">
+              <button onClick={() => onStart?.(session)} className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white transition group-hover:bg-[#6200a8] dark:bg-white/10">
                 <Play size={14} /> Start
               </button>
             </div>

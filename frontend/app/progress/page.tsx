@@ -146,7 +146,7 @@ export default function ProgressPage() {
                     const vals = rows.map((r) => r.metrics[key] ?? 0);
                     const last = vals[vals.length - 1];
                     return (
-                      <div key={key} className="rounded-2xl bg-white/5 p-5 ring-1 ring-white/8 hover:bg-white/7 transition">
+                      <div key={key} className="rounded-2xl bg-white/5 p-5 ring-1 ring-white/10 hover:bg-white/10 transition">
                         <div className="mb-3 flex items-center justify-between">
                           <span className="text-sm font-semibold text-slate-300">{label}</span>
                           <span className="text-2xl font-bold" style={{ color }}>{last}</span>
@@ -189,7 +189,7 @@ export default function ProgressPage() {
                 )}
 
                 {/* Session timeline */}
-                <div className="rounded-2xl bg-white/5 p-5 ring-1 ring-white/8">
+                <div className="rounded-2xl bg-white/5 p-5 ring-1 ring-white/10">
                   <h3 className="mb-4 text-sm font-bold uppercase tracking-[0.1em] text-slate-500">Session history</h3>
                   <div className="space-y-2">
                     {[...rows].reverse().slice(0, 10).map((r, i) => {

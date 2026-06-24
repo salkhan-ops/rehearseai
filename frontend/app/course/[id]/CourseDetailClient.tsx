@@ -127,7 +127,7 @@ export default function CourseDetailPage() {
             </section>
           )}
 
-          <section className="rounded-[2.5rem] bg-white/75 p-6 ring-1 ring-slate-200/80 backdrop-blur-2xl dark:bg-white/[0.07] dark:ring-white/12 md:p-8">
+          <section className="rounded-[2.5rem] bg-white/75 p-6 ring-1 ring-slate-200/80 backdrop-blur-2xl dark:bg-white/[0.07] dark:ring-white/10 md:p-8">
             <div className="grid gap-8 lg:grid-cols-[1fr_0.72fr] lg:items-end">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/60">Pressure Training Program</p>
@@ -161,7 +161,7 @@ export default function CourseDetailPage() {
             <ReasoningSkillTree skills={bundle.course.targetSkills} growth={bundle.progress.growthMetrics as Record<string, number | string>} />
           </div>
 
-          <section className="mt-6 rounded-[2rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-2xl dark:bg-white/[0.07] dark:ring-white/12">
+          <section className="mt-6 rounded-[2rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-2xl dark:bg-white/[0.07] dark:ring-white/10">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-cyan-100/60">Course modules</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {bundle.modules.map((module) => (

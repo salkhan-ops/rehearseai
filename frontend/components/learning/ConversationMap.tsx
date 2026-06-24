@@ -21,10 +21,10 @@ export function ConversationMap({ session, turnCount = 0 }: { session: Session; 
   const currentPhase = getPhaseIndex(turnCount, phases.length);
 
   return (
-    <section className="overflow-hidden rounded-[1.5rem] bg-white/[0.07] p-5 ring-1 ring-white/12 backdrop-blur-2xl">
+    <section className="overflow-hidden rounded-[1.5rem] bg-white/[0.07] p-5 ring-1 ring-white/10 backdrop-blur-2xl">
       <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-white/38">Session arc</p>
       <div className="relative">
-        <div className="absolute left-3 top-3 h-[calc(100%-1.5rem)] w-px bg-white/12" />
+        <div className="absolute left-3 top-3 h-[calc(100%-1.5rem)] w-px bg-white/10" />
         <ol className="space-y-3">
           {phases.map((phase, i) => {
             const isPast = i < currentPhase;

@@ -74,7 +74,7 @@ function FloatingNode({ className = "", delay = 0 }: { className?: string; delay
 
 function CognitionHero() {
   return (
-    <div className="relative mx-auto mt-14 min-h-[530px] max-w-6xl overflow-hidden rounded-[2.5rem] bg-white/80 dark:bg-white/[0.06] p-4 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl">
+    <div className="relative mx-auto mt-14 min-h-[530px] max-w-6xl overflow-hidden rounded-[2.5rem] bg-white/80 dark:bg-white/[0.06] p-4 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(34,211,238,0.16),transparent_32%),radial-gradient(circle_at_70%_18%,rgba(139,92,246,0.18),transparent_28%)]" />
       <FloatingNode className="left-[12%] top-[18%] h-14 w-14" />
       <FloatingNode className="right-[14%] top-[24%] h-10 w-10" delay={0.4} />
@@ -91,11 +91,11 @@ function CognitionHero() {
       <div className="relative z-10 grid min-h-[500px] place-items-center">
         <AIPresenceOrb state="listening" intensity={0.72} />
       </div>
-      <div className="absolute left-5 top-5 rounded-2xl bg-white/80 dark:bg-white/[0.08] p-4 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl">
+      <div className="absolute left-5 top-5 rounded-2xl bg-white/80 dark:bg-white/[0.08] p-4 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-cyan-100/70"><Radio size={15} /> Live simulation</div>
         <div className="mt-2 text-sm font-semibold text-slate-700 dark:text-white/82">“What assumption are you making?”</div>
       </div>
-      <div className="absolute bottom-5 right-5 rounded-2xl bg-white/80 dark:bg-white/[0.08] p-4 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl">
+      <div className="absolute bottom-5 right-5 rounded-2xl bg-white/80 dark:bg-white/[0.08] p-4 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-white/42">Recovery signal</div>
         <div className="mt-2 text-2xl font-semibold text-violet-700 dark:text-cyan-100">+14%</div>
       </div>
@@ -106,7 +106,7 @@ function CognitionHero() {
 function IntelligenceModule({ type }: { type: PracticeType }) {
   const meta = categoryMeta[type];
   return (
-    <AnimatedCard className="group relative min-h-64 overflow-hidden rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-5 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl">
+    <AnimatedCard className="group relative min-h-64 overflow-hidden rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-5 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
       <a href={`/practice/setup?type=${encodeURIComponent(type)}`} className="block h-full">
         <div className={`absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gradient-to-br ${meta.accent} opacity-20 blur-2xl transition group-hover:opacity-35`} />
         <div className="relative h-28">
@@ -132,13 +132,13 @@ function IntelligenceModule({ type }: { type: PracticeType }) {
 function LiveSystemDemo() {
   return (
     <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-      <AnimatedSection className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl">
+      <AnimatedSection className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
         <div className="flex items-center gap-2 text-sm font-semibold text-violet-700 dark:text-cyan-100"><GitBranch size={18} /> Decision path expanding</div>
         <div className="relative mt-8 h-80">
           {["Main answer", "Evidence path", "Generic path", "Defensive path", "Executive version"].map((label, index) => (
             <motion.div
               key={label}
-              className="absolute rounded-full bg-white/80 dark:bg-white/[0.09] px-4 py-2 text-sm font-semibold text-slate-700 dark:text-white/76 ring-1 ring-slate-200/80 dark:ring-white/12"
+              className="absolute rounded-full bg-white/80 dark:bg-white/[0.09] px-4 py-2 text-sm font-semibold text-slate-700 dark:text-white/76 ring-1 ring-slate-200/80 dark:ring-white/10"
               style={{ left: `${index === 0 ? 42 : 10 + index * 18}%`, top: `${index === 0 ? 8 : 45 + (index % 2) * 22}%` }}
               animate={{ y: [0, -8, 0], opacity: [0.62, 1, 0.72] }}
               transition={{ duration: 3.6 + index * 0.25, repeat: Infinity, ease: "easeInOut" }}
@@ -150,7 +150,7 @@ function LiveSystemDemo() {
           <div className="absolute inset-x-10 top-40 h-px bg-gradient-to-r from-transparent via-violet-200/45 to-transparent" />
         </div>
       </AnimatedSection>
-      <AnimatedSection className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl">
+      <AnimatedSection className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
         <div className="flex items-center gap-2 text-sm font-semibold text-violet-700 dark:text-cyan-100"><Waves size={18} /> Pressure response field</div>
         <div className="mt-8 flex h-72 items-center gap-2">
           {Array.from({ length: 42 }).map((_, index) => (
@@ -210,7 +210,7 @@ export default function Home() {
 
       <section className="relative z-10 px-4 pb-20 pt-20 md:pt-24">
         <AnimatedPage className="mx-auto max-w-7xl text-center">
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full bg-white/80 dark:bg-white/[0.08] px-5 py-3 text-[15px] font-semibold text-violet-700 dark:text-cyan-100/82 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full bg-white/80 dark:bg-white/[0.08] px-5 py-3 text-[15px] font-semibold text-violet-700 dark:text-cyan-100/82 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
             <Sparkles size={17} />
             Cognitive simulation platform
             <ArrowRight size={17} />
@@ -245,7 +245,7 @@ export default function Home() {
       <section className="relative z-10 mx-auto max-w-7xl px-4 py-16">
         <StaggeredGrid className="grid gap-4 md:grid-cols-4">
           {steps.map(([step, detail], index) => (
-            <AnimatedCard key={step} className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl">
+            <AnimatedCard key={step} className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
               <div className="mb-8 text-sm font-semibold text-violet-700 dark:text-cyan-100/60">0{index + 1}</div>
               <div className="text-2xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{step}</div>
               <p className="mt-3 text-sm font-medium leading-6 text-slate-700 dark:text-white/52">{detail}</p>
@@ -255,7 +255,7 @@ export default function Home() {
       </section>
 
       <section className="relative z-10 mx-auto max-w-7xl px-4 py-16">
-        <div className="overflow-hidden rounded-[2.5rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl md:p-10">
+        <div className="overflow-hidden rounded-[2.5rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl md:p-10">
           <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 ring-1 ring-violet-100 dark:bg-cyan-100/10 dark:text-cyan-100 dark:ring-cyan-100/10"><BrainCircuit size={16} /> Guided Reasoning Mode</p>
@@ -306,7 +306,7 @@ export default function Home() {
       </section>
 
       <section className="relative z-10 mx-auto max-w-7xl px-4 py-20">
-        <div className="rounded-[2.5rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl md:p-10">
+        <div className="rounded-[2.5rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl md:p-10">
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">Reasoning analytics</p>
@@ -383,7 +383,7 @@ export default function Home() {
         <h2 className="text-center text-5xl font-semibold tracking-[-0.055em] text-slate-950 dark:text-white">FAQ</h2>
         <div className="mt-10 space-y-3">
           {faqs.map(([q, a]) => (
-            <AnimatedSection key={q} className="rounded-[1.5rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl">
+            <AnimatedSection key={q} className="rounded-[1.5rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
               <div className="font-semibold text-slate-950 dark:text-white">{q}</div>
               <p className="mt-2 font-medium leading-7 text-slate-700 dark:text-white/58">{a}</p>
             </AnimatedSection>
@@ -392,7 +392,7 @@ export default function Home() {
       </section>
 
       <section className="relative z-10 px-4 pb-20">
-        <div className="mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] bg-white/80 dark:bg-white/[0.08] p-10 text-center ring-1 ring-slate-200/80 dark:ring-white/12 backdrop-blur-2xl md:p-14">
+        <div className="mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] bg-white/80 dark:bg-white/[0.08] p-10 text-center ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl md:p-14">
           <Zap className="mx-auto mb-6 text-violet-700 dark:text-cyan-100" size={34} />
           <h2 className="text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-7xl">Enter the simulation.</h2>
           <p className="mx-auto mt-5 max-w-2xl font-medium leading-8 text-slate-700 dark:text-white/58">Build pressure-tested reasoning, confidence, composure, and communication intelligence before the real moment.</p>

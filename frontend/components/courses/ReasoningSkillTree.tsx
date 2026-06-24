@@ -24,7 +24,7 @@ export function ReasoningSkillTree({ skills, growth }: { skills: string[]; growt
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3, delay: index * 0.04 }}
-                className={`rounded-2xl p-4 ring-1 ${unlocked ? "bg-white/10 ring-cyan-100/15" : "bg-white/[0.04] ring-white/8"}`}
+                className={`rounded-2xl p-4 ring-1 ${unlocked ? "bg-white/10 ring-cyan-100/15" : "bg-white/[0.04] ring-white/10"}`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="grid size-10 place-items-center rounded-xl bg-white/10 text-cyan-100">{unlocked ? <Brain size={18} /> : <Lock size={18} />}</span>

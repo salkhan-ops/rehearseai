@@ -72,23 +72,23 @@ export function ScenarioAvatar({ practiceType, speaking = false }: { practiceTyp
           transition={{ duration: 2.2, repeat: speaking ? Infinity : 0, ease: "easeInOut" }}
           className={`absolute left-1/2 top-[42%] h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br ${scene.accent} blur-3xl`}
         />
-        <div className="absolute bottom-24 left-1/2 h-28 w-[78%] -translate-x-1/2 rounded-[100%] bg-white/[0.06] ring-1 ring-white/12" />
+        <div className="absolute bottom-24 left-1/2 h-28 w-[78%] -translate-x-1/2 rounded-[100%] bg-white/[0.06] ring-1 ring-white/10" />
         <MiniCharacter x="34%" tone="cyan" delay={0.2} />
         <MiniCharacter x="50%" tone="violet" delay={0.8} />
         <MiniCharacter x="66%" tone="rose" delay={1.3} />
 
         <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-3">
-          <div className="rounded-2xl bg-black/35 px-4 py-3 backdrop-blur-xl ring-1 ring-white/12">
+          <div className="rounded-2xl bg-black/35 px-4 py-3 backdrop-blur-xl ring-1 ring-white/10">
             <div className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-100/80">{scene.label}</div>
             <div className="mt-1 text-xl font-semibold tracking-[-0.035em]">{practiceType || "Rehearsal"}</div>
           </div>
-          <div className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold backdrop-blur-xl ${speaking ? "bg-emerald-400 text-slate-950" : "bg-white/12 text-white ring-1 ring-white/12"}`}>
+          <div className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold backdrop-blur-xl ${speaking ? "bg-emerald-400 text-slate-950" : "bg-white/10 text-white ring-1 ring-white/10"}`}>
             <Radio size={14} /> {speaking ? "Live" : "Ready"}
           </div>
         </div>
 
         <div className="absolute bottom-4 left-4 right-4">
-          <div className="rounded-[1.35rem] bg-black/45 p-4 backdrop-blur-xl ring-1 ring-white/12">
+          <div className="rounded-[1.35rem] bg-black/45 p-4 backdrop-blur-xl ring-1 ring-white/10">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-white/55">Persona focus</div>

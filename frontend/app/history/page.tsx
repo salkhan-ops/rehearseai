@@ -88,7 +88,7 @@ export default function HistoryPage() {
                 placeholder="Search by topic or arena…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-2xl border border-[var(--border-soft)] bg-white/80 py-3 pl-11 pr-4 text-sm font-medium text-primary-token outline-none placeholder:text-tertiary-token focus:border-[var(--accent-primary)] focus:ring-4 focus:ring-violet-100 dark:bg-white/8 dark:focus:ring-violet-900/30"
+                className="w-full rounded-2xl border border-[var(--border-soft)] bg-white/80 py-3 pl-11 pr-4 text-sm font-medium text-primary-token outline-none placeholder:text-tertiary-token focus:border-[var(--accent-primary)] focus:ring-4 focus:ring-violet-100 dark:bg-white/10 dark:focus:ring-violet-900/30"
               />
             </div>
 

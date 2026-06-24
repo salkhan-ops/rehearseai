@@ -208,7 +208,7 @@ export function CourseGenerator() {
   };
 
   return (
-    <section className="relative overflow-hidden rounded-[2.4rem] bg-white/80 p-6 ring-1 ring-slate-200/80 backdrop-blur-2xl dark:bg-white/[0.07] dark:ring-white/12 md:p-8">
+    <section className="relative overflow-hidden rounded-[2.4rem] bg-white/80 p-6 ring-1 ring-slate-200/80 backdrop-blur-2xl dark:bg-white/[0.07] dark:ring-white/10 md:p-8">
       <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-400/20 blur-3xl" />
 
       <div className="relative">

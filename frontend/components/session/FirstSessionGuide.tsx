@@ -43,7 +43,7 @@ export function FirstSessionGuide() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)} />
-      <div className="relative w-full max-w-lg rounded-[2rem] bg-[#0d0020] p-7 ring-1 ring-white/12 shadow-[0_40px_120px_rgba(0,0,0,0.7)]">
+      <div className="relative w-full max-w-lg rounded-[2rem] bg-[#0d0020] p-7 ring-1 ring-white/10 shadow-[0_40px_120px_rgba(0,0,0,0.7)]">
         <button type="button" onClick={() => setOpen(false)}
           className="absolute right-5 top-5 grid h-8 w-8 place-items-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 transition"
           aria-label="Close guide">
@@ -58,7 +58,7 @@ export function FirstSessionGuide() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           {TIPS.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="rounded-2xl bg-white/[0.06] p-4 ring-1 ring-white/8">
+            <div key={title} className="rounded-2xl bg-white/[0.06] p-4 ring-1 ring-white/10">
               <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600/25">
                 <Icon size={16} className="text-violet-300" />
               </div>

@@ -66,7 +66,7 @@ export default function PracticePage() {
         </div>
         <StaggeredGrid className="relative mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {practiceTypes.map((type) => (
-            <AnimatedCard key={type} className="group rounded-2xl bg-white ring-1 ring-slate-200/80 transition hover:shadow-md hover:ring-slate-300 dark:bg-white/[0.06] dark:ring-white/8 dark:hover:bg-white/[0.09] dark:hover:ring-white/14">
+            <AnimatedCard key={type} className="group rounded-2xl bg-white ring-1 ring-slate-200/80 transition hover:shadow-md hover:ring-slate-300 dark:bg-white/[0.06] dark:ring-white/10 dark:hover:bg-white/[0.09] dark:hover:ring-white/15">
               <Link href={`/practice/setup?type=${encodeURIComponent(type)}`} className="flex items-center gap-3.5 p-4">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${arenaMeta[type].color} text-white`}>
                   {arenaMeta[type].icon}

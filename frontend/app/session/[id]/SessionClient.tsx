@@ -53,7 +53,6 @@ const voiceOptions = [
   { label: "Backend default", id: "", note: "from .env" },
 ];
 
-const durationOptions = [5, 10, 15, 30, 45, 60];
 
 const defaultPrivacySettings: PrivacySettings = {
   allowTelemetry: true,
@@ -93,7 +92,7 @@ function MicroMetric({ label, value, tone }: { label: string; value: number; ton
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-full bg-white/[0.08] px-4 py-3 text-white/82 ring-1 ring-white/12 backdrop-blur-2xl"
+      className="rounded-full bg-white/[0.08] px-4 py-3 text-white/82 ring-1 ring-white/10 backdrop-blur-2xl"
     >
       <div className="flex items-center gap-3">
         <span className={`h-2.5 w-2.5 rounded-full ${tone} shadow-[0_0_18px_currentColor]`} />
@@ -153,7 +152,6 @@ export default function SessionPage() {
   const [error, setError] = useState("");
   const [seconds, setSeconds] = useState(0);
   const [durationMinutes, setDurationMinutes] = useState(10);
-  const [customDuration, setCustomDuration] = useState(false);
   const [selectedVoiceId, setSelectedVoiceId] = useState(voiceOptions[0].id);
   const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null);
   const [visualMode, setVisualMode] = useState<EnvironmentMode>("AI Orb");
@@ -1570,10 +1568,10 @@ export default function SessionPage() {
       )}
       <AnimatedPage className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-4 sm:px-6">
         <header className="flex items-center justify-between">
-          <button type="button" onClick={exitChamber} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12]">
+          <button type="button" onClick={exitChamber} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/76 ring-1 ring-white/10 backdrop-blur-2xl transition hover:bg-white/[0.12]">
             <ArrowLeft size={13} /> Exit chamber
           </button>
-          <div className="hidden items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/76 ring-1 ring-white/12 backdrop-blur-2xl sm:flex">
+          <div className="hidden items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/76 ring-1 ring-white/10 backdrop-blur-2xl sm:flex">
             <BrainCircuit size={13} /> {session?.practiceType || "Loading"} · elapsed {time}
           </div>
           <div className="flex items-center gap-2">
@@ -1588,7 +1586,7 @@ export default function SessionPage() {
                 turnCount={adaptive.turnCount}
               />
             </div>
-            <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl lg:flex">
+            <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/10 backdrop-blur-2xl lg:flex">
               <UsersRound size={14} />
               <select
                 value={visualMode}
@@ -1599,7 +1597,7 @@ export default function SessionPage() {
                 {environmentModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
               </select>
             </label>
-            <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl md:flex">
+            <label className="hidden items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/10 backdrop-blur-2xl md:flex">
               <Volume2 size={14} />
               <select
                 value={selectedVoiceId}
@@ -1610,48 +1608,16 @@ export default function SessionPage() {
                 {voiceOptions.map((option) => <option key={option.label} value={option.id}>{option.label} · {option.note}</option>)}
               </select>
             </label>
-            <label className="flex items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl">
+            <div className="flex items-center gap-2 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/10 backdrop-blur-2xl">
               <Clock3 size={14} />
-              {customDuration ? (
-                <input
-                  type="number"
-                  min={1}
-                  max={120}
-                  value={durationMinutes}
-                  onChange={(event) => {
-                    autoEndingRef.current = false;
-                    setDurationMinutes(Math.min(120, Math.max(1, Number(event.target.value) || 1)));
-                  }}
-                  className="w-16 bg-transparent text-white outline-none [color-scheme:dark]"
-                  aria-label="Custom session duration"
-                />
-              ) : (
-                <select
-                  value={durationOptions.includes(durationMinutes) ? durationMinutes : "custom"}
-                  onChange={(event) => {
-                    autoEndingRef.current = false;
-                    if (event.target.value === "custom") {
-                      setCustomDuration(true);
-                      return;
-                    }
-                    setDurationMinutes(Number(event.target.value));
-                  }}
-                  className="bg-transparent text-white outline-none [color-scheme:dark]"
-                  aria-label="Session duration"
-                >
-                  {durationOptions.map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
-                  <option value="custom">Custom</option>
-                </select>
-              )}
-              <button type="button" onClick={() => setCustomDuration((value) => !value)} className="rounded-full bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-white/50">
-                {customDuration ? "Presets" : "Custom"}
-              </button>
-              <span className="hidden text-white/36 sm:inline">left {remainingTime}</span>
-            </label>
+              <span>{durationMinutes} min</span>
+              <span className="text-white/36">·</span>
+              <span className="text-white/36">{remainingTime} left</span>
+            </div>
             <button
               type="button"
               onClick={() => setImmersiveOpen(true)}
-              className="flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/12 backdrop-blur-2xl transition hover:bg-white/[0.12] hover:text-white/90"
+              className="flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/70 ring-1 ring-white/10 backdrop-blur-2xl transition hover:bg-white/[0.12] hover:text-white/90"
               title="Focus mode — hide everything except the AI"
             >
               <Maximize2 size={13} />
@@ -1661,7 +1627,7 @@ export default function SessionPage() {
         </header>
 
         <div className="mt-3 grid gap-2 text-xs font-semibold text-white/70 lg:hidden">
-          <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/12 backdrop-blur-2xl">
+          <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/10 backdrop-blur-2xl">
             <span className="inline-flex items-center gap-2"><UsersRound size={14} /> Room</span>
             <select
               value={visualMode}
@@ -1691,11 +1657,11 @@ export default function SessionPage() {
           </div>
 
           <div className={`relative z-10 w-full max-w-4xl text-center ${visualMode !== "AI Orb" ? "pt-[29rem]" : ""}`}>
-            <div className="mx-auto mb-3 w-fit rounded-full bg-white/[0.08] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/76 ring-1 ring-white/12 backdrop-blur-2xl">
+            <div className="mx-auto mb-3 w-fit rounded-full bg-white/[0.08] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/76 ring-1 ring-white/10 backdrop-blur-2xl">
               {voice.provider === "deepgram" ? "Deepgram live" : "Browser fallback"} · {practiceLanguage.nativeName} · {session?.difficulty || "Realistic"}{session?.difficulty === "Nerve" ? ` · pressure ${session.pressureLevel || 1}/10` : ""}
             </div>
             <div className="mx-auto mb-4 flex w-fit flex-wrap items-center justify-center gap-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-3 py-1.5 text-xs font-bold text-white/62 ring-1 ring-white/12 backdrop-blur-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-3 py-1.5 text-xs font-bold text-white/62 ring-1 ring-white/10 backdrop-blur-2xl">
                 <BrainCircuit size={14} /> {stanceLabel(latestControl || coordination.state?.conversationControl)} · pressure {latestControl?.pressureLevel || coordination.state?.pressureLevel || session?.pressureLevel || 1}/10
               </div>
               {session?.difficulty === "Nerve" && (
@@ -1705,7 +1671,7 @@ export default function SessionPage() {
               )}
               <CameraTimingStatus enabled={cameraAssistedTiming} state={cameraSignals.state} message={cameraSignals.message} conversationSignal={cameraSignals.conversationSignal} />
               {cameraAssistedTiming && (
-                <button type="button" onClick={() => cameraSignals.setPreviewVisible(!cameraSignals.previewVisible)} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-1.5 text-xs font-bold text-white/64 ring-1 ring-white/12">
+                <button type="button" onClick={() => cameraSignals.setPreviewVisible(!cameraSignals.previewVisible)} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] px-3 py-1.5 text-xs font-bold text-white/64 ring-1 ring-white/10">
                   {cameraSignals.previewVisible ? <EyeOff size={14} /> : <Eye size={14} />} Preview
                 </button>
               )}
@@ -1842,18 +1808,18 @@ export default function SessionPage() {
           />
 
           <div className="mb-3 grid gap-2 text-xs font-semibold text-white/70 md:hidden">
-            <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/12 backdrop-blur-2xl">
+            <label className="flex items-center justify-between rounded-full bg-white/[0.08] px-4 py-3 ring-1 ring-white/10 backdrop-blur-2xl">
               <span className="inline-flex items-center gap-2"><Volume2 size={14} /> AI voice</span>
               <select value={selectedVoiceId} onChange={(event) => setSelectedVoiceId(event.target.value)} className="bg-transparent text-white outline-none [color-scheme:dark]">
                 {voiceOptions.map((option) => <option key={option.label} value={option.id}>{option.label}</option>)}
               </select>
             </label>
-            <div className="rounded-full bg-white/[0.08] px-4 py-3 text-center ring-1 ring-white/12 backdrop-blur-2xl">
+            <div className="rounded-full bg-white/[0.08] px-4 py-3 text-center ring-1 ring-white/10 backdrop-blur-2xl">
               Session ends in {remainingTime}
             </div>
           </div>
 
-          <div className="rounded-[2rem] bg-white/[0.08] p-3 ring-1 ring-white/12 backdrop-blur-2xl">
+          <div className="rounded-[2rem] bg-white/[0.08] p-3 ring-1 ring-white/10 backdrop-blur-2xl">
             <div className="mb-3">
               <ConversationModeToggle
                 value={conversationMode}
@@ -1879,7 +1845,7 @@ export default function SessionPage() {
                 turnCount={adaptive.turnCount}
               />
             </div>
-            {cameraAssistedTiming && <CameraPrivacyNotice compact className="mb-3 bg-white/[0.08] text-white/70 ring-white/12 dark:bg-white/[0.08] dark:text-white/70 dark:ring-white/12" />}
+            {cameraAssistedTiming && <CameraPrivacyNotice compact className="mb-3 bg-white/[0.08] text-white/70 ring-white/10 dark:bg-white/[0.08] dark:text-white/70 dark:ring-white/10" />}
             {naturalModeActive ? (
               <NaturalConversationControls
                 state={naturalConversation.state}
@@ -1931,7 +1897,7 @@ export default function SessionPage() {
                       voice.startListening();
                     }}
                     disabled={!voice.supported || voiceMode || session?.status === "completed"}
-                    className="grid size-14 shrink-0 place-items-center rounded-full bg-white/[0.10] text-white ring-1 ring-white/12 transition disabled:opacity-45"
+                    className="grid size-14 shrink-0 place-items-center rounded-full bg-white/[0.10] text-white ring-1 ring-white/10 transition disabled:opacity-45"
                     aria-label="Start microphone"
                   >
                     <Mic size={22} />
@@ -1943,7 +1909,7 @@ export default function SessionPage() {
                       voice.stopListening();
                     }}
                     disabled={!voiceMode}
-                    className="grid size-14 shrink-0 place-items-center rounded-full bg-white/[0.10] text-white ring-1 ring-white/12 transition disabled:opacity-45"
+                    className="grid size-14 shrink-0 place-items-center rounded-full bg-white/[0.10] text-white ring-1 ring-white/10 transition disabled:opacity-45"
                     aria-label="Stop microphone"
                   >
                     <MicOff size={22} />

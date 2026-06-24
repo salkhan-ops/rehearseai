@@ -197,7 +197,7 @@ export function Nav() {
               {/* Train section */}
               <p className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-white/30">Train</p>
               {trainLinks.map(({ href, label, description, icon: Icon }) => (
-                <Link key={href} href={href} onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-white/8">
+                <Link key={href} href={href} onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-white/10">
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700 dark:bg-white/10 dark:text-violet-200"><Icon size={15} /></span>
                   <span>
                     <span className="block text-sm font-semibold text-slate-900 dark:text-white">{label}</span>
@@ -209,7 +209,7 @@ export function Nav() {
               <div className="my-4 h-px bg-slate-100 dark:bg-white/10" />
 
               {/* Dashboard */}
-              <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-white/8">
+              <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-white/10">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white"><LayoutDashboard size={15} /></span>
                 <span className="text-sm font-semibold text-slate-900 dark:text-white">Dashboard</span>
               </Link>
@@ -219,7 +219,7 @@ export function Nav() {
               {/* More links */}
               <p className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-white/30">More</p>
               {secondaryLinks.map((item) => (
-                <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/8">
+                <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">
                   {item.label}
                 </Link>
               ))}
@@ -229,7 +229,7 @@ export function Nav() {
             <div className="border-t border-slate-100 px-4 py-4 dark:border-white/10">
               {user ? (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 ring-1 ring-slate-200 dark:bg-white/8 dark:ring-white/10">
+                  <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white">
                       {(profile?.displayName || user.displayName || user.email || "U").charAt(0).toUpperCase()}
                     </span>

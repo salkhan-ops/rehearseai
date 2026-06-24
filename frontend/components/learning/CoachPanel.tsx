@@ -61,7 +61,7 @@ export function CoachPanel({
   const canShowHint = !!latestHint && (maxHints === Infinity || hintsUsed < maxHints);
 
   return (
-    <aside className="fixed bottom-4 left-4 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-[1.25rem] bg-white/[0.08] p-3 text-white ring-1 ring-white/12 backdrop-blur-2xl">
+    <aside className="fixed bottom-4 left-4 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-[1.25rem] bg-white/[0.08] p-3 text-white ring-1 ring-white/10 backdrop-blur-2xl">
       <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between gap-3 text-left">
         <span className="inline-flex items-center gap-2 text-sm font-semibold">
           <GraduationCap size={16} />

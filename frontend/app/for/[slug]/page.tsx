@@ -208,7 +208,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
           <h2 className="mb-6 text-2xl font-semibold tracking-[-0.04em]">Common questions</h2>
           <div className="space-y-4">
             {page.faqs.map(([q, a]) => (
-              <div key={q} className="rounded-2xl bg-white/[0.04] p-6 ring-1 ring-white/8">
+              <div key={q} className="rounded-2xl bg-white/[0.04] p-6 ring-1 ring-white/10">
                 <h3 className="font-semibold text-white">{q}</h3>
                 <p className="mt-2 text-sm font-medium leading-6 text-white/60">{a}</p>
               </div>

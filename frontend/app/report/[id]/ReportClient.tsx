@@ -131,18 +131,18 @@ export default function ReportPage() {
             </div>
             <div className="mt-5 grid gap-3 md:grid-cols-4">
               {Object.entries(report.nerveReport.metrics || {}).map(([label, value]) => (
-                <div key={label} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/8 dark:ring-white/10">
+                <div key={label} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
                   <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-white/45">{label}</div>
                   <div className="mt-2 text-2xl font-semibold">{value}</div>
                 </div>
               ))}
             </div>
             <div className="mt-5 grid gap-3 lg:grid-cols-2">
-              <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/8 dark:ring-white/10">
+              <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
                 <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-100">Strongest defense</div>
                 <p className="mt-2 text-sm font-medium leading-6 text-slate-600 dark:text-white/72">{report.nerveReport.strongestDefense}</p>
               </div>
-              <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/8 dark:ring-white/10">
+              <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
                 <div className="text-sm font-semibold text-rose-700 dark:text-rose-100">Weakest defense</div>
                 <p className="mt-2 text-sm font-medium leading-6 text-slate-600 dark:text-white/72">{report.nerveReport.weakestDefense}</p>
               </div>
@@ -342,7 +342,7 @@ export default function ReportPage() {
                   ["Calmness", report.calmnessScore],
                   ["Structure", report.structureScore],
                 ].map(([label, score]) => (
-                  <div key={String(label)} className="rounded-2xl bg-white/12 p-4 text-center ring-1 ring-white/10">
+                  <div key={String(label)} className="rounded-2xl bg-white/10 p-4 text-center ring-1 ring-white/10">
                     <div className="text-2xl font-bold">{score}</div>
                     <div className="mt-0.5 text-xs font-semibold text-white/60">{label}</div>
                   </div>

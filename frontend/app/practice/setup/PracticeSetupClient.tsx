@@ -117,8 +117,8 @@ function SetupForm() {
   const [preferredTime, setPreferredTime] = useState("20:00");
   const [reminderMinutesBefore, setReminderMinutesBefore] = useState(15);
   const { getToken, profile, updateLanguagePreferences, userId } = useAuth();
-  const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>(profile?.preferredPracticeLanguage || "en");
-  const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>(profile?.preferredFeedbackLanguage || "en");
+  const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>("en");
+  const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>("en");
   const [cameraAssistedTiming, setCameraAssistedTiming] = useState(Boolean(profile?.privacySettings?.allowCameraAssistedTiming));
 
   useEffect(() => {
@@ -609,7 +609,7 @@ function SetupForm() {
           {step === 5 && (
             <div className="rounded-[2rem] bg-white p-6 shadow-[0_24px_70px_rgba(35,45,75,0.08)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
               {/* Summary card */}
-              <div className="mb-6 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/8 dark:ring-white/10">
+              <div className="mb-6 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
                 <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400 dark:text-white/30">Your session</div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {([["Arena", practiceType], ["Difficulty", difficulty], ["Duration", `${durationPreference} min`], ["Environment", environmentMode]] as const).map(([label, value]) => (
@@ -634,14 +634,14 @@ function SetupForm() {
                 </label>
                 {createRoutine && (
                   <div className="mt-4 grid gap-3">
-                    <div className="grid gap-2 sm:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                       {frequencyOptions.map(([value, label]) => (
                         <button key={value} type="button" onClick={() => setFrequencyType(value)} className={`rounded-2xl px-3 py-2 text-xs font-semibold ring-1 transition ${frequencyType === value ? "bg-[#6200a8] text-white ring-[#6200a8]" : "bg-white text-slate-700 ring-slate-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}>
                           {label}
                         </button>
                       ))}
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
                       <label className="text-sm font-semibold text-slate-700 dark:text-white/75">
                         Reminder time
                         <input type="time" value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none dark:border-white/10 dark:bg-white/10 dark:text-white" />
@@ -652,9 +652,9 @@ function SetupForm() {
                           {[0, 5, 15, 30, 60].map((m) => <option key={m} value={m}>{m === 0 ? "At start time" : `${m} min before`}</option>)}
                         </select>
                       </label>
-                      <div className="rounded-2xl bg-white p-4 text-sm font-semibold text-violet-700 ring-1 ring-slate-200 dark:bg-white/10 dark:text-violet-100 dark:ring-white/10">
-                        <Bell className="mr-2 inline" size={16} /> Saved to dashboard routine
-                      </div>
+                    </div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-100 dark:bg-white/10 dark:text-violet-200 dark:ring-white/10">
+                      <Bell size={13} /> Saved to dashboard routine
                     </div>
                   </div>
                 )}

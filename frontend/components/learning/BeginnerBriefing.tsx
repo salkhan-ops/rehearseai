@@ -10,7 +10,7 @@ export function BeginnerBriefing({ session }: { session: Session }) {
   ];
 
   return (
-    <section className="rounded-[1.5rem] bg-white/[0.08] p-5 text-left ring-1 ring-white/12 backdrop-blur-2xl">
+    <section className="rounded-[1.5rem] bg-white/[0.08] p-5 text-left ring-1 ring-white/10 backdrop-blur-2xl">
       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/70">Beginner briefing</div>
       <div className="mt-4 grid gap-3 md:grid-cols-5">
         {sections.map(([title, body]) => (

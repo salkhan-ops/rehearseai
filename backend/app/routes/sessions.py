@@ -42,19 +42,24 @@ async def create_session(payload: SessionCreate, request: Request, current_user_
     await require_age_confirmed(get_store(request), current_user_id)
     if current_user_id:
         payload.userId = current_user_id
+    # Single entitlement lookup covers all plan checks
+    ents: dict = {}
+    if current_user_id:
+        raw = await get_store(request).get_user_entitlements(current_user_id)
+        ents = raw.get("entitlements") or {}
     if payload.difficulty == "Nerve" and current_user_id:
-        entitlements = await get_store(request).get_user_entitlements(current_user_id)
-        flags = entitlements.get("entitlements") or {}
-        if not (flags.get("allowNerveMode", False) or flags.get("allowBrutalMode", False)):
+        if not (ents.get("allowNerveMode", False) or ents.get("allowBrutalMode", False)):
             raise HTTPException(status_code=403, detail="Nerve Mode requires Pro or Coach.")
     if payload.documentText and current_user_id:
-        ents = await get_store(request).get_user_entitlements(current_user_id)
-        daily_limit = (ents.get("entitlements") or {}).get("docGroundingDocsPerDay", 1)
+        daily_limit = ents.get("docGroundingDocsPerDay", 1)
         if daily_limit != "unlimited":
             daily_count = await get_store(request).get_daily_doc_count(current_user_id)
             if daily_count >= int(daily_limit):
                 raise HTTPException(status_code=429, detail=f"Daily document limit reached ({daily_limit}/day). Resets at midnight UTC.")
             await get_store(request).increment_daily_doc_count(current_user_id)
+    # Enforce plan-based session duration cap — users cannot exceed their tier limit
+    max_minutes: int = int(ents.get("maxSessionMinutes", 15))
+    payload.durationPreference = min(payload.durationPreference, max_minutes)
     session = await get_store(request).create_session(payload)
     if session.difficulty == "Nerve":
         session = await get_cross_examination(request).prepare_session(session)
@@ -102,6 +107,12 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
         raise HTTPException(status_code=403, detail="Session does not belong to this user")
     if session.status == "completed":
         raise HTTPException(status_code=400, detail="Session already completed")
+    # Resolve the plan's turn limit so the prompt builder can signal wrap-up
+    msg_ents: dict = {}
+    if current_user_id:
+        msg_raw = await store.get_user_entitlements(current_user_id)
+        msg_ents = msg_raw.get("entitlements") or {}
+    max_turns: int = int(msg_ents.get("maxMessagesPerSession", 16))
     safety = await request.app.state.safety_scope.evaluate_message(
         user_id=session.userId,
         session_id=session_id,
@@ -166,6 +177,7 @@ async def send_message(session_id: str, payload: MessageCreate, request: Request
         )
     )
     coordination_context = get_coordination(request).prompt_context(coordination_state)
+    coordination_context = {**(coordination_context or {}), "maxTurns": max_turns}
     if payload.conversationState:
         coordination_context = {
             **(coordination_context or {}),

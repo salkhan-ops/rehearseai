@@ -99,7 +99,7 @@ export function ImmersiveMode({
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-5 top-5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] text-white/50 ring-1 ring-white/12 backdrop-blur-xl transition hover:bg-white/[0.14] hover:text-white/80"
+            className="absolute right-5 top-5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] text-white/50 ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/[0.14] hover:text-white/80"
             title="Exit focus mode (Esc)"
           >
             <Minimize2 size={15} />

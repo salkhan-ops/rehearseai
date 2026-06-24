@@ -5,7 +5,7 @@ import type { CourseTemplate } from "@/lib/types";
 
 export function CourseTemplateCard({ template, onStart }: { template: CourseTemplate; onStart: (template: CourseTemplate) => void }) {
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-[2rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-xl transition hover:-translate-y-1 hover:ring-violet-200 dark:bg-white/[0.07] dark:ring-white/12">
+    <article className="group relative flex flex-col overflow-hidden rounded-[2rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-xl transition hover:-translate-y-1 hover:ring-violet-200 dark:bg-white/[0.07] dark:ring-white/10">
       <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-400/20 blur-3xl transition group-hover:bg-cyan-300/20" />
       <div className="relative flex flex-1 flex-col">
         <div className="flex items-center justify-between gap-3">

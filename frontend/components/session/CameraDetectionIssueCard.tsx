@@ -41,7 +41,7 @@ export function CameraDetectionIssueCard({ enabled, cameraState, lightingScore, 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleDismiss} />
-      <div className="relative w-full max-w-sm rounded-[2rem] bg-[#0d0020] p-6 ring-1 ring-white/12 shadow-[0_40px_120px_rgba(0,0,0,0.7)]">
+      <div className="relative w-full max-w-sm rounded-[2rem] bg-[#0d0020] p-6 ring-1 ring-white/10 shadow-[0_40px_120px_rgba(0,0,0,0.7)]">
 
         <button
           type="button"
@@ -94,7 +94,7 @@ export function CameraDetectionIssueCard({ enabled, cameraState, lightingScore, 
 
 function TipRow({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-white/[0.05] px-3.5 py-2.5 ring-1 ring-white/8">
+    <div className="flex items-center gap-3 rounded-xl bg-white/[0.05] px-3.5 py-2.5 ring-1 ring-white/10">
       <Icon size={14} className="shrink-0 text-white/50" />
       <span className="text-xs text-white/70">{text}</span>
     </div>

@@ -219,6 +219,15 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
             turn_pressure_note = f"Turn {turn_count}: full panel pressure. Every weakness surfaced across this entire conversation is now in play. Leave no escape."
     else:
         turn_pressure_note = f"Turn {turn_count}: maintain appropriate pressure for this difficulty."
+    # Session wrap-up signal — steer AI toward conclusion as turns run out
+    max_turns = int((coordination_context or {}).get("maxTurns", 16)) if coordination_context else 16
+    wrap_up_block = ""
+    if turn_count >= round(max_turns * 0.95):
+        wrap_up_block = "\n⚠️ SESSION ENDING: This is the final exchange. Deliver one last sharp question or challenge, then close the session with brief closing remarks — acknowledge what was strong, name one key gap, and wish them well. Do not start a new thread of questioning."
+    elif turn_count >= round(max_turns * 0.80):
+        turns_left = max_turns - turn_count
+        wrap_up_block = f"\n⚠️ SESSION NEARING END ({turns_left} turn{'s' if turns_left != 1 else ''} remaining): Begin steering toward a natural conclusion. Prioritise the most important unresolved challenge. Do not open new topics."
+
     coordination_block = "No live conversation coordination context provided."
     if coordination_context:
         conversation_control = coordination_context.get("conversationControl") or {}
@@ -318,6 +327,7 @@ Respond directly to the user's latest words; do not repeat generic goal reminder
 Use natural emotion appropriate to the role: curious, skeptical, concerned, impatient, warm, or impressed — and let that emotion shift and intensify as the conversation deepens. Vary sentence openings and rhythm. At Advanced, Brutal, and Nerve levels, sarcasm and dry wit are permitted and expected; deploy them when the user is vague, circular, or evasive.
 Be creative in how you challenge: sometimes use a sharp analogy, sometimes a historical parallel, sometimes a reductio ad absurdum — not just a direct objection. Occasionally attack the same weak claim from multiple angles (definitional, evidential, consequential) in a single tight response to create synonymic pressure.
 Adapt pressure dynamically based on the user's behavior AND the turn count — it must escalate within this conversation, not stay flat. Challenge vague logic, probe unsupported assumptions, and increase depth when performance is strong. If the user appears overwhelmed, soften tone slightly while staying realistic. Never be abusive. Do not give a feedback report yet.
+{wrap_up_block}
 """
 
 

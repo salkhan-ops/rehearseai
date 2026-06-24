@@ -66,7 +66,7 @@ export default function CoursesPage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               {heroStats.map(({ icon: Icon, label, copy }) => (
-                <AnimatedCard key={label} className="rounded-[1.5rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-xl dark:bg-white/[0.07] dark:ring-white/12">
+                <AnimatedCard key={label} className="rounded-[1.5rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-xl dark:bg-white/[0.07] dark:ring-white/10">
                   <Icon className="text-violet-700 dark:text-cyan-100" size={24} />
                   <div className="mt-5 text-xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{label}</div>
                   <div className="mt-1 text-sm font-semibold text-slate-500 dark:text-white/42">{copy}</div>
@@ -81,7 +81,7 @@ export default function CoursesPage() {
               <span className="rounded-full bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 dark:bg-white/10 dark:text-cyan-100">{courses.length} programs</span>
             </div>
             {courses.length === 0 ? (
-              <div className="rounded-[2rem] bg-white/70 p-8 text-center ring-1 ring-slate-200/80 dark:bg-white/[0.07] dark:ring-white/12">
+              <div className="rounded-[2rem] bg-white/70 p-8 text-center ring-1 ring-slate-200/80 dark:bg-white/[0.07] dark:ring-white/10">
                 <div className="text-2xl font-semibold tracking-[-0.04em]">No course yet</div>
                 <p className="mx-auto mt-2 max-w-xl font-medium leading-7 text-slate-600 dark:text-white/58">Generate your first program above. It will create a calendar, daily missions, and a skill tree.</p>
               </div>
@@ -91,7 +91,7 @@ export default function CoursesPage() {
                   const bundle = courseBundles.find((item) => item.course.id === course.id);
                   const percent = bundle?.progress.totalSessions ? Math.round((bundle.progress.completedSessions / bundle.progress.totalSessions) * 100) : 0;
                   return (
-                  <AnimatedCard key={course.id} className="group rounded-[2rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-xl dark:bg-white/[0.07] dark:ring-white/12">
+                  <AnimatedCard key={course.id} className="group rounded-[2rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-xl dark:bg-white/[0.07] dark:ring-white/10">
                     <Link href={courseHref(course.id)} className="block">
                       <div className="flex items-start justify-between gap-4">
                         <div>
@@ -119,7 +119,7 @@ export default function CoursesPage() {
               <h2 className="text-3xl font-semibold tracking-[-0.05em] text-slate-950 dark:text-white">Completed courses</h2>
               <span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 dark:bg-emerald-300/10 dark:text-emerald-100">{completedBundles.length} completed</span>
             </div>
-            <div className="rounded-[2rem] bg-white/70 p-6 ring-1 ring-slate-200/80 dark:bg-white/[0.07] dark:ring-white/12">
+            <div className="rounded-[2rem] bg-white/70 p-6 ring-1 ring-slate-200/80 dark:bg-white/[0.07] dark:ring-white/10">
               {completedBundles.length === 0 ? (
                 <p className="font-medium leading-7 text-slate-600 dark:text-white/58">Completed programs will appear here once every mission in a course is finished.</p>
               ) : (

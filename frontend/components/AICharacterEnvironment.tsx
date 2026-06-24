@@ -263,7 +263,7 @@ export function AICharacterEnvironment({ mode = "AI Orb", preview = false, activ
           <div className={`absolute left-1/2 ${preview ? "top-[9.2rem]" : "top-[19.5rem]"} h-16 w-[64%] -translate-x-1/2 rounded-[100%] border border-cyan-100/22 bg-cyan-100/[0.035] shadow-[0_24px_90px_rgba(34,211,238,0.08)]`} />
         </>
       )}
-      {scene.layout === "audience" && <div className={`absolute left-1/2 ${preview ? "top-32" : "top-48"} h-24 w-[82%] -translate-x-1/2 rounded-[100%] bg-slate-950/34 ring-1 ring-white/12`} />}
+      {scene.layout === "audience" && <div className={`absolute left-1/2 ${preview ? "top-32" : "top-48"} h-24 w-[82%] -translate-x-1/2 rounded-[100%] bg-slate-950/34 ring-1 ring-white/10`} />}
       {scene.figures.map((figure, index) => (
         <AvatarFigure
           key={`${figure.label}-${index}`}

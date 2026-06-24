@@ -27,15 +27,14 @@ const defaultPrivacySettings: PrivacySettings = {
 
 export default function SettingsPage() {
   const { logout, profile, updateLanguagePreferences, user } = useAuth();
-  const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>(profile?.preferredPracticeLanguage || "en");
-  const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>(profile?.preferredFeedbackLanguage || "en");
+  const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>("en");
+  const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>("en");
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(profile?.privacySettings || defaultPrivacySettings);
   const [speechProfile, setSpeechProfile] = useState<VoiceProfile | null>(null);
   const [privacySaving, setPrivacySaving] = useState(false);
 
   useEffect(() => {
-    if (profile?.preferredPracticeLanguage) setPracticeLanguage(profile.preferredPracticeLanguage);
-    if (profile?.preferredFeedbackLanguage) setFeedbackLanguage(profile.preferredFeedbackLanguage);
+    // Language switching not yet active — always keep English
     if (profile?.privacySettings) setPrivacySettings(profile.privacySettings);
   }, [profile?.preferredFeedbackLanguage, profile?.preferredPracticeLanguage, profile?.privacySettings]);
 

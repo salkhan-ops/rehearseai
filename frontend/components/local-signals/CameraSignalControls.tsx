@@ -61,7 +61,7 @@ export function CameraSignalControls({
       )}
 
       <CameraPrivacyNotice className="mt-4" />
-      <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/64 dark:ring-white/10">
+      <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/65 dark:ring-white/10">
         {enabled ? <Eye size={14} /> : <EyeOff size={14} />} {enabled ? "Local signals enabled" : "Off by default"}
       </div>
     </section>
