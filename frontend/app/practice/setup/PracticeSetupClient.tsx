@@ -14,7 +14,7 @@ import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { createPracticeSchedule, createSession, generateRandomScenario } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { getCourseConfig } from "@/lib/courseConfig";
-import { canUsePracticeType, getDailyDocUsage, getUserEntitlements, getSessionUsage, incrementDailyDocCount, incrementMonthlySessionCount, type UsageInfo } from "@/lib/entitlements";
+import { canUsePracticeType, getDailyDocUsage, getUserEntitlements, getSessionUsage, incrementDailyDocCount, type UsageInfo } from "@/lib/entitlements";
 import { sessionHref } from "@/lib/routes";
 import { updateTelemetryConsent } from "@/lib/telemetry";
 import type { LanguageCode } from "@/lib/languages";
@@ -188,28 +188,33 @@ function SetupForm() {
       }
     }
     setLoading(true);
-    const token = await getToken();
-    if (createRoutine && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
-      await Notification.requestPermission().catch(() => undefined);
+    try {
+      const token = await getToken();
+      if (createRoutine && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+        await Notification.requestPermission().catch(() => undefined);
+      }
+      const session = await createSession({
+        userId, practiceType, difficulty, topic, context, goal, optionalNotes,
+        practiceLanguage, feedbackLanguage, durationPreference, environmentMode, preferredConversationMode,
+        ...(difficulty === "Nerve" ? { nerveEntryType, nervePersona, nerveMaterialName, nerveMaterialText } : {}),
+        ...(useDocument && documentText.trim() ? { documentText: documentText.trim(), documentName: "pasted document", documentMode } : {}),
+      }, token);
+      if (useDocument && documentText.trim()) {
+        incrementDailyDocCount(userId).catch(() => undefined);
+      }
+      if (createRoutine) {
+        await createPracticeSchedule({
+          userId, frequencyType,
+          daysOfWeek: frequencyType === "weekdays" ? [1, 2, 3, 4, 5] : frequencyType === "twice_weekly" ? [2, 4] : frequencyType === "three_times_weekly" || frequencyType === "custom" ? [1, 3, 5] : [],
+          preferredTime, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+          enabled: true, categories: [practiceType], durationPreference, reminderMinutesBefore,
+        }, token).catch(() => undefined);
+      }
+      router.push(sessionHref(session.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start session. Please try again.");
+      setLoading(false);
     }
-    const session = await createSession({
-      userId, practiceType, difficulty, topic, context, goal, optionalNotes,
-      practiceLanguage, feedbackLanguage, durationPreference, environmentMode, preferredConversationMode,
-      ...(difficulty === "Nerve" ? { nerveEntryType, nervePersona, nerveMaterialName, nerveMaterialText } : {}),
-      ...(useDocument && documentText.trim() ? { documentText: documentText.trim(), documentName: "pasted document", documentMode } : {}),
-    }, token);
-    if (useDocument && documentText.trim()) {
-      incrementDailyDocCount(userId).catch(() => undefined);
-    }
-    if (createRoutine) {
-      await createPracticeSchedule({
-        userId, frequencyType,
-        daysOfWeek: frequencyType === "weekdays" ? [1, 2, 3, 4, 5] : frequencyType === "twice_weekly" ? [2, 4] : frequencyType === "three_times_weekly" || frequencyType === "custom" ? [1, 3, 5] : [],
-        preferredTime, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        enabled: true, categories: [practiceType], durationPreference, reminderMinutesBefore,
-      }, token).catch(() => undefined);
-    }
-    router.push(sessionHref(session.id));
   }
 
   function applyTemplate(t: { topic: string; context: string; goal: string; notes: string }) {
