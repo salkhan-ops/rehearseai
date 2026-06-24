@@ -1,7 +1,7 @@
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
-DocumentMode = Literal["neutral", "harsh_critical", "socratic", "supportive"]
+DocumentMode = Literal["neutral", "harsh_critical", "socratic", "supportive", "profile"]
 
 PracticeType = Literal[
     "Job Interview",
@@ -12,6 +12,8 @@ PracticeType = Literal[
     "Difficult Conversation",
     "Teaching Session",
     "Sales Pitch",
+    "Casual Chat",
+    "Podcast / Interview Show",
 ]
 
 Difficulty = Literal["Beginner", "Intermediate", "Advanced", "Brutal", "Nerve", "Friendly", "Realistic"]

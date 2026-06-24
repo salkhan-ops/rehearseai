@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type React from "react";
-import { ArrowUpRight, BriefcaseBusiness, GraduationCap, Handshake, MessageCircle, MessageSquareWarning, Mic2, Presentation, Scale, ShoppingBag, Sparkles } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, GraduationCap, Handshake, MessageCircle, MessageSquareWarning, Mic2, Presentation, Radio, Scale, ShoppingBag, Sparkles } from "lucide-react";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { Nav } from "@/components/Nav";
 import { RandomChallengeButton } from "@/components/scheduling/RandomChallengeButton";
@@ -16,6 +16,7 @@ const arenaMeta: Record<PracticeType, { icon: React.ReactNode; line: string; pre
   "Teaching Session": { icon: <Sparkles size={17} />, line: "Explain simply while curious or confused people push back.", pressure: "Curious students", color: "from-teal-500 to-cyan-600", tag: "Clarity" },
   "Sales Pitch": { icon: <ShoppingBag size={17} />, line: "Handle objections, urgency, and skeptical buyer logic.", pressure: "Skeptical buyer", color: "from-amber-500 to-rose-500", tag: "Objections" },
   "Casual Chat": { icon: <MessageCircle size={17} />, line: "Speak naturally and freely in a low-pressure friendly conversation.", pressure: "Friendly friend", color: "from-sky-500 to-violet-500", tag: "Fluency" },
+  "Podcast / Interview Show": { icon: <Radio size={17} />, line: "Deliver real stories and sharp takes under a probing podcast host.", pressure: "Curious host", color: "from-orange-500 to-pink-600", tag: "On air" },
 };
 
 export default function PracticePage() {

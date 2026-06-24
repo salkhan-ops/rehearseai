@@ -351,6 +351,36 @@ export const defaultCoursePackages: CoursePackage[] = [
     isActive: true,
     sortOrder: 91,
   },
+
+  // ── Podcast / Interview Show ──────────────────────────────────────────────
+  {
+    packageId: "podcast-5",
+    title: "Podcast Guest Bootcamp",
+    description: "Five sessions with a probing podcast host to sharpen your stories, soundbites, and hot takes. Stop giving PR-safe answers and start saying things worth airing.",
+    practiceType: "Podcast / Interview Show",
+    stakeLevel: "medium",
+    durationDays: 7,
+    sessionsIncluded: 5,
+    price: 39,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 92,
+  },
+  {
+    packageId: "podcast-10",
+    title: "Thought Leader on Air",
+    description: "Ten sessions that build the full range of podcast guest skills — your origin story, your controversial opinion, handling curveball questions, and closing with a memorable takeaway. For founders, executives, and experts who want to own the mic.",
+    practiceType: "Podcast / Interview Show",
+    stakeLevel: "medium",
+    durationDays: 14,
+    sessionsIncluded: 10,
+    price: 69,
+    currency: "USD",
+    paddlePriceId: "",
+    isActive: true,
+    sortOrder: 93,
+  },
 ];
 
 export type PracticeTemplate = {

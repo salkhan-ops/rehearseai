@@ -157,6 +157,22 @@ export const courseConfigs: Record<PracticeType, CourseConfig> = {
       { heading: "What good looks like", body: "You spoke freely. You asked a question back. The conversation felt like a real exchange — not a performance." },
     ],
   },
+
+  "Podcast / Interview Show": {
+    defaultDuration: 12,
+    minDuration: 8,
+    maxDuration: 20,
+    aiPersona: "A podcast host — engaged, curious, and skilled at drawing out stories. They will probe for specifics, challenge vague answers, and push for the real story behind your talking points.",
+    pressureArc: "Warm introduction → backstory probe → sharp insight question → controversial angle → close",
+    arcPhases: ["Intro & hook", "Your story", "Insight probe", "Hot take", "Sign-off"],
+    successLooks: "Conversational but substantive. Strong soundbites. Honest, specific answers. No PR non-answers. You gave them something worth airing.",
+    prepSections: ({ topic, context, goal }) => [
+      { heading: "Who you're facing", body: "A podcast host who has done their research. They are not hostile — but they will not let you get away with vague, rehearsed, or safe answers. They want the real story, the lesson, the opinion you actually hold." },
+      { heading: "Your brief", body: `Topic / show focus: ${topic || "your area of expertise or story"}.\n\n${context || "Think about the three most interesting things you can say — and the one controversial opinion you actually hold."}\n\nYour win condition: ${goal || "sound authentic, quotable, and worth coming back for."}` },
+      { heading: "Prepare one answer right now", body: "\"What's the thing most people get wrong about what you do?\" — This is the question that separates memorable guests from forgettable ones. Have a real, specific, slightly uncomfortable answer ready." },
+      { heading: "What good looks like", body: "You gave concrete examples, not generalities. You had at least one moment of genuine honesty or unexpected insight. You answered what was actually asked — not the safer version of the question. You sounded like a person, not a press release." },
+    ],
+  },
 };
 
 export function getCourseConfig(type: PracticeType): CourseConfig {
@@ -174,4 +190,6 @@ export const categoryToPracticeType: Record<string, PracticeType> = {
   "Teaching": "Teaching Session",
   "Sales": "Sales Pitch",
   "Casual": "Casual Chat",
+  "Podcast": "Podcast / Interview Show",
+  "Interview Show": "Podcast / Interview Show",
 };

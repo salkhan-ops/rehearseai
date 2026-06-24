@@ -61,6 +61,10 @@ const quickStarts: Record<PracticeType, Array<{ label: string; topic: string; co
     { label: "Coffee catch-up", topic: "Catching up over coffee", context: "I am having a relaxed chat with a friend I haven't seen in a while.", goal: "Speak naturally and keep the conversation flowing without overthinking.", notes: "Be warm, curious, and genuine." },
     { label: "New acquaintance", topic: "Getting to know someone new", context: "I just met someone at an event and want to have a friendly, genuine conversation.", goal: "Ask good questions, share naturally, and avoid awkward silences.", notes: "Be friendly and curious." },
   ],
+  "Podcast / Interview Show": [
+    { label: "Tech founder story", topic: "My journey building a startup", context: "I am a guest on a tech podcast being interviewed about building my company from scratch.", goal: "Deliver a compelling origin story with specific moments and honest lessons.", notes: "Have a controversial opinion ready." },
+    { label: "Expert guest", topic: "My area of expertise", context: "I am a subject-matter expert being interviewed on a podcast in my field.", goal: "Sound authoritative and quotable — give real insights, not safe generalities.", notes: "Avoid PR-speak. Be direct." },
+  ],
 };
 
 const STEP_LABELS = ["Scenario", "How", "Environment", "Briefing", "Ready"];
@@ -135,10 +139,15 @@ function SetupForm() {
     setCameraAssistedTiming(Boolean(profile?.privacySettings?.allowCameraAssistedTiming));
   }, [profile?.preferredFeedbackLanguage, profile?.preferredPracticeLanguage, profile?.privacySettings?.allowCameraAssistedTiming]);
 
-  // Auto-set duration to the category default when the arena changes
+  // Auto-set duration and document mode when the arena changes
   useEffect(() => {
     setDurationPreference(getCourseConfig(practiceType).defaultDuration);
     setCustomDuration(false);
+    if (practiceType === "Job Interview" || practiceType === "Thesis Defense" || practiceType === "Sales Pitch" || practiceType === "Podcast / Interview Show") {
+      setDocumentMode("profile");
+    } else {
+      setDocumentMode("neutral");
+    }
   }, [practiceType]);
 
   async function updateCameraAssistedTiming(enabled: boolean) {
@@ -456,7 +465,7 @@ function SetupForm() {
                   </button>
                 </div>
                 <p className="mt-1 text-xs font-medium text-slate-500 dark:text-white/45">
-                  Conversation stays strictly within your pasted text — ideal for thesis defences, pitch decks, CVs, or any document you want to defend.
+                  Paste your CV, research, pitch deck, or any text — the AI reads it before the session and asks targeted questions from it.
                 </p>
 
                 {useDocument && (
@@ -473,14 +482,16 @@ function SetupForm() {
                     )}
 
                     <div>
-                      <div className="mb-2 text-xs font-semibold text-slate-600 dark:text-white/60">Review mode</div>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        {([ ["neutral", "Neutral"], ["harsh_critical", "Harsh Critical"], ["socratic", "Socratic"], ["supportive", "Supportive"] ] as [DocumentMode, string][]).map(([id, label]) => (
+                      <div className="mb-2 text-xs font-semibold text-slate-600 dark:text-white/60">Document mode</div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                        {([ ["profile", "Profile"], ["neutral", "Neutral"], ["harsh_critical", "Harsh Critical"], ["socratic", "Socratic"], ["supportive", "Supportive"] ] as [DocumentMode, string][]).map(([id, label]) => (
                           <button key={id} type="button" onClick={() => setDocumentMode(id)}
                             className={`rounded-xl py-2.5 text-xs font-bold ring-1 transition ${documentMode === id ? "bg-slate-950 text-white ring-slate-950 shadow-[0_8px_20px_rgba(15,23,42,0.14)] dark:bg-white dark:text-slate-950" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white/60 dark:ring-white/10"}`}
                           >{label}</button>
                         ))}
                       </div>
+                      {documentMode === "profile" && <p className="mt-1.5 text-xs font-medium text-violet-700 dark:text-violet-400">AI reads your document as your background and asks targeted questions from it — ideal for CVs, research, and pitches.</p>}
+                      {documentMode === "neutral" && <p className="mt-1.5 text-xs font-medium text-slate-500 dark:text-white/40">Challenges stay grounded in your document — every question traces to a specific claim or section.</p>}
                       {documentMode === "harsh_critical" && <p className="mt-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">Every gap, contradiction, and unsupported claim gets attacked. No softening.</p>}
                       {documentMode === "socratic" && <p className="mt-1.5 text-xs font-medium text-slate-500 dark:text-white/40">You'll be guided to discover weaknesses yourself through questions — no direct attacks.</p>}
                       {documentMode === "supportive" && <p className="mt-1.5 text-xs font-medium text-slate-500 dark:text-white/40">Strengths acknowledged first, then gaps probed constructively.</p>}
@@ -498,7 +509,7 @@ function SetupForm() {
                           }}
                           rows={7}
                           className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
-                          placeholder="Paste your thesis, pitch deck, research proposal, CV, or any text you want to defend…"
+                          placeholder={documentMode === "profile" ? "Paste your CV, LinkedIn bio, research summary, pitch deck, or any background document. The AI will read it before the session and ask targeted questions from it…" : "Paste your thesis, pitch deck, research proposal, or any text you want to defend…"}
                         />
                       </label>
                       {(() => {

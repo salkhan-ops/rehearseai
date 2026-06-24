@@ -37,6 +37,7 @@ const categoryMeta: Record<PracticeType, { shape: string; line: string; accent: 
   "Teaching Session": { shape: "clarity spiral", line: "Explain complex ideas while confusion changes shape.", accent: "from-teal-300 to-cyan-600" },
   "Sales Pitch": { shape: "objection field", line: "Respond to buyer resistance with strategic framing.", accent: "from-amber-300 to-rose-500" },
   "Casual Chat": { shape: "open field", line: "Speak freely and naturally without overthinking.", accent: "from-sky-300 to-violet-400" },
+  "Podcast / Interview Show": { shape: "broadcast wave", line: "Deliver real stories and sharp takes on mic.", accent: "from-orange-300 to-pink-500" },
 };
 
 function AmbientBackground() {

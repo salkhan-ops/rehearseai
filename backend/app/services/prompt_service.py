@@ -1,7 +1,7 @@
 from app.models.message import Message
 from app.models.session import Session
 from app.prompts.report_prompts import REPORT_SCHEMA
-from app.prompts.roleplay_prompts import DIFFICULTY_BEHAVIOR, DOCUMENT_GUARDRAIL, DOCUMENT_MODES, PERSONAS
+from app.prompts.roleplay_prompts import DIFFICULTY_BEHAVIOR, DOCUMENT_GUARDRAIL, DOCUMENT_MODES, PERSONAS, PROFILE_GUARDRAIL
 from app.prompts.panel_prompts import build_panel_block, is_panel_mode
 from typing import Optional
 
@@ -144,6 +144,7 @@ def build_document_block(session: Session) -> str:
         return ""
     doc_mode = session.documentMode or "neutral"
     mode_instruction = DOCUMENT_MODES.get(doc_mode, DOCUMENT_MODES["neutral"])
+    guardrail = PROFILE_GUARDRAIL if doc_mode == "profile" else DOCUMENT_GUARDRAIL
     word_count = len(session.documentText.split())
     non_alpha = sum(1 for c in session.documentText if not c.isalpha() and not c.isspace())
     symbol_ratio = non_alpha / max(1, len(session.documentText))
@@ -151,11 +152,12 @@ def build_document_block(session: Session) -> str:
         "\nNote: This document contains significant mathematical or code notation. "
         "Focus on conceptual understanding and reasoning — do not attempt to verify calculations, run code, or solve equations."
     ) if symbol_ratio > 0.15 else ""
+    label = "CANDIDATE BACKGROUND DOCUMENT" if doc_mode == "profile" else "DOCUMENT"
     return (
-        f"\n{DOCUMENT_GUARDRAIL}\n"
+        f"\n{guardrail}\n"
         f"Document mode: {doc_mode.replace('_', ' ').title()}\n"
         f"{mode_instruction}\n\n"
-        f"DOCUMENT ({word_count} words):\n"
+        f"{label} ({word_count} words):\n"
         f"---\n{session.documentText}\n---"
         f"{symbol_note}\n"
     )

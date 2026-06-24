@@ -56,8 +56,23 @@ function pickVoice(language = "en-US") {
   );
 }
 
-function humanizeSpeech(text: string) {
+function normalizeNumbersForSpeech(text: string): string {
   return text
+    .replace(/£(\d[\d,.]*)\s*([kmb])\b/gi, (_, n, s) => `${n.replace(/,/g, "")} ${s.toLowerCase() === "k" ? "thousand" : s.toLowerCase() === "m" ? "million" : "billion"} pounds`)
+    .replace(/\$(\d[\d,.]*)\s*([kmb])\b/gi, (_, n, s) => `${n.replace(/,/g, "")} ${s.toLowerCase() === "k" ? "thousand" : s.toLowerCase() === "m" ? "million" : "billion"} dollars`)
+    .replace(/€(\d[\d,.]*)\s*([kmb])\b/gi, (_, n, s) => `${n.replace(/,/g, "")} ${s.toLowerCase() === "k" ? "thousand" : s.toLowerCase() === "m" ? "million" : "billion"} euros`)
+    .replace(/£([\d,.]+)/g, (_, n) => `${n.replace(/,/g, "")} pounds`)
+    .replace(/\$([\d,.]+)/g, (_, n) => `${n.replace(/,/g, "")} dollars`)
+    .replace(/€([\d,.]+)/g, (_, n) => `${n.replace(/,/g, "")} euros`)
+    .replace(/\b(\d+(?:\.\d+)?)\s*k\b/gi, (_, n) => `${n} thousand`)
+    .replace(/\b(\d+(?:\.\d+)?)\s*m\b(?!\w)/gi, (_, n) => `${n} million`)
+    .replace(/\b(\d+(?:\.\d+)?)\s*b\b(?!\w)/gi, (_, n) => `${n} billion`)
+    .replace(/(\d+(?:\.\d+)?)%/g, "$1 percent")
+    .replace(/\b(\d+)\s*[-–]\s*(\d+)\b/g, "$1 to $2");
+}
+
+function humanizeSpeech(text: string) {
+  return normalizeNumbersForSpeech(text)
     .replace(/^(AI persona|Coach|Assistant)\s*:\s*/i, "")
     .replace(/\s+/g, " ")
     .replace(/\b(Stay focused on your goal:)\s*/gi, "")

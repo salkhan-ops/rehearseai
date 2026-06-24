@@ -14,6 +14,7 @@ const scenes: Record<PracticeType, { label: string; role: string; accent: string
   "Teaching Session": { label: "Classroom", role: "Curious student", accent: "from-teal-400 to-cyan-600", prompt: "Ask confused questions" },
   "Sales Pitch": { label: "Buyer room", role: "Skeptical buyer", accent: "from-amber-400 to-rose-500", prompt: "Raise objections" },
   "Casual Chat": { label: "Friendly chat", role: "Warm friend", accent: "from-sky-400 to-violet-500", prompt: "Be curious and natural" },
+  "Podcast / Interview Show": { label: "On air", role: "Podcast host", accent: "from-orange-400 to-pink-600", prompt: "Push for the real story" },
 };
 
 function SignalWave({ active }: { active: boolean }) {

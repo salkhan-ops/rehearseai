@@ -69,6 +69,12 @@ const intakeConfig: Record<PracticeType, IntakeConfig> = {
     eventLabel: "Any relevant date or deadline?",
     weakSpots: ["Running out of things to say", "Awkward silences", "Sounding scripted", "Active listening", "Asking good follow-up questions", "Expressing opinions confidently", "Natural transitions"],
   },
+  "Podcast / Interview Show": {
+    situationLabel: "What show or topic are you preparing for?",
+    situationPlaceholder: "e.g. Tech podcast about my startup journey, expert interview on AI",
+    eventLabel: "When is the recording?",
+    weakSpots: ["Giving PR-safe non-answers", "Weak origin story", "No memorable soundbites", "Avoiding controversial opinions", "Rambling without a point", "Losing energy mid-answer", "Handling curveball questions"],
+  },
 };
 
 // ── Slider ─────────────────────────────────────────────────────────────────

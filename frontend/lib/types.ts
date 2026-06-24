@@ -8,6 +8,7 @@ export const practiceTypes = [
   "Teaching Session",
   "Sales Pitch",
   "Casual Chat",
+  "Podcast / Interview Show",
 ] as const;
 
 export const difficulties = ["Beginner", "Intermediate", "Advanced", "Brutal", "Nerve"] as const;
@@ -234,7 +235,7 @@ export type PerformanceAnalytics = {
   createdAt: string;
 };
 
-export type DocumentMode = "neutral" | "harsh_critical" | "socratic" | "supportive";
+export type DocumentMode = "neutral" | "harsh_critical" | "socratic" | "supportive" | "profile";
 
 export type SessionPayload = {
   userId: string;

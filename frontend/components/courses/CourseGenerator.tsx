@@ -22,6 +22,7 @@ const weakSpotBank: Record<PracticeType, string[]> = {
   "Teaching Session": ["Using too much jargon", "Losing the audience", "Handling unknown questions", "Pacing the content", "Checking understanding"],
   "Sales Pitch": ["Handling ROI objections", "Not discounting too fast", "Competitor questions", "Reading the room", "Closing without desperation"],
   "Casual Chat": ["Running out of things to say", "Sounding scripted", "Active listening", "Asking follow-up questions", "Expressing opinions confidently"],
+  "Podcast / Interview Show": ["Giving PR-safe non-answers", "Weak origin story", "No memorable soundbites", "Avoiding the controversial opinion", "Rambling without a point", "Losing energy mid-answer"],
 };
 
 // ── Shared sub-components ──────────────────────────────────────────────────
