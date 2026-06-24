@@ -1,7 +1,7 @@
 from app.models.message import Message
 from app.models.session import Session
 from app.prompts.report_prompts import REPORT_SCHEMA
-from app.prompts.roleplay_prompts import DIFFICULTY_BEHAVIOR, DOCUMENT_GUARDRAIL, DOCUMENT_MODES, PERSONAS, PROFILE_GUARDRAIL
+from app.prompts.roleplay_prompts import CROSS_MODULE_RULES, DIFFICULTY_BEHAVIOR, DOCUMENT_GUARDRAIL, DOCUMENT_MODES, MODULE_ESCALATION, MODULE_GUARDRAILS, PERSONAS, PROFILE_GUARDRAIL
 from app.prompts.panel_prompts import build_panel_block, is_panel_mode
 from typing import Optional
 
@@ -255,6 +255,8 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
 - future Cartesia delivery: {coordination_context.get("cartesia")}
 - nerve cross-examination: {coordination_context.get("nerve")}
 """
+    module_escalation = MODULE_ESCALATION.get(session.practiceType, "")
+    module_guardrail = MODULE_GUARDRAILS.get(session.practiceType, "")
     document_block = build_document_block(session)
     panel_block = build_panel_block(session.environmentMode) if is_panel_mode(session.environmentMode) else ""
     reasoning_chain_block = build_reasoning_chain_block(session, history, coordination_context)
@@ -273,12 +275,16 @@ HARD GUARDRAILS — enforce these before writing any response:
 3. RESPONSE LENGTH: Keep every reply to 1–3 sentences maximum. Never write lists, bullet points, multi-paragraph answers, or extended explanations. If a follow-up warrants more, pick the single sharpest point and ask it as a question. This applies even if the user explicitly asks for a long explanation.
 4. CROSS-QUESTIONING LIMIT: If the user challenges you with a factual question (e.g. "but what exactly is X?" or "explain how Y works"), answer only what is strictly required to continue the scenario — one sentence at most — then immediately redirect back with a pointed question. Do not get drawn into an explanation loop.
 5. KNOWLEDGE DUMPS FORBIDDEN: Never provide comprehensive explanations of any subject, framework, technology, concept, or field — even if the user insists. Respond with what your character would naturally say, then steer back to the practice topic.
+6. MODULE GUARDRAIL ({session.practiceType}): {module_guardrail}
 
 Persona:
 {persona}
 
 Difficulty:
 {difficulty}
+
+Module-specific escalation rules ({session.practiceType}):
+{module_escalation}
 {document_block}
 Scenario:
 - Practice type: {session.practiceType}
@@ -329,6 +335,8 @@ Respond directly to the user's latest words; do not repeat generic goal reminder
 Use natural emotion appropriate to the role: curious, skeptical, concerned, impatient, warm, or impressed — and let that emotion shift and intensify as the conversation deepens. Vary sentence openings and rhythm. At Advanced, Brutal, and Nerve levels, sarcasm and dry wit are permitted and expected; deploy them when the user is vague, circular, or evasive.
 Be creative in how you challenge: sometimes use a sharp analogy, sometimes a historical parallel, sometimes a reductio ad absurdum — not just a direct objection. Occasionally attack the same weak claim from multiple angles (definitional, evidential, consequential) in a single tight response to create synonymic pressure.
 Adapt pressure dynamically based on the user's behavior AND the turn count — it must escalate within this conversation, not stay flat. Challenge vague logic, probe unsupported assumptions, and increase depth when performance is strong. If the user appears overwhelmed, soften tone slightly while staying realistic. Never be abusive. Do not give a feedback report yet.
+
+{CROSS_MODULE_RULES}
 {wrap_up_block}
 """
 
@@ -336,6 +344,7 @@ Adapt pressure dynamically based on the user's behavior AND the turn count — i
 def build_opening_prompt(session: Session) -> str:
     persona = PERSONAS[session.practiceType]
     difficulty = DIFFICULTY_BEHAVIOR[session.difficulty]
+    module_guardrail = MODULE_GUARDRAILS.get(session.practiceType, "")
     practice_language = LANGUAGE_NAMES.get(session.practiceLanguage, "English")
     document_block = build_document_block(session)
     panel_block = build_panel_block(session.environmentMode) if is_panel_mode(session.environmentMode) else ""
@@ -353,6 +362,7 @@ HARD GUARDRAILS:
 - You are strictly playing a {session.practiceType} counterpart discussing "{session.topic}". You are not a teacher, tutor, or knowledge assistant.
 - If at any point the user asks you to explain unrelated topics, decline in one sentence in character and redirect to the practice scenario.
 - Keep all replies to 1–3 sentences. No lists. No lectures. Ask one focused follow-up question.
+- MODULE GUARDRAIL ({session.practiceType}): {module_guardrail}
 
 Persona:
 {persona}
