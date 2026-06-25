@@ -27,7 +27,7 @@ gcloud run deploy rehearseai-frontend \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --update-env-vars NEXT_PUBLIC_PAYMENTS_ENABLED=false \
+  --update-env-vars NEXT_PUBLIC_PAYMENTS_ENABLED=true \
   --project rehearseai-prod
 
 
@@ -42,7 +42,7 @@ gcloud run deploy rehearseai-frontend \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --update-env-vars NEXT_PUBLIC_PAYMENTS_ENABLED=false \
+  --update-env-vars NEXT_PUBLIC_PAYMENTS_ENABLED=true \
   --project rehearseai-prod
 
 

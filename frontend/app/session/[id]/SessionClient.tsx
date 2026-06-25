@@ -858,7 +858,9 @@ export default function SessionPage() {
         clearNaturalTimers();
         // Never let a short interim (e.g. from a fresh mic session after restart) overwrite
         // accumulated finals that already captured a longer answer.
-        if (liveTranscript.length > naturalTranscriptRef.current.length) {
+        // Guard: once a Deepgram final has been received, only onFinalTranscript may update
+        // naturalTranscriptRef — an interim from a new session must not replace it even if longer.
+        if (!naturalDeepgramFinalReceivedRef.current && liveTranscript.length > naturalTranscriptRef.current.length) {
           naturalTranscriptRef.current = liveTranscript;
         }
         naturalLastTranscriptUpdateAtRef.current = Date.now();
