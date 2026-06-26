@@ -6,7 +6,7 @@ from app.models.session import SessionCreate
 from app.services.firestore_service import FirestoreService
 from app.services.reminder_service import ReminderService
 from app.services.scenario_service import ScenarioService
-from app.utils.security import get_current_user_id
+from app.utils.security import get_current_user_id, require_authenticated_user
 
 router = APIRouter()
 
@@ -60,9 +60,8 @@ async def list_practice_history(user_id: str, request: Request, current_user_id:
 
 
 @router.post("/api/scenarios/random")
-async def random_scenario(payload: ScenarioRequest, request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
-    if current_user_id:
-        payload.userId = current_user_id
+async def random_scenario(payload: ScenarioRequest, request: Request, current_user_id: str = Depends(require_authenticated_user)):
+    payload.userId = current_user_id
     history = [item.model_dump() for item in await get_store(request).list_practice_history(payload.userId)]
     return await get_scenarios(request).generate_random_scenario(payload, history)
 
@@ -74,9 +73,8 @@ async def daily_challenge(user_id: str, request: Request, category: Optional[str
 
 
 @router.post("/api/scenarios/quick-start")
-async def quick_start(payload: QuickStartRequest, request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
-    if current_user_id:
-        payload.userId = current_user_id
+async def quick_start(payload: QuickStartRequest, request: Request, current_user_id: str = Depends(require_authenticated_user)):
+    payload.userId = current_user_id
     store = get_store(request)
     history = [item.model_dump() for item in await store.list_practice_history(payload.userId)]
     scenario = await get_scenarios(request).generate_progressive_difficulty_scenario(payload, history)

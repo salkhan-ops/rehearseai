@@ -7,7 +7,6 @@ import {
   onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
-  signInAnonymously,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
@@ -67,7 +66,6 @@ type AuthContextValue = {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   resendVerification: (email: string, password: string) => Promise<void>;
-  continueAsGuest: () => Promise<void>;
   updateLanguagePreferences: (practiceLanguage: LanguageCode, feedbackLanguage: LanguageCode) => Promise<void>;
   confirmAgeEligibility: (minorConsentAcknowledged?: boolean) => Promise<void>;
 };
@@ -303,10 +301,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await sendEmailVerification(result.user);
         await firebaseSignOut(auth);
       }
-    },
-    continueAsGuest: async () => {
-      const auth = requireAuthClient();
-      await signInAnonymously(auth);
     },
     updateLanguagePreferences,
     confirmAgeEligibility,

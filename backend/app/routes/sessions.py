@@ -7,7 +7,7 @@ from app.services.gemini_service import GeminiService
 from app.services.firestore_service import FirestoreService
 from app.services.conversation_coordination_service import ConversationCoordinationService, CoordinationAnalyzeRequest
 from app.services.cross_examination_service import CrossExaminationService
-from app.utils.security import get_current_user_id
+from app.utils.security import get_current_user_id, require_authenticated_user
 from app.utils.timestamps import utc_now_iso
 
 router = APIRouter()
@@ -38,19 +38,16 @@ async def require_age_confirmed(store: FirestoreService, user_id: Optional[str])
 
 
 @router.post("/api/sessions")
-async def create_session(payload: SessionCreate, request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
+async def create_session(payload: SessionCreate, request: Request, current_user_id: str = Depends(require_authenticated_user)):
     await require_age_confirmed(get_store(request), current_user_id)
-    if current_user_id:
-        payload.userId = current_user_id
+    payload.userId = current_user_id
     # Single entitlement lookup covers all plan checks
-    ents: dict = {}
-    if current_user_id:
-        raw = await get_store(request).get_user_entitlements(current_user_id)
-        ents = raw.get("entitlements") or {}
-    if payload.difficulty == "Nerve" and current_user_id:
+    raw = await get_store(request).get_user_entitlements(current_user_id)
+    ents: dict = raw.get("entitlements") or {}
+    if payload.difficulty == "Nerve":
         if not (ents.get("allowNerveMode", False) or ents.get("allowBrutalMode", False)):
             raise HTTPException(status_code=403, detail="Nerve Mode requires Pro or Coach.")
-    if payload.documentText and current_user_id:
+    if payload.documentText:
         daily_limit = ents.get("docGroundingDocsPerDay", 1)
         if daily_limit != "unlimited":
             daily_count = await get_store(request).get_daily_doc_count(current_user_id)
@@ -97,21 +94,19 @@ async def get_user_hint_summary(user_id: str, request: Request, current_user_id:
 
 
 @router.post("/api/sessions/{session_id}/message")
-async def send_message(session_id: str, payload: MessageCreate, request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
+async def send_message(session_id: str, payload: MessageCreate, request: Request, current_user_id: str = Depends(require_authenticated_user)):
     store = get_store(request)
     session = await store.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     await require_age_confirmed(store, current_user_id)
-    if current_user_id and session.userId != current_user_id:
+    if session.userId != current_user_id:
         raise HTTPException(status_code=403, detail="Session does not belong to this user")
     if session.status == "completed":
         raise HTTPException(status_code=400, detail="Session already completed")
     # Resolve the plan's turn limit so the prompt builder can signal wrap-up
-    msg_ents: dict = {}
-    if current_user_id:
-        msg_raw = await store.get_user_entitlements(current_user_id)
-        msg_ents = msg_raw.get("entitlements") or {}
+    msg_raw = await store.get_user_entitlements(current_user_id)
+    msg_ents: dict = msg_raw.get("entitlements") or {}
     max_turns: int = int(msg_ents.get("maxMessagesPerSession", 16))
     safety = await request.app.state.safety_scope.evaluate_message(
         user_id=session.userId,

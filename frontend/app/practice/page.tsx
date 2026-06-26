@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import type React from "react";
 import { ArrowUpRight, BriefcaseBusiness, GraduationCap, Handshake, MessageCircle, MessageSquareWarning, Mic2, Presentation, Radio, Scale, ShoppingBag, Sparkles } from "lucide-react";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Nav } from "@/components/Nav";
 import { RandomChallengeButton } from "@/components/scheduling/RandomChallengeButton";
 import { PracticeType, practiceTypes } from "@/lib/types";
@@ -21,6 +24,7 @@ const arenaMeta: Record<PracticeType, { icon: React.ReactNode; line: string; pre
 
 export default function PracticePage() {
   return (
+    <ProtectedRoute>
     <main className="min-h-screen overflow-hidden bg-[#f4f8fc] dark:bg-[#0e1020]">
       <Nav />
       <AnimatedPage className="relative mx-auto max-w-7xl px-4 py-12 md:py-16">
@@ -83,5 +87,6 @@ export default function PracticePage() {
         </StaggeredGrid>
       </AnimatedPage>
     </main>
+    </ProtectedRoute>
   );
 }

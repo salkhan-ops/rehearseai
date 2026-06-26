@@ -7,6 +7,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
 import { AnimatedMessage, AnimatedPage, TypingIndicator } from "@/components/animations";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BeginnerBriefing } from "@/components/learning/BeginnerBriefing";
 import { FirstSessionGuide } from "@/components/session/FirstSessionGuide";
 import { CoachPanel } from "@/components/learning/CoachPanel";
@@ -1522,6 +1523,7 @@ export default function SessionPage() {
   }
 
   return (
+    <ProtectedRoute>
     <>
     <ImmersiveMode
       open={immersiveOpen}
@@ -1981,5 +1983,6 @@ export default function SessionPage() {
       )}
     </main>
     </>
+    </ProtectedRoute>
   );
 }

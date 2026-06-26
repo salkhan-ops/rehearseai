@@ -22,6 +22,7 @@ import { Nav } from "@/components/Nav";
 import { ScoreCard } from "@/components/ScoreCard";
 import { PracticeRoutinePanel } from "@/components/scheduling/PracticeRoutinePanel";
 import { AIDisclaimer } from "@/components/legal/AIDisclaimer";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { getReport, getReportAnalytics, getSessionHints } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { isRtlLanguage } from "@/lib/languages";
@@ -78,6 +79,7 @@ export default function ReportPage() {
   if (!report || !analytics) return <main className="cog-bg min-h-screen text-primary-token"><ReportAmbient /><div className="relative px-4 py-12 text-center font-semibold text-secondary-token">Loading performance intelligence...</div></main>;
 
   return (
+    <ProtectedRoute>
     <main className="cog-bg relative min-h-screen overflow-hidden text-primary-token" dir={isRtlLanguage(report.feedbackLanguage) ? "rtl" : "ltr"}>
       <ReportAmbient />
       <Nav />
@@ -357,5 +359,6 @@ export default function ReportPage() {
         </div>
       </AnimatedPage>
     </main>
+    </ProtectedRoute>
   );
 }

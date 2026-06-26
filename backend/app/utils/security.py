@@ -33,6 +33,15 @@ async def get_current_user_id(authorization: Optional[str] = Header(default=None
         raise HTTPException(status_code=401, detail="Invalid Firebase token") from exc
 
 
+async def require_authenticated_user(authorization: Optional[str] = Header(default=None)) -> str:
+    """Strict version — raises 401 when credentials are absent or invalid.
+    Use on any endpoint that calls an AI service or writes user data."""
+    uid = await get_current_user_id(authorization)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Authentication required. Please sign in to use this service.")
+    return uid
+
+
 async def get_current_user_id_or_guest(authorization: Optional[str] = Header(default=None)) -> Optional[str]:
     """Like get_current_user_id but falls back to None (guest) when credentials are missing
     or the token cannot be verified. Use only for read-only endpoints that are safe for
