@@ -776,8 +776,16 @@ export async function savePlan(plan: Plan) {
 
 export async function getUsers() {
   const db = dbOrThrow();
-  const snapshot = await getDocs(collection(db, "users"));
+  const snapshot = await getDocs(query(collection(db, "users"), where("email", "!=", null)));
   return snapshot.docs.map((item) => item.data() as AdminUser);
+}
+
+export async function detectGhostSessions(): Promise<{ count: number; uids: string[] }> {
+  return adminRequest("/api/admin/users/ghosts");
+}
+
+export async function deleteGhostSessions(): Promise<{ deleted: number }> {
+  return adminRequest("/api/admin/users/ghosts", { method: "DELETE" });
 }
 
 export async function findUser(term: string) {

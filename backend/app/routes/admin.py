@@ -104,6 +104,17 @@ async def public_course_templates(request: Request):
     return public_only(await request.app.state.store.admin_list_course_templates())
 
 
+@router.get("/api/public/stats")
+async def public_stats(request: Request):
+    store = request.app.state.store
+    if store.client:
+        docs = store.client.collection("users").where("email", "!=", "").stream()
+        count = sum(1 for _ in docs)
+    else:
+        count = len([u for u in store.admin_users.values() if u.get("email")])
+    return {"practitionerCount": count}
+
+
 @router.get("/api/admin/plans")
 async def admin_plans(request: Request):
     await require_admin_mvp()
@@ -182,6 +193,38 @@ async def admin_make_admin(uid: str, request: Request):
 async def admin_remove_admin(uid: str, request: Request):
     await require_admin_mvp()
     return await request.app.state.store.admin_set_role(uid, "user")
+
+
+@router.get("/api/admin/users/ghosts")
+async def detect_ghost_users(request: Request):
+    await require_admin_mvp()
+    store = request.app.state.store
+    if store.client:
+        docs = list(store.client.collection("users").stream())
+        ghost_uids = [doc.id for doc in docs if not doc.to_dict().get("email")]
+    else:
+        ghost_uids = [uid for uid, u in store.admin_users.items() if not u.get("email")]
+    return {"count": len(ghost_uids), "uids": ghost_uids}
+
+
+@router.delete("/api/admin/users/ghosts")
+async def delete_ghost_users(request: Request):
+    await require_admin_mvp()
+    store = request.app.state.store
+    deleted = 0
+    if store.client:
+        docs = list(store.client.collection("users").stream())
+        for doc in docs:
+            if not doc.to_dict().get("email"):
+                doc.reference.delete()
+                deleted += 1
+    else:
+        ghost_uids = [uid for uid, u in store.admin_users.items() if not u.get("email")]
+        for uid in ghost_uids:
+            store.admin_users.pop(uid, None)
+        deleted = len(ghost_uids)
+    await log_action(request, "purge ghost sessions", "users", "all", after={"deleted": deleted})
+    return {"deleted": deleted}
 
 
 @router.get("/api/admin/billing")

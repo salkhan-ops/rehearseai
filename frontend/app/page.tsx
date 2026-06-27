@@ -169,8 +169,26 @@ function LiveSystemDemo() {
   );
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+async function fetchPractitionerCount(): Promise<number | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/public/stats`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.practitionerCount === "number" ? data.practitionerCount : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Home() {
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+  const [practitionerCount, setPractitionerCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchPractitionerCount().then(setPractitionerCount);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -237,6 +255,26 @@ export default function Home() {
               Start Rehearsing Free
             </button>
             <ButtonLink href="/practice/setup?type=Panel%20Discussion&difficulty=Brutal" variant="secondary">Try Brutal Panel Mode</ButtonLink>
+          </motion.div>
+
+          {/* Social proof strip */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.36 }} className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm font-medium text-slate-500 dark:text-white/42">
+            <span className="flex items-center gap-2">
+              <span className="flex -space-x-2">
+                {["bg-violet-400", "bg-cyan-400", "bg-blue-400", "bg-fuchsia-400"].map((c, i) => (
+                  <span key={i} className={`inline-block h-7 w-7 rounded-full ${c} ring-2 ring-white dark:ring-[#07111f]`} />
+                ))}
+              </span>
+              <span>
+                {practitionerCount !== null && practitionerCount > 1
+                  ? <><strong className="text-slate-800 dark:text-white">{practitionerCount.toLocaleString()}</strong> people already practising</>
+                  : <><strong className="text-slate-800 dark:text-white">Early access</strong> — be among the first</>}
+              </span>
+            </span>
+            <span className="hidden h-4 w-px bg-slate-200 dark:bg-white/10 sm:block" />
+            <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Free to start</span>
+            <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>No credit card</span>
+            <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Cancel anytime</span>
           </motion.div>
 
           <CognitionHero />
@@ -377,6 +415,40 @@ export default function Home() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Early adopter social proof */}
+      <section className="relative z-10 mx-auto max-w-7xl px-4 py-20">
+        <div className="text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">Early access</p>
+          <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-semibold leading-[1.05] tracking-[-0.05em] text-slate-950 dark:text-white md:text-5xl">What early practitioners are saying</h2>
+          <p className="mx-auto mt-4 max-w-xl text-base font-medium text-slate-500 dark:text-white/42">Real feedback from our beta community — no polished PR quotes.</p>
+        </div>
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { quote: "I went into my panel interview actually feeling prepared for the first time. The brutal mode is brutal.", role: "PhD candidate", detail: "Thesis defence" },
+            { quote: "Every time I practised my salary negotiation in here, the real conversation felt easier. Got 12% more than the first offer.", role: "Product Manager", detail: "Salary negotiation" },
+            { quote: "It's the only thing I've found that actually puts you under pressure. Everything else is just prompts.", role: "Early beta user", detail: "Job interview prep" },
+          ].map(({ quote, role, detail }) => (
+            <AnimatedCard key={role} className="flex flex-col justify-between rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-7 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
+              <div>
+                <div className="flex gap-1 mb-5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <svg key={i} className="h-4 w-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                  ))}
+                </div>
+                <p className="text-base font-medium leading-7 text-slate-700 dark:text-white/70">&ldquo;{quote}&rdquo;</p>
+              </div>
+              <div className="mt-6 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-violet-400 to-cyan-400" />
+                <div>
+                  <div className="text-sm font-semibold text-slate-800 dark:text-white">{role}</div>
+                  <div className="text-xs font-medium text-slate-400 dark:text-white/36">{detail}</div>
+                </div>
+              </div>
+            </AnimatedCard>
+          ))}
         </div>
       </section>
 

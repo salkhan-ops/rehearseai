@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ad 3 — Salary Left on the Table · 1080×1350 Portrait</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    width:1080px; height:1350px;
+    background:#030308;
+    font-family:-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* Deep background glow */
+  .bg1 {
+    position:absolute;
+    width:800px; height:800px;
+    background:radial-gradient(circle, rgba(5,150,105,0.2) 0%, transparent 65%);
+    top:180px; left:50%; transform:translateX(-50%);
+    animation:bgPulse 6s ease-in-out infinite;
+  }
+  .bg2 {
+    position:absolute;
+    width:500px; height:500px;
+    background:radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 65%);
+    bottom:100px; left:-100px;
+    animation:bgPulse 6s ease-in-out 3s infinite;
+  }
+  .bg3 {
+    position:absolute;
+    width:400px; height:400px;
+    background:radial-gradient(circle, rgba(71,107,255,0.1) 0%, transparent 65%);
+    top:80px; right:-80px;
+    animation:bgPulse 5s ease-in-out 1.5s infinite;
+  }
+  @keyframes bgPulse {
+    0%,100% { opacity:0.6; }
+    50%      { opacity:1; }
+  }
+
+  /* Subtle dot pattern */
+  .dots {
+    position:absolute; inset:0;
+    background-image:radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size:36px 36px;
+    pointer-events:none;
+  }
+
+  /* Header */
+  .header {
+    position:relative; z-index:10;
+    padding:52px 64px 0;
+    display:flex; align-items:center; justify-content:space-between;
+    opacity:0;
+    animation:fadeIn 0.5s ease 0.1s forwards;
+  }
+  .logo {
+    display:flex; align-items:center; gap:12px;
+  }
+  .logo-icon {
+    width:36px; height:36px;
+    background:linear-gradient(135deg, #059669, #0ea5e9);
+    border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 20px rgba(5,150,105,0.5);
+  }
+  .logo-icon svg { width:20px; height:20px; }
+  .logo-name {
+    font-size:22px; font-weight:800;
+    color:#fff; letter-spacing:-0.03em;
+  }
+  .mode-tag {
+    font-size:12px; font-weight:800;
+    text-transform:uppercase; letter-spacing:0.1em;
+    color:#34d399;
+    border:1px solid rgba(52,211,153,0.25);
+    background:rgba(5,150,105,0.1);
+    padding:7px 16px; border-radius:100px;
+  }
+
+  /* Top text */
+  .hook {
+    position:relative; z-index:10;
+    padding:0 64px;
+    margin-top:60px;
+    opacity:0;
+    animation:slideUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.4s forwards;
+  }
+  .hook-eyebrow {
+    font-size:15px; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.12em;
+    color:#6b7280; margin-bottom:16px;
+  }
+  .hook-text {
+    font-size:52px; font-weight:900;
+    color:#fff; line-height:0.93;
+    letter-spacing:-0.04em;
+  }
+  .hook-text .accent {
+    background:linear-gradient(90deg, #34d399, #0ea5e9);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
+
+  /* Big number hero */
+  .number-section {
+    position:relative; z-index:10;
+    margin:56px 64px 0;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(255,255,255,0.07);
+    border-radius:32px;
+    padding:52px 52px 48px;
+    overflow:hidden;
+    opacity:0;
+    animation:slideUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.7s forwards;
+  }
+  .number-glow {
+    position:absolute;
+    width:400px; height:200px;
+    background:radial-gradient(ellipse, rgba(5,150,105,0.25) 0%, transparent 70%);
+    top:-30px; left:50%; transform:translateX(-50%);
+  }
+  .number-label {
+    font-size:13px; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.12em;
+    color:#4b5563; margin-bottom:20px;
+  }
+  .big-number {
+    font-size:120px; font-weight:900;
+    letter-spacing:-0.06em;
+    line-height:1;
+    background:linear-gradient(135deg, #34d399, #10b981, #0ea5e9);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
+  .number-desc {
+    margin-top:16px;
+    font-size:20px; font-weight:500;
+    color:#6b7280; line-height:1.4;
+    max-width:500px;
+  }
+  .number-source {
+    margin-top:12px;
+    font-size:12px; font-weight:500;
+    color:#374151;
+  }
+
+  /* Stats row */
+  .stats {
+    position:relative; z-index:10;
+    margin:28px 64px 0;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+    opacity:0;
+    animation:slideUp 0.6s cubic-bezier(0.22,1,0.36,1) 1.1s forwards;
+  }
+  .stat-card {
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(255,255,255,0.07);
+    border-radius:24px;
+    padding:28px 28px;
+  }
+  .stat-num {
+    font-size:44px; font-weight:900;
+    letter-spacing:-0.04em;
+    color:#fff;
+  }
+  .stat-num .pct { font-size:28px; }
+  .stat-desc {
+    margin-top:8px;
+    font-size:15px; font-weight:500;
+    color:#4b5563; line-height:1.4;
+  }
+
+  /* Negotiation session snippet */
+  .snippet {
+    position:relative; z-index:10;
+    margin:28px 64px 0;
+    background:rgba(5,150,105,0.06);
+    border:1px solid rgba(5,150,105,0.18);
+    border-radius:24px;
+    padding:28px 32px;
+    opacity:0;
+    animation:slideUp 0.6s cubic-bezier(0.22,1,0.36,1) 1.4s forwards;
+  }
+  .snippet-label {
+    font-size:11px; font-weight:800;
+    text-transform:uppercase; letter-spacing:0.14em;
+    color:#059669; margin-bottom:16px;
+  }
+  .snippet-line {
+    font-size:18px; font-weight:500;
+    color:#d1d5db; line-height:1.5;
+    padding:10px 0;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+  }
+  .snippet-line:last-child { border-bottom:none; padding-bottom:0; }
+  .snippet-line .who {
+    font-weight:800;
+    margin-right:8px;
+  }
+  .snippet-line .ai-who { color:#6ee7b7; }
+  .snippet-line .you-who { color:#94a3b8; }
+
+  /* CTA bottom */
+  .cta-section {
+    position:relative; z-index:10;
+    margin:32px 64px 0;
+    opacity:0;
+    animation:fadeIn 0.6s ease 1.9s forwards;
+  }
+  .cta-btn {
+    display:block; width:100%;
+    background:linear-gradient(135deg, #059669, #0ea5e9);
+    color:#fff;
+    font-size:26px; font-weight:800;
+    padding:26px 48px;
+    border-radius:20px;
+    text-align:center;
+    letter-spacing:-0.01em;
+    box-shadow:0 20px 60px rgba(5,150,105,0.4);
+    animation:ctaGlow 2.5s ease-in-out 2.1s infinite;
+  }
+  @keyframes ctaGlow {
+    0%,100% { box-shadow:0 20px 60px rgba(5,150,105,0.4); }
+    50%      { box-shadow:0 24px 80px rgba(14,165,233,0.45); }
+  }
+  .cta-sub {
+    margin-top:18px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .cta-note {
+    font-size:15px; font-weight:600; color:#374151;
+  }
+  .cta-url {
+    font-size:14px; font-weight:500; color:#1f2937;
+  }
+
+  /* Shared keyframes */
+  @keyframes fadeIn  { to { opacity:1; } }
+  @keyframes slideUp {
+    from { opacity:0; transform:translateY(26px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+</style>
+</head>
+<body>
+  <div class="dots"></div>
+  <div class="bg1"></div>
+  <div class="bg2"></div>
+  <div class="bg3"></div>
+
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round">
+          <line x1="12" y1="1" x2="12" y2="23"/>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+      </div>
+      <span class="logo-name">RehearseAI</span>
+    </div>
+    <div class="mode-tag">Salary Coach</div>
+  </div>
+
+  <div class="hook">
+    <div class="hook-eyebrow">Most people never practice this conversation</div>
+    <div class="hook-text">You left money<br>on the <span class="accent">table.</span><br>Again.</div>
+  </div>
+
+  <div class="number-section">
+    <div class="number-glow"></div>
+    <div class="number-label">Average salary bump after negotiating with confidence</div>
+    <div class="big-number" id="counter">$0</div>
+    <div class="number-desc">The professionals who get this have one thing in common — they practiced the conversation before they had it.</div>
+    <div class="number-source">Source: Salary.com / LinkedIn Salary Insights</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-num">73<span class="pct">%</span></div>
+      <div class="stat-desc">of employers expect negotiation and respect candidates who do it</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">20<span class="pct">×</span></div>
+      <div class="stat-desc">number of full negotiation simulations in a 7-day RehearseAI course</div>
+    </div>
+  </div>
+
+  <div class="snippet">
+    <div class="snippet-label">Live Negotiation Practice · Session 4</div>
+    <div class="snippet-line">
+      <span class="who ai-who">AI Employer:</span>
+      "We can offer £52,000. That's within our band."
+    </div>
+    <div class="snippet-line">
+      <span class="who you-who">You:</span>
+      "I appreciate the offer — based on market data and the scope, I was expecting £58,000."
+    </div>
+    <div class="snippet-line">
+      <span class="who ai-who">AI Employer:</span>
+      "That's above our ceiling. What would it take for you to accept £54,000 today?"
+    </div>
+  </div>
+
+  <div class="cta-section">
+    <div class="cta-btn">Practice your negotiation free →</div>
+    <div class="cta-sub">
+      <span class="cta-note">7-day course · 20 live simulations · No card needed</span>
+      <span class="cta-url">rehearseai.com</span>
+    </div>
+  </div>
+
+<script>
+  // Count up animation for the big number
+  const el = document.getElementById('counter');
+  const target = 14800;
+  const duration = 1800;
+  const start = performance.now();
+  const delay = 900;
+
+  setTimeout(() => {
+    function step(now) {
+      const elapsed = now - start - delay;
+      if (elapsed < 0) { requestAnimationFrame(step); return; }
+      const progress = Math.min(elapsed / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const value = Math.round(ease * target);
+      el.textContent = '$' + value.toLocaleString();
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }, delay);
+</script>
+</body>
+</html>
+
+<!--
+=======================================================
+FACEBOOK COPY — paste this above the image in Ads Manager
+=======================================================
+
+PRIMARY TEXT:
+Here's what happens when you walk into a salary negotiation without practice:
+
+You say yes to the first number they offer. 💸
+
+The average professional who negotiates with confidence earns $15,000+ more per year. The difference isn't boldness — it's preparation.
+
+RehearseAI's salary negotiation coach puts you through 20 real simulations before the actual conversation. Push back, anchor high, handle counter-offers.
+
+7-day course. $29. Or start free with 5 sessions — no card needed.
+
+HEADLINE: Stop leaving money on the table.
+DESCRIPTION: 20 AI negotiation simulations · 7 days
+CALL TO ACTION BUTTON: Learn More / Shop Now
+
+=======================================================
+AD SPECS
+=======================================================
+Size: 1080 × 1350 px (4:5 portrait)
+Format: Facebook Feed, Instagram Feed (portrait = more screen real estate on mobile)
+File: Export as PNG or MP4 (screen record for animation + counter effect)
+-->

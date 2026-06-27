@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ad 1 — Brutal Interview · 1080×1080</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    width:1080px; height:1080px;
+    background:#07070f;
+    font-family:-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* Ambient glows */
+  .glow-top {
+    position:absolute;
+    width:700px; height:700px;
+    background:radial-gradient(circle, rgba(98,0,168,0.45) 0%, transparent 65%);
+    top:-180px; right:-120px;
+    animation:breathe 5s ease-in-out infinite;
+    pointer-events:none;
+  }
+  .glow-bottom {
+    position:absolute;
+    width:500px; height:500px;
+    background:radial-gradient(circle, rgba(71,107,255,0.18) 0%, transparent 65%);
+    bottom:-100px; left:-80px;
+    animation:breathe 5s ease-in-out 2.5s infinite;
+    pointer-events:none;
+  }
+
+  /* Subtle grid */
+  .grid {
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size:72px 72px;
+    pointer-events:none;
+  }
+
+  /* Top bar */
+  .bar {
+    position:relative; z-index:10;
+    padding:52px 60px 0;
+    display:flex; align-items:center; justify-content:space-between;
+    opacity:0;
+    animation:fadeIn 0.5s ease 0.1s forwards;
+  }
+  .logo {
+    display:flex; align-items:center; gap:10px;
+  }
+  .logo-icon {
+    width:32px; height:32px;
+    background:linear-gradient(135deg,#7c3aed,#2563eb);
+    border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 18px rgba(124,58,237,0.6);
+  }
+  .logo-icon svg { width:18px; height:18px; }
+  .logo-name {
+    font-size:22px; font-weight:800;
+    color:#fff; letter-spacing:-0.03em;
+  }
+  .badge {
+    font-size:13px; font-weight:700;
+    color:#a78bfa;
+    border:1px solid rgba(167,139,250,0.3);
+    padding:6px 16px; border-radius:100px;
+    letter-spacing:0.06em; text-transform:uppercase;
+    background:rgba(124,58,237,0.1);
+  }
+
+  /* Main content */
+  .content {
+    position:relative; z-index:10;
+    padding:0 60px;
+  }
+
+  /* Headline */
+  .headline {
+    margin-top:48px;
+    font-size:76px; font-weight:900;
+    color:#fff; line-height:0.93;
+    letter-spacing:-0.045em;
+    opacity:0;
+    animation:slideUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.35s forwards;
+  }
+  .headline .grad {
+    background:linear-gradient(135deg, #c084fc 0%, #60a5fa 100%);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
+
+  .sub {
+    margin-top:18px;
+    font-size:21px; font-weight:500;
+    color:#64748b; line-height:1.5;
+    max-width:540px;
+    opacity:0;
+    animation:slideUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.55s forwards;
+  }
+
+  /* Chat area */
+  .chat {
+    margin-top:42px;
+    display:flex; flex-direction:column; gap:16px;
+  }
+
+  .bubble {
+    padding:18px 24px;
+    border-radius:18px;
+    font-size:20px; font-weight:500; line-height:1.45;
+    opacity:0;
+    max-width:860px;
+  }
+  .bubble .role {
+    display:block;
+    font-size:11px; font-weight:800;
+    text-transform:uppercase; letter-spacing:0.12em;
+    margin-bottom:8px;
+  }
+
+  .bubble-ai {
+    background:rgba(124,58,237,0.12);
+    border:1px solid rgba(124,58,237,0.28);
+    color:#e2e8f0;
+    border-bottom-left-radius:4px;
+    animation:fromLeft 0.55s cubic-bezier(0.22,1,0.36,1) forwards;
+  }
+  .bubble-ai .role { color:#a78bfa; }
+
+  .bubble-user {
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.08);
+    color:#94a3b8;
+    align-self:flex-end;
+    border-bottom-right-radius:4px;
+    animation:fromRight 0.55s cubic-bezier(0.22,1,0.36,1) forwards;
+  }
+  .bubble-user .role { color:#475569; }
+
+  .bubble:nth-child(1) { animation-delay:0.9s; }
+  .bubble:nth-child(2) { animation-delay:1.6s; }
+  .bubble:nth-child(3) { animation-delay:2.3s; }
+
+  /* CTA strip */
+  .cta-strip {
+    position:absolute; bottom:0; left:0; right:0;
+    z-index:10;
+    padding:36px 60px 52px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-top:1px solid rgba(255,255,255,0.05);
+    background:linear-gradient(to top, rgba(7,7,15,0.97) 60%, transparent);
+    opacity:0;
+    animation:fadeIn 0.6s ease 3.0s forwards;
+  }
+
+  .cta-btn {
+    display:inline-flex; align-items:center; gap:12px;
+    background:linear-gradient(135deg, #7c3aed, #2563eb);
+    color:#fff;
+    font-size:23px; font-weight:800;
+    padding:22px 48px;
+    border-radius:100px;
+    box-shadow:0 0 0 0 rgba(124,58,237,0);
+    animation:pulseCTA 2.5s ease-in-out 3.2s infinite;
+    letter-spacing:-0.01em;
+  }
+  .cta-btn svg { width:20px; height:20px; }
+
+  .cta-right {
+    text-align:right;
+  }
+  .cta-right .free {
+    font-size:17px; font-weight:700; color:#a78bfa;
+  }
+  .cta-right .url {
+    font-size:14px; font-weight:500; color:#334155;
+    margin-top:4px;
+  }
+
+  /* Keyframes */
+  @keyframes breathe {
+    0%,100% { opacity:0.7; transform:scale(1); }
+    50% { opacity:1; transform:scale(1.08); }
+  }
+  @keyframes fadeIn {
+    to { opacity:1; }
+  }
+  @keyframes slideUp {
+    from { opacity:0; transform:translateY(28px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  @keyframes fromLeft {
+    from { opacity:0; transform:translateX(-24px); }
+    to   { opacity:1; transform:translateX(0); }
+  }
+  @keyframes fromRight {
+    from { opacity:0; transform:translateX(24px); }
+    to   { opacity:1; transform:translateX(0); }
+  }
+  @keyframes pulseCTA {
+    0%,100% { box-shadow:0 20px 60px rgba(124,58,237,0.4); }
+    50%      { box-shadow:0 24px 80px rgba(124,58,237,0.7); }
+  }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="glow-top"></div>
+  <div class="glow-bottom"></div>
+
+  <div class="bar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round">
+          <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+      </div>
+      <span class="logo-name">RehearseAI</span>
+    </div>
+    <div class="badge">Brutal Mode</div>
+  </div>
+
+  <div class="content">
+    <h1 class="headline">Real interviews<br>don't go<br><span class="grad">easy on you.</span></h1>
+    <p class="sub">Practice with an AI tougher than your interviewer — so the real thing feels like a warm-up.</p>
+
+    <div class="chat">
+      <div class="bubble bubble-ai">
+        <span class="role">AI Interviewer · Brutal Mode</span>
+        "Your answer was vague. Give me a specific metric you personally moved. Numbers — not impressions."
+      </div>
+      <div class="bubble bubble-user">
+        <span class="role">You (practicing)</span>
+        "I drove a 23% retention increase in Q3 by redesigning onboarding — reduced time-to-value from 9 to 3 days…"
+      </div>
+      <div class="bubble bubble-ai">
+        <span class="role">AI Interviewer</span>
+        "Why only 23%? What would it have taken to hit 40%? Be honest about where you fell short."
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-strip">
+    <div class="cta-btn">
+      Start practicing free
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </div>
+    <div class="cta-right">
+      <div class="free">5 free sessions · No card needed</div>
+      <div class="url">rehearseai.com</div>
+    </div>
+  </div>
+</body>
+</html>
+
+<!--
+=======================================================
+FACEBOOK COPY — paste this above the image in Ads Manager
+=======================================================
+
+PRIMARY TEXT:
+Most people walk into job interviews having never once practiced out loud. 😬
+
+The voice in your head is not the same as the words coming out of your mouth under pressure.
+
+RehearseAI puts you in a room with an AI interviewer who gets harder with every session — behavioural questions, curveball follow-ups, cross-examination.
+
+5 free sessions. No card. Just practice.
+
+HEADLINE: Stop winging it. Start rehearsing.
+DESCRIPTION: 5 free sessions · No subscription
+CALL TO ACTION BUTTON: Learn More / Sign Up
+
+=======================================================
+AD SPECS
+=======================================================
+Size: 1080 × 1080 px (1:1 square)
+Format: Facebook Feed, Instagram Feed
+File: Export as PNG or MP4 (screen record for animation)
+-->

@@ -150,6 +150,7 @@ export default function PricingPage() {
                   <PaddleCheckoutButton
                     priceId={paddleMonthlyPriceId(plan)}
                     fallbackHref="/contact"
+                    label={plan.name}
                     className={`mt-8 block w-full rounded-2xl px-5 py-3.5 text-center font-semibold transition hover:-translate-y-0.5 disabled:opacity-60 ${plan.isFeatured ? "bg-[var(--accent-primary)] text-white shadow-[0_18px_42px_rgba(109,40,217,0.24)]" : "surface-medium text-primary-token ring-1 ring-[var(--border-soft)]"}`}
                   >
                     {ctaLabel(plan)}
@@ -195,6 +196,7 @@ export default function PricingPage() {
                   <PaddleCheckoutButton
                     priceId={pkg.paddlePriceId}
                     fallbackHref="/contact"
+                    label={pkg.title}
                     className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-[var(--accent-primary)] px-5 py-3 text-center font-semibold text-white transition hover:-translate-y-0.5 disabled:opacity-60"
                   >
                     {pkg.paddlePriceId ? "Buy now" : "Get access"} <ArrowRight size={16} />
