@@ -12,7 +12,8 @@ export type LogEventType =
   | "WAIT_LONGER"
   | "STATE_CHANGE"
   | "ERROR"
-  | "LISTEN_RESTART";
+  | "LISTEN_RESTART"
+  | "VOICE_CHECKIN";
 
 export interface LogEntry {
   event: LogEventType;

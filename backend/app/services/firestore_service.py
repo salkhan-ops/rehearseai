@@ -1111,9 +1111,9 @@ class FirestoreService:
 
     async def admin_list_users(self) -> list[dict]:
         if self.client:
-            docs = self.client.collection("users").stream()
+            docs = self.client.collection("users").where("email", "!=", "").stream()
             return [doc.to_dict() for doc in docs]
-        return list(self.admin_users.values())
+        return [u for u in self.admin_users.values() if u.get("email")]
 
     async def admin_exists(self) -> bool:
         users = await self.admin_list_users()

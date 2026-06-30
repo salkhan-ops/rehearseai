@@ -54,6 +54,12 @@ const voiceOptions = [
   { label: "Backend default", id: "", note: "from .env" },
 ];
 
+// Long-silence voice check-in: spoken nudge in addition to the existing text-only
+// gentle_prompt/force_resolution mechanism. Sits between SOFT_PROMPT_MS (5s) and
+// FORCE_DECISION_MS (9s). Excluded from Brutal/Nerve — those modes intentionally
+// don't rescue the user from silence (see naturalTimeoutPrompt soft-prompt logic).
+const VOICE_CHECKIN_MS = 7500;
+
 
 const defaultPrivacySettings: PrivacySettings = {
   allowTelemetry: true,
@@ -185,6 +191,7 @@ export default function SessionPage() {
   const naturalTimerRefs = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const naturalIntervalRefs = useRef<Array<ReturnType<typeof setInterval>>>([]);
   const naturalGentlePromptShownRef = useRef(false);
+  const voiceCheckInShownRef = useRef(false);
   const visionSignalExtractorRef = useRef(new VisionSignalExtractor());
   // Tracks when the current listen session started — used to discard stale pre-session transcript
   const listenSessionStartedAtRef = useRef<number>(0);
@@ -278,6 +285,7 @@ export default function SessionPage() {
     naturalMetricsRef.current = { speechDurationMs: 0, silenceMs: 0 };
     naturalLastTranscriptUpdateAtRef.current = 0;
     naturalDeepgramFinalReceivedRef.current = false;
+    voiceCheckInShownRef.current = false;
     setDraft("");
     voice.resetTranscript();
   }
@@ -350,6 +358,18 @@ export default function SessionPage() {
     }
     if (difficulty === "Advanced") return kind === "hard" ? "Give me your strongest point first." : "Whenever you’re ready, continue.";
     return kind === "hard" ? "Start with one reason." : "Whenever you’re ready, continue.";
+  }
+
+  // Spoken check-in for long silences. Empty string = skip the voice check-in entirely —
+  // Brutal/Nerve are pressure modes where unrescued silence is part of the exercise,
+  // matching how naturalTimeoutPrompt("soft") already withholds coaching in Brutal mode.
+  function voiceCheckInPhrase(): string {
+    const difficulty = session?.difficulty || "Intermediate";
+    if (difficulty === "Brutal" || difficulty === "Nerve") return "";
+    if (difficulty === "Beginner" || difficulty === "Friendly") {
+      return "Take your time. Are you still thinking, or would you like me to respond?";
+    }
+    return "Are you still thinking, or should I go ahead?";
   }
 
   function startCountdown(fromMs: number, totalMs: number) {
@@ -513,6 +533,7 @@ export default function SessionPage() {
     const softDelay = Math.max(0, SOFT_PROMPT_MS - elapsedSilenceMs);
     const forceDelay = Math.max(0, FORCE_DECISION_MS - elapsedSilenceMs);
     const hardDelay = Math.max(0, HARD_TIMEOUT_MS - elapsedSilenceMs);
+    const checkInDelay = Math.max(0, VOICE_CHECKIN_MS - elapsedSilenceMs);
 
     if (!naturalGentlePromptShownRef.current && softDelay <= hardDelay) {
       const softTimer = setTimeout(() => {
@@ -522,6 +543,30 @@ export default function SessionPage() {
         startCountdown(SOFT_PROMPT_MS, hasContent ? FORCE_DECISION_MS : HARD_TIMEOUT_MS);
       }, softDelay);
       naturalTimerRefs.current.push(softTimer);
+    }
+
+    // Spoken check-in, additive to the text-only soft prompt above. Fires once per turn
+    // between the soft prompt (5s) and force resolution (9s). Skipped entirely when
+    // voiceCheckInPhrase() returns "" (Brutal/Nerve pressure modes).
+    if (!voiceCheckInShownRef.current && checkInDelay < hardDelay && voiceCheckInPhrase()) {
+      const checkInTimer = setTimeout(() => {
+        if (voiceCheckInShownRef.current || isFinalizingTurnRef.current || latestLoadingRef.current || !sessionActiveRef.current || !latestVoiceModeRef.current) return;
+        const phrase = voiceCheckInPhrase();
+        if (!phrase) return;
+        voiceCheckInShownRef.current = true;
+        // Clear the pending force/hard timers so they don't fire while the AI is mid-sentence;
+        // they're re-armed fresh below once the check-in finishes.
+        naturalTimerRefs.current.forEach(clearTimeout);
+        naturalTimerRefs.current = [];
+        dblogRef.current({ event: "VOICE_CHECKIN", text: phrase, silenceMs: elapsedSilenceMs });
+        setAutoSubmitNotice("Checking in...");
+        voice.speak(phrase).catch(() => undefined).then(() => {
+          if (!sessionActiveRef.current || !latestVoiceModeRef.current || latestLoadingRef.current || isFinalizingTurnRef.current) return;
+          restartListenRef.current();
+          scheduleNaturalBoundedWait(0, hasContent);
+        });
+      }, checkInDelay);
+      naturalTimerRefs.current.push(checkInTimer);
     }
 
     if (hasContent) {
@@ -751,6 +796,7 @@ export default function SessionPage() {
       clearAiWaitTimers();
       aiAbortControllerRef.current = null;
       naturalGentlePromptShownRef.current = false;
+      voiceCheckInShownRef.current = false;
       setAutoSubmitNotice("");
       setLoading(false);
     }
@@ -1269,6 +1315,7 @@ export default function SessionPage() {
     heldVoiceTurnRef.current = null;
     naturalTranscriptRef.current = "";
     naturalGentlePromptShownRef.current = false;
+    voiceCheckInShownRef.current = false;
     setDraft("");
     voice.resetTranscript();
     if (fromVoice && naturalModeActive) naturalConversation.dispatch("ai_processing");
