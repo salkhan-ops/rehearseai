@@ -6,10 +6,17 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
 
+  /* overflow:hidden on <body> would suppress page scroll entirely, so the canvas
+     is clipped on a wrapper instead — the page itself can always scroll to reveal it. */
+  html { background:#000; }
   body {
-    width:1080px; height:1350px;
-    background:#030308;
+    background:#000;
     font-family:-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  }
+  .stage {
+    width:1080px; height:1350px;
+    margin:0 auto;
+    background:#030308;
     overflow:hidden;
     position:relative;
   }
@@ -219,6 +226,7 @@
     display:block; width:100%;
     background:linear-gradient(135deg, #059669, #0ea5e9);
     color:#fff;
+    text-decoration:none;
     font-size:26px; font-weight:800;
     padding:26px 48px;
     border-radius:20px;
@@ -251,6 +259,7 @@
 </style>
 </head>
 <body>
+<div class="stage">
   <div class="dots"></div>
   <div class="bg1"></div>
   <div class="bg2"></div>
@@ -310,12 +319,13 @@
   </div>
 
   <div class="cta-section">
-    <div class="cta-btn">Practice your negotiation free →</div>
+    <a class="cta-btn" href="https://rehearseai.dev/" target="_blank" rel="noopener">Practice your negotiation free →</a>
     <div class="cta-sub">
       <span class="cta-note">7-day course · 20 live simulations · No card needed</span>
-      <span class="cta-url">rehearseai.com</span>
+      <span class="cta-url">rehearseai.dev</span>
     </div>
   </div>
+</div>
 
 <script>
   // Count up animation for the big number

@@ -26,7 +26,7 @@ export interface SessionLoggerInstance {
   sessionId: string;
 }
 
-const ENABLED = typeof window !== "undefined" && process.env.NEXT_PUBLIC_DEBUG_SESSION_LOG === "true";
+const ENABLED = typeof window !== "undefined" && process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_DEBUG_SESSION_LOG === "true";
 
 function makeFileName(sessionId: string) {
   const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);

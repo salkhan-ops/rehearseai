@@ -6,10 +6,17 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
 
+  /* overflow:hidden on <body> would suppress page scroll entirely, so the canvas
+     is clipped on a wrapper instead — the page itself can always scroll to reveal it. */
+  html { background:#000; }
   body {
-    width:1080px; height:1080px;
-    background:#06040f;
+    background:#000;
     font-family:-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  }
+  .stage {
+    width:1080px; height:1080px;
+    margin:0 auto;
+    background:#06040f;
     overflow:hidden;
     position:relative;
   }
@@ -206,8 +213,10 @@
     animation:fadeIn 0.6s ease 2.0s forwards;
   }
   .cta-btn {
+    display:inline-block;
     background:linear-gradient(135deg, #7c3aed, #0ea5e9);
     color:#fff;
+    text-decoration:none;
     font-size:22px; font-weight:800;
     padding:22px 46px;
     border-radius:100px;
@@ -238,6 +247,7 @@
 </style>
 </head>
 <body>
+<div class="stage">
   <div class="bg-radial"></div>
   <div class="ring"></div>
   <div class="ring"></div>
@@ -286,13 +296,14 @@
     </div>
 
     <div class="cta-row">
-      <div class="cta-btn">Try free — 5 sessions</div>
+      <a class="cta-btn" href="https://rehearseai.dev/" target="_blank" rel="noopener">Try free — 5 sessions</a>
       <div class="cta-right">
         <div class="free-text">No subscription · Cancel anytime</div>
-        <div class="url-text">rehearseai.com</div>
+        <div class="url-text">rehearseai.dev</div>
       </div>
     </div>
   </div>
+</div>
 
 <script>
   // Build waveform bars with random properties

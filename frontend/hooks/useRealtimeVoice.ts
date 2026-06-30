@@ -134,6 +134,10 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
 
   const [provider, setProvider] = useState<Provider>("mock");
   const [providerReason, setProviderReason] = useState("");
+  // Consecutive Deepgram fallbacks without a successful reconnect — surfaced so the UI
+  // can offer a text-mode escape hatch after repeated voice failures (resets on proxy_ready).
+  const deepgramFailureStreakRef = useRef(0);
+  const [deepgramFailureStreak, setDeepgramFailureStreak] = useState(0);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
@@ -289,6 +293,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     setProvider("mock");
     setProviderReason(reason);
     setDiagnostics((current) => ({ ...current, deepgramConnected: false }));
+    deepgramFailureStreakRef.current += 1;
+    setDeepgramFailureStreak(deepgramFailureStreakRef.current);
     fallback.startListening();
   }, [fallback]);
 
@@ -391,7 +397,13 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
 
       socket.onmessage = (event) => {
         const payload = JSON.parse(event.data);
-        if (payload.type === "proxy_ready") { setProvider("deepgram"); setProviderReason(""); return; }
+        if (payload.type === "proxy_ready") {
+          setProvider("deepgram");
+          setProviderReason("");
+          deepgramFailureStreakRef.current = 0;
+          setDeepgramFailureStreak(0);
+          return;
+        }
         if (payload.type === "prosody") {
           // Accumulate prosody samples for speech emotion analysis at turn end
           if (payload.f0 >= 80 && payload.f0 <= 400) f0SamplesRef.current.push(payload.f0);
@@ -731,6 +743,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     supported,
     provider,
     providerReason,
+    deepgramFailureStreak,
     voiceState: activeMock && !realtimeBusy ? fallback.voiceState : voiceState,
     isListening: activeMock && !realtimeBusy ? fallback.isListening : ["connecting", "listening", "user_speaking", "silence_detected"].includes(voiceState),
     isSpeaking: activeMock && !realtimeBusy ? fallback.isSpeaking : speakingRef.current || voiceState === "ai_speaking",
@@ -750,6 +763,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   }), [
     activeMock,
     audioFeatures,
+    deepgramFailureStreak,
     diagnostics,
     fallback.interimTranscript,
     fallback.isListening,

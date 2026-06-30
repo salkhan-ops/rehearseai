@@ -12,7 +12,7 @@ function ensureLogsDir() {
 }
 
 export async function POST(req: NextRequest) {
-  if (process.env.NEXT_PUBLIC_DEBUG_SESSION_LOG !== "true") {
+  if (process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_DEBUG_SESSION_LOG !== "true") {
     return NextResponse.json({ ok: false, reason: "logging disabled" }, { status: 403 });
   }
 

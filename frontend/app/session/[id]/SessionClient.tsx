@@ -187,7 +187,11 @@ export default function SessionPage() {
   const isFinalizingTurnRef = useRef(false);
   const sessionActiveRef = useRef(true);
   const speakWasInterruptedRef = useRef(false);
-  const debugTurnTaking = process.env.NEXT_PUBLIC_DEBUG_TURN_TAKING === "true";
+  // Conversation/turn-taking debug logs are dev-only — gated on NODE_ENV in addition to the
+  // NEXT_PUBLIC_DEBUG_* flags so a stray env var can never surface them on the live website.
+  const debugLoggingAllowed = process.env.NODE_ENV !== "production";
+  const debugTurnTaking = debugLoggingAllowed && process.env.NEXT_PUBLIC_DEBUG_TURN_TAKING === "true";
+  const debugSessionLog = debugLoggingAllowed && process.env.NEXT_PUBLIC_DEBUG_SESSION_LOG === "true";
   const naturalTimerRefs = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const naturalIntervalRefs = useRef<Array<ReturnType<typeof setInterval>>>([]);
   const naturalGentlePromptShownRef = useRef(false);
@@ -213,6 +217,12 @@ export default function SessionPage() {
   const [messageEmotions, setMessageEmotions] = useState<Record<string, SpeechEmotionResult>>({});
   const [aiWaitStage, setAiWaitStage] = useState<0 | 1 | 2 | 3>(0);
   const [isOffline, setIsOffline] = useState(false);
+  const [connectionQuality, setConnectionQuality] = useState<"good" | "slow" | "unknown">("unknown");
+  const [voiceFallbackNotice, setVoiceFallbackNotice] = useState("");
+  const [voiceEscapeHatchDismissed, setVoiceEscapeHatchDismissed] = useState(false);
+  const backgroundPausedRef = useRef(false);
+  const pauseForBackgroundRef = useRef<() => void>(() => undefined);
+  const resumeFromBackgroundRef = useRef<() => void>(() => undefined);
   const aiAbortControllerRef = useRef<AbortController | null>(null);
   const aiWaitTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const lastSentContentRef = useRef<string>("");
@@ -598,8 +608,21 @@ export default function SessionPage() {
       voice.startListening();
     }
   };
+  // Tab backgrounded / mobile lock screen: stop the mic so it isn't capturing blind while
+  // the user is away. Doesn't touch AI speech playback, which keeps playing in the background.
+  pauseForBackgroundRef.current = () => {
+    voice.stopListening();
+    if (naturalModeActive) clearNaturalTimers();
+  };
+  // Only auto-resume for natural (hands-free) mode — push-to-talk mode requires the user to
+  // press the mic again by design, so we leave it paused there.
+  resumeFromBackgroundRef.current = () => {
+    if (!sessionActiveRef.current || !latestVoiceModeRef.current || latestLoadingRef.current || !naturalModeActive || voice.isSpeaking) return;
+    restartListenRef.current();
+    scheduleNaturalBoundedWait(0, Boolean((naturalTranscriptRef.current || heldVoiceTurnRef.current?.content || "").trim()));
+  };
   dblogRef.current = (entry: LogEntry) => {
-    if (process.env.NEXT_PUBLIC_DEBUG_SESSION_LOG !== "true") return;
+    if (!debugSessionLog) return;
     sessionLoggerRef.current.log(entry);
     const ts = new Date().toLocaleTimeString("en", { hour12: false });
     const details = [
@@ -781,7 +804,11 @@ export default function SessionPage() {
     } catch (err) {
       const isAborted = err instanceof Error && err.name === "AbortError";
       const message = isAborted
-        ? "No response in time — connection may be slow. Tap Retry to resend."
+        ? (isOffline
+          ? "You're offline — reconnect and tap Retry to resend."
+          : connectionQuality === "slow"
+            ? "Your connection looks slow, which is likely why this is taking a while. Tap Retry to resend."
+            : "No response in time. Tap Retry to resend.")
         : (err instanceof Error ? err.message : "Could not send your response.");
       naturalConversation.dispatch("error");
       setError(message);
@@ -818,6 +845,69 @@ export default function SessionPage() {
       window.removeEventListener("offline", goOffline);
       window.removeEventListener("online", goOnline);
     };
+  }, []);
+
+  // Proactive connection-quality signal (Chromium-only Network Information API — degrades
+  // to "unknown" elsewhere, e.g. Safari/iOS) so slow connections get flagged before a turn
+  // times out rather than only after a 20s hard-abort.
+  useEffect(() => {
+    type NetworkInformationLike = {
+      effectiveType?: string;
+      downlink?: number;
+      addEventListener: (type: "change", listener: () => void) => void;
+      removeEventListener: (type: "change", listener: () => void) => void;
+    };
+    const nav = navigator as Navigator & {
+      connection?: NetworkInformationLike;
+      mozConnection?: NetworkInformationLike;
+      webkitConnection?: NetworkInformationLike;
+    };
+    const connection = nav.connection || nav.mozConnection || nav.webkitConnection;
+    if (!connection) return;
+    const updateQuality = () => {
+      const slow = connection.effectiveType === "2g" || connection.effectiveType === "slow-2g" || (typeof connection.downlink === "number" && connection.downlink < 1);
+      setConnectionQuality(slow ? "slow" : "good");
+    };
+    updateQuality();
+    connection.addEventListener("change", updateQuality);
+    return () => connection.removeEventListener("change", updateQuality);
+  }, []);
+
+  // Surface the STT fallback reason (previously only kept in internal diagnostics) so the
+  // user sees why voice recognition switched providers, not just a silent badge change.
+  useEffect(() => {
+    if (voice.provider === "mock" && voice.providerReason) {
+      setVoiceFallbackNotice(voice.providerReason);
+      const timer = window.setTimeout(() => setVoiceFallbackNotice(""), 6000);
+      return () => window.clearTimeout(timer);
+    }
+    setVoiceFallbackNotice("");
+  }, [voice.provider, voice.providerReason]);
+
+  // Reset the escape-hatch dismissal once Deepgram reconnects cleanly, so a fresh run of
+  // failures later in the same session can prompt again.
+  useEffect(() => {
+    if (voice.deepgramFailureStreak === 0) setVoiceEscapeHatchDismissed(false);
+  }, [voice.deepgramFailureStreak]);
+
+  // Pause listening when the tab/app is backgrounded (mobile lock screen, app switch) and
+  // resume on return. Registered once; dispatches through refs reassigned every render above
+  // so the handler always sees current session/voice state without re-subscribing.
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        if (!sessionActiveRef.current || !latestVoiceModeRef.current) return;
+        backgroundPausedRef.current = true;
+        pauseForBackgroundRef.current();
+        setAutoSubmitNotice("Paused — tab in background");
+      } else if (backgroundPausedRef.current) {
+        backgroundPausedRef.current = false;
+        setAutoSubmitNotice((current) => (current === "Paused — tab in background" ? "" : current));
+        window.setTimeout(() => resumeFromBackgroundRef.current(), 250);
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
   useEffect(() => {
@@ -1422,7 +1512,13 @@ export default function SessionPage() {
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         if (fromVoice && naturalModeActive) naturalConversation.dispatch("error");
-        setError("No response in time — connection may be slow. Tap Retry to resend.");
+        setError(
+          isOffline
+            ? "You're offline — reconnect and tap Retry to resend."
+            : connectionQuality === "slow"
+              ? "Your connection looks slow, which is likely why this is taking a while. Tap Retry to resend."
+              : "No response in time. Tap Retry to resend."
+        );
       } else {
         const message = err instanceof Error ? err.message : "Could not send your response.";
         if (message.includes("Session already completed")) {
@@ -1453,7 +1549,7 @@ export default function SessionPage() {
     setError("");
     setConversationMode("natural");
     setVoiceMode(true);
-    if (process.env.NEXT_PUBLIC_DEBUG_SESSION_LOG === "true") {
+    if (debugSessionLog) {
       sessionLoggerRef.current = createSessionLogger(id);
       setDebugLogFile(sessionLoggerRef.current.file);
       setDebugLogEntries([]);
@@ -1762,6 +1858,37 @@ export default function SessionPage() {
               You appear to be offline — check your connection.
             </div>
           )}
+          {!isOffline && connectionQuality === "slow" && (
+            <div className="mb-3 rounded-[1.25rem] bg-amber-400/10 p-4 text-sm font-semibold text-amber-200 ring-1 ring-amber-300/20 backdrop-blur-2xl">
+              Your connection looks slow — replies and voice recognition may lag behind.
+            </div>
+          )}
+          {!isOffline && voiceMode && voiceFallbackNotice && (
+            <div className="mb-3 rounded-[1.25rem] bg-amber-400/10 p-4 text-sm font-semibold text-amber-200 ring-1 ring-amber-300/20 backdrop-blur-2xl">
+              {voiceFallbackNotice}
+            </div>
+          )}
+          {voiceMode && voice.deepgramFailureStreak >= 2 && !voiceEscapeHatchDismissed && (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-[1.25rem] bg-amber-400/10 p-4 text-sm font-semibold text-amber-200 ring-1 ring-amber-300/20 backdrop-blur-2xl">
+              <span>Voice keeps dropping to browser fallback — want to switch to typing instead?</span>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setVoiceMode(false); voice.stopListening(); setVoiceEscapeHatchDismissed(true); }}
+                  className="rounded-xl bg-white/15 px-3 py-1.5 text-xs font-bold text-white ring-1 ring-white/20 transition hover:bg-white/25"
+                >
+                  Switch to text
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVoiceEscapeHatchDismissed(true)}
+                  className="rounded-xl px-3 py-1.5 text-xs font-bold text-amber-200/70 transition hover:text-amber-100"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
           {error && (
             <div className="mb-3 flex items-center justify-between gap-3 rounded-[1.25rem] bg-rose-400/12 p-4 text-sm font-semibold text-rose-100 ring-1 ring-rose-200/20 backdrop-blur-2xl">
               <span>{error}</span>
@@ -1814,7 +1941,7 @@ export default function SessionPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="text-xs font-medium text-amber-300/60"
                   >
-                    Taking longer than usual — slow connection?
+                    {isOffline || connectionQuality === "slow" ? "Your connection looks slow — that's likely why." : "Taking longer than usual…"}
                   </motion.p>
                 )}
               </div>
@@ -1987,7 +2114,7 @@ export default function SessionPage() {
           </div>
         </section>
       </AnimatedPage>
-      {process.env.NEXT_PUBLIC_DEBUG_SESSION_LOG === "true" && debugLogFile && (
+      {debugSessionLog && debugLogFile && (
         <div className="fixed bottom-4 left-4 z-50 max-w-sm font-mono text-xs select-text">
           <div className="flex items-center gap-2 mb-1">
             <button

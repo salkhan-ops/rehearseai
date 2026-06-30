@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ad 5 — Ask For The Raise · 1080×1080</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  /* overflow:hidden on <body> would suppress page scroll entirely, so the canvas
+     is clipped on a wrapper instead — the page itself can always scroll to reveal it. */
+  html { background:#000; }
+  body {
+    background:#000;
+    font-family:-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  }
+  .stage {
+    width:1080px; height:1080px;
+    margin:0 auto;
+    background:#0a0612;
+    overflow:hidden;
+    position:relative;
+  }
+
+  .glow-a {
+    position:absolute; width:680px; height:680px;
+    background:radial-gradient(circle, rgba(163,230,53,0.22) 0%, transparent 65%);
+    top:-200px; right:-160px;
+    animation:breathe 5.5s ease-in-out infinite;
+  }
+  .glow-b {
+    position:absolute; width:560px; height:560px;
+    background:radial-gradient(circle, rgba(236,18,118,0.28) 0%, transparent 65%);
+    bottom:-160px; left:-140px;
+    animation:breathe 5.5s ease-in-out 2.2s infinite;
+  }
+  @keyframes breathe {
+    0%,100% { opacity:0.7; transform:scale(1); }
+    50%      { opacity:1; transform:scale(1.08); }
+  }
+
+  .grid {
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size:72px 72px;
+    pointer-events:none;
+  }
+
+  .bar {
+    position:relative; z-index:10;
+    padding:52px 60px 0;
+    display:flex; align-items:center; justify-content:space-between;
+    opacity:0;
+    animation:fadeIn 0.5s ease 0.1s forwards;
+  }
+  .logo { display:flex; align-items:center; gap:10px; }
+  .logo-icon {
+    width:32px; height:32px;
+    background:linear-gradient(135deg,#a3e635,#22d3ee);
+    border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 18px rgba(163,230,53,0.5);
+  }
+  .logo-icon svg { width:18px; height:18px; }
+  .logo-name { font-size:22px; font-weight:800; color:#fff; letter-spacing:-0.03em; }
+  .badge {
+    font-size:13px; font-weight:700; color:#bef264;
+    border:1px solid rgba(190,242,100,0.3);
+    padding:6px 16px; border-radius:100px;
+    letter-spacing:0.06em; text-transform:uppercase;
+    background:rgba(163,230,53,0.1);
+  }
+
+  .content { position:relative; z-index:10; padding:0 60px; }
+
+  .eyebrow {
+    margin-top:46px;
+    font-size:16px; font-weight:700; color:#64748b;
+    text-transform:uppercase; letter-spacing:0.1em;
+    opacity:0;
+    animation:slideUp 0.6s cubic-bezier(0.22,1,0.36,1) 0.25s forwards;
+  }
+
+  .headline {
+    margin-top:16px;
+    font-size:64px; font-weight:900;
+    color:#fff; line-height:0.98;
+    letter-spacing:-0.04em;
+    opacity:0;
+    animation:slideUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.4s forwards;
+  }
+  .headline .strike {
+    text-decoration:line-through;
+    text-decoration-color:rgba(244,63,94,0.7);
+    text-decoration-thickness:4px;
+    color:#94a3b8;
+  }
+  .headline .grad {
+    background:linear-gradient(120deg,#bef264,#22d3ee);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
+
+  .sub {
+    margin-top:18px;
+    font-size:20px; font-weight:500; color:#64748b; line-height:1.5;
+    max-width:560px;
+    opacity:0;
+    animation:slideUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.6s forwards;
+  }
+
+  /* Chat area */
+  .chat { margin-top:38px; display:flex; flex-direction:column; gap:14px; }
+  .bubble {
+    padding:18px 24px;
+    border-radius:18px;
+    font-size:19px; font-weight:500; line-height:1.45;
+    opacity:0;
+    max-width:840px;
+  }
+  .bubble .role {
+    display:block; font-size:11px; font-weight:800;
+    text-transform:uppercase; letter-spacing:0.12em;
+    margin-bottom:8px;
+  }
+  .bubble-ai {
+    background:rgba(244,63,94,0.1);
+    border:1px solid rgba(244,63,94,0.25);
+    color:#e2e8f0;
+    border-bottom-left-radius:4px;
+    animation:fromLeft 0.55s cubic-bezier(0.22,1,0.36,1) forwards;
+  }
+  .bubble-ai .role { color:#fb7185; }
+  .bubble-user {
+    background:rgba(163,230,53,0.1);
+    border:1px solid rgba(163,230,53,0.25);
+    color:#ecfccb;
+    align-self:flex-end;
+    border-bottom-right-radius:4px;
+    animation:fromRight 0.55s cubic-bezier(0.22,1,0.36,1) forwards;
+  }
+  .bubble-user .role { color:#bef264; }
+  .bubble:nth-child(1) { animation-delay:1.0s; }
+  .bubble:nth-child(2) { animation-delay:1.7s; }
+
+  /* Confidence chip row */
+  .chips {
+    margin-top:28px;
+    display:flex; gap:12px; flex-wrap:wrap;
+    opacity:0;
+    animation:fadeIn 0.6s ease 2.4s forwards;
+  }
+  .chip {
+    padding:10px 18px; border-radius:100px;
+    font-size:15px; font-weight:700;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.1);
+    color:#cbd5e1;
+  }
+  .chip.lime { background:rgba(163,230,53,0.12); border-color:rgba(163,230,53,0.3); color:#bef264; }
+
+  /* CTA strip */
+  .cta-strip {
+    position:absolute; bottom:0; left:0; right:0;
+    z-index:10;
+    padding:36px 60px 52px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-top:1px solid rgba(255,255,255,0.05);
+    background:linear-gradient(to top, rgba(10,6,18,0.97) 60%, transparent);
+    opacity:0;
+    animation:fadeIn 0.6s ease 2.9s forwards;
+  }
+  .cta-btn {
+    display:inline-flex; align-items:center; gap:12px;
+    background:linear-gradient(135deg,#84cc16,#22d3ee);
+    color:#06140a;
+    text-decoration:none;
+    font-size:23px; font-weight:900;
+    padding:22px 48px;
+    border-radius:100px;
+    letter-spacing:-0.01em;
+    animation:pulseCTA 2.5s ease-in-out 3.1s infinite;
+  }
+  .cta-btn svg { width:20px; height:20px; }
+  .cta-right { text-align:right; }
+  .cta-right .free { font-size:17px; font-weight:700; color:#bef264; }
+  .cta-right .url { font-size:14px; font-weight:500; color:#334155; margin-top:4px; }
+
+  @keyframes fadeIn { to { opacity:1; } }
+  @keyframes slideUp {
+    from { opacity:0; transform:translateY(28px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  @keyframes fromLeft {
+    from { opacity:0; transform:translateX(-24px); }
+    to   { opacity:1; transform:translateX(0); }
+  }
+  @keyframes fromRight {
+    from { opacity:0; transform:translateX(24px); }
+    to   { opacity:1; transform:translateX(0); }
+  }
+  @keyframes pulseCTA {
+    0%,100% { box-shadow:0 20px 60px rgba(163,230,53,0.35); }
+    50%      { box-shadow:0 24px 80px rgba(34,211,238,0.5); }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="grid"></div>
+  <div class="glow-a"></div>
+  <div class="glow-b"></div>
+
+  <div class="bar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#06140a" stroke-width="3" stroke-linecap="round">
+          <line x1="12" y1="19" x2="12" y2="5"/>
+          <polyline points="6 11 12 5 18 11"/>
+        </svg>
+      </div>
+      <span class="logo-name">RehearseAI</span>
+    </div>
+    <div class="badge">Raise Talk</div>
+  </div>
+
+  <div class="content">
+    <div class="eyebrow">The conversation you keep putting off</div>
+    <h1 class="headline"><span class="strike">"Let's revisit next quarter."</span><br>Not <span class="grad">this time.</span></h1>
+    <p class="sub">Your manager has a script for stalling. RehearseAI helps you build one for not backing down.</p>
+
+    <div class="chat">
+      <div class="bubble bubble-ai">
+        <span class="role">AI Manager · Practice Mode</span>
+        "Budgets are tight right now. Can we park this conversation until the next review cycle?"
+      </div>
+      <div class="bubble bubble-user">
+        <span class="role">You (practicing)</span>
+        "I hear that — and I'd like us to agree on what 'yes' looks like before then, in writing, so this isn't open-ended again."
+      </div>
+    </div>
+
+    <div class="chips">
+      <span class="chip lime">Handles pushback</span>
+      <span class="chip">Builds your talking points</span>
+      <span class="chip">Practice as many times as you need</span>
+    </div>
+  </div>
+
+  <div class="cta-strip">
+    <a class="cta-btn" href="https://rehearseai.dev/" target="_blank" rel="noopener">
+      Start practicing free
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
+    <div class="cta-right">
+      <div class="free">5 free sessions · No card needed</div>
+      <div class="url">rehearseai.dev</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
+
+<!--
+=======================================================
+FACEBOOK/INSTAGRAM COPY — paste this above the image in Ads Manager
+=======================================================
+
+PRIMARY TEXT:
+"Let's revisit it next quarter." You've heard that line before. Maybe twice.
+
+Asking your manager for a raise isn't about being braver — it's about not freezing the second they push back. Most people walk in with a number and no plan for what happens after "no."
+
+RehearseAI lets you run the actual conversation first: the stall tactics, the "budget's tight," the "let's circle back" — so you've already got the comeback ready before it's real.
+
+5 free sessions. No card. Go in prepared, not just hopeful.
+
+HEADLINE: Stop rehearsing it in the shower. Do it here.
+DESCRIPTION: Free AI practice for the raise conversation.
+CALL TO ACTION BUTTON: Learn More / Sign Up
+
+=======================================================
+AD SPECS
+=======================================================
+Size: 1080 × 1080 px (1:1 square)
+Format: Facebook Feed, Instagram Feed
+File: Export as PNG or MP4 (screen record for animation)
+Tone note: targets early-to-mid career professionals (≈25–35) asking for a raise from an existing employer — a distinct angle from ad3 (negotiating a new job offer). Pairs with ad4 as the "younger / more direct" half of the set.
+-->
