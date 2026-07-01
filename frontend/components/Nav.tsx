@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BookOpen, BrainCircuit, ChevronDown, Dumbbell, GraduationCap, LayoutDashboard, LogOut, Menu, Moon, Sparkles, Sun, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { track } from "@/lib/analytics";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const trainLinks = [
@@ -69,9 +70,9 @@ export function Nav() {
       <div className="border-b border-slate-200/70 bg-gradient-to-r from-cyan-50 via-violet-50 to-blue-50 px-4 py-3 text-center text-sm font-semibold text-slate-700 dark:border-white/10 dark:from-cyan-400/10 dark:via-violet-500/10 dark:to-blue-500/10 dark:text-white/76">
         <span className="inline-flex items-center justify-center gap-2">
           <BrainCircuit size={16} className="text-violet-700 dark:text-cyan-100" />
-          Practice the moment before it matters.
+          The AI that interviews you back.
           <span className="hidden items-center gap-2 text-slate-500 dark:text-white/42 sm:inline-flex">
-            <Sparkles size={14} /> Voice-first cognitive simulation
+            <Sparkles size={14} /> Free to start · No credit card
           </span>
         </span>
       </div>
@@ -84,36 +85,46 @@ export function Nav() {
 
         {/* Desktop nav links */}
         <div className="hidden items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/72 md:flex">
-          {/* Train dropdown */}
-          <div ref={trainRef} className="relative">
-            <button
-              type="button"
-              id="train-menu-button"
-              aria-label="Open training menu"
-              aria-controls="train-menu"
-              onClick={() => { setTrainOpen((open) => !open); setMoreOpen(false); }}
-              className="inline-flex items-center gap-1 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10"
-            >
-              Train <ChevronDown size={14} className={`transition-transform ${trainOpen ? "rotate-180" : ""}`} />
-            </button>
-            {trainOpen && (
-              <div id="train-menu" className="absolute left-0 top-full z-50 mt-3 w-64 rounded-2xl bg-white p-2 shadow-[0_18px_48px_rgba(15,23,42,0.14)] ring-1 ring-slate-200 dark:bg-slate-950 dark:ring-white/10">
-                {trainLinks.map(({ href, label, description, icon: Icon }) => (
-                  <Link key={href} href={href} className="flex items-start gap-3 rounded-xl px-3 py-2.5 text-slate-700 transition hover:bg-slate-100 dark:text-white/76 dark:hover:bg-white/10">
-                    <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-white/10 dark:text-violet-200"><Icon size={14} /></span>
-                    <span>
-                      <span className="block text-sm font-semibold text-slate-900 dark:text-white">{label}</span>
-                      <span className="mt-0.5 block text-xs font-medium text-slate-500 dark:text-white/45">{description}</span>
-                    </span>
-                  </Link>
-                ))}
+          {user ? (
+            <>
+              {/* Train dropdown — only for signed-in users */}
+              <div ref={trainRef} className="relative">
+                <button
+                  type="button"
+                  id="train-menu-button"
+                  aria-label="Open training menu"
+                  aria-controls="train-menu"
+                  onClick={() => { setTrainOpen((open) => !open); setMoreOpen(false); }}
+                  className="inline-flex items-center gap-1 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10"
+                >
+                  Train <ChevronDown size={14} className={`transition-transform ${trainOpen ? "rotate-180" : ""}`} />
+                </button>
+                {trainOpen && (
+                  <div id="train-menu" className="absolute left-0 top-full z-50 mt-3 w-64 rounded-2xl bg-white p-2 shadow-[0_18px_48px_rgba(15,23,42,0.14)] ring-1 ring-slate-200 dark:bg-slate-950 dark:ring-white/10">
+                    {trainLinks.map(({ href, label, description, icon: Icon }) => (
+                      <Link key={href} href={href} className="flex items-start gap-3 rounded-xl px-3 py-2.5 text-slate-700 transition hover:bg-slate-100 dark:text-white/76 dark:hover:bg-white/10">
+                        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700 dark:bg-white/10 dark:text-violet-200"><Icon size={14} /></span>
+                        <span>
+                          <span className="block text-sm font-semibold text-slate-900 dark:text-white">{label}</span>
+                          <span className="mt-0.5 block text-xs font-medium text-slate-500 dark:text-white/45">{description}</span>
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-
-          <Link href="/dashboard" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
-            <LayoutDashboard size={14} /> Dashboard
-          </Link>
+              <Link href="/dashboard" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
+                <LayoutDashboard size={14} /> Dashboard
+              </Link>
+            </>
+          ) : (
+            <>
+              {/* Public nav — for logged-out visitors */}
+              <Link href="/try" className="rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Try for free</Link>
+              <Link href="/pricing" className="rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Pricing</Link>
+              <Link href="/blog" className="rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Blog</Link>
+            </>
+          )}
 
           <div ref={moreRef} className="relative">
             <button
@@ -163,7 +174,7 @@ export function Nav() {
                 {loading ? "..." : "Sign in"}
               </Link>
             )}
-            <Link href="/?auth=signup" onClick={() => openAuth("signup")} className="rounded-2xl bg-[#6200a8] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b]">
+            <Link href="/?auth=signup" onClick={() => { track.ctaClicked("nav_start_free"); openAuth("signup"); }} className="rounded-2xl bg-[#6200a8] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b]">
               Start free
             </Link>
           </div>
@@ -194,25 +205,33 @@ export function Nav() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-5">
-              {/* Train section */}
-              <p className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-white/30">Train</p>
-              {trainLinks.map(({ href, label, description, icon: Icon }) => (
-                <Link key={href} href={href} onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-white/10">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700 dark:bg-white/10 dark:text-violet-200"><Icon size={15} /></span>
-                  <span>
-                    <span className="block text-sm font-semibold text-slate-900 dark:text-white">{label}</span>
-                    <span className="block text-xs font-medium text-slate-500 dark:text-white/40">{description}</span>
-                  </span>
-                </Link>
-              ))}
-
-              <div className="my-4 h-px bg-slate-100 dark:bg-white/10" />
-
-              {/* Dashboard */}
-              <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-white/10">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white"><LayoutDashboard size={15} /></span>
-                <span className="text-sm font-semibold text-slate-900 dark:text-white">Dashboard</span>
-              </Link>
+              {user ? (
+                <>
+                  {/* Train section — signed-in only */}
+                  <p className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-white/30">Train</p>
+                  {trainLinks.map(({ href, label, description, icon: Icon }) => (
+                    <Link key={href} href={href} onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-white/10">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700 dark:bg-white/10 dark:text-violet-200"><Icon size={15} /></span>
+                      <span>
+                        <span className="block text-sm font-semibold text-slate-900 dark:text-white">{label}</span>
+                        <span className="block text-xs font-medium text-slate-500 dark:text-white/40">{description}</span>
+                      </span>
+                    </Link>
+                  ))}
+                  <div className="my-4 h-px bg-slate-100 dark:bg-white/10" />
+                  <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-white/10">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white"><LayoutDashboard size={15} /></span>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-white">Dashboard</span>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {/* Public links — logged-out visitors */}
+                  <Link href="/try" onClick={() => setMobileOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">Try for free</Link>
+                  <Link href="/pricing" onClick={() => setMobileOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">Pricing</Link>
+                  <Link href="/blog" onClick={() => setMobileOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">Blog</Link>
+                </>
+              )}
 
               <div className="my-4 h-px bg-slate-100 dark:bg-white/10" />
 

@@ -83,7 +83,7 @@ const quickStarts: Record<PracticeType, Array<{ label: string; topic: string; co
   ],
 };
 
-const STEP_LABELS = ["Scenario", "How", "Environment", "Briefing", "Ready"];
+const STEP_LABELS = ["Scenario", "How"];
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
   return (
@@ -109,6 +109,9 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 function SetupForm() {
   const params = useSearchParams();
   const router = useRouter();
+  // Skip environment / briefing / ready steps for brand-new users — they just
+  // want to start. Steps 3-5 are available on every subsequent session.
+  const isFirstSession = params.get("first") === "true";
   const [step, setStep] = useState(1);
   const [practiceType, setPracticeType] = useState<PracticeType>((params.get("type") as PracticeType) || "Job Interview");
   const [difficulty, setDifficulty] = useState<Difficulty>((params.get("difficulty") as Difficulty) || "Intermediate");
@@ -270,6 +273,13 @@ function SetupForm() {
   const config = getCourseConfig(practiceType);
   const briefingSections = config.prepSections({ topic, context, goal });
 
+  // Pre-compute usage display so TypeScript can narrow properly outside JSX.
+  const usageSection = usage !== null && usage.limit !== "unlimited" ? (() => {
+    const numLimit = usage.limit as number;
+    const numRemaining = usage.remaining as number;
+    return { numLimit, numRemaining, used: usage.used, resetDate: usage.resetDate };
+  })() : null;
+
   return (
     <main className="min-h-screen overflow-hidden bg-[#f4f8fc] dark:bg-[#0e1020]">
       <Nav />
@@ -283,9 +293,6 @@ function SetupForm() {
           <h1 className="mt-3 text-3xl font-semibold leading-[0.98] tracking-[-0.04em] text-slate-950 dark:text-white md:text-4xl">
             {step === 1 && "What are you practising?"}
             {step === 2 && "How should it feel?"}
-            {step === 3 && "Pick your environment."}
-            {step === 4 && "Read your briefing."}
-            {step === 5 && "You're ready."}
           </h1>
         </div>
 
@@ -555,21 +562,71 @@ function SetupForm() {
                 )}
               </section>
 
+              {/* Routine + camera + notes — moved here from the old step 5 */}
+              <section className="mt-6 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/[0.05] dark:ring-white/10">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input type="checkbox" checked={createRoutine} onChange={(e) => setCreateRoutine(e.target.checked)} className="mt-1 size-5 accent-[#6200a8]" />
+                  <span>
+                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white"><CalendarClock size={16} /> Add reminders / make this a routine</span>
+                    <span className="mt-1 block text-sm font-medium leading-6 text-slate-600 dark:text-white/60">Save this arena to your dashboard routine and enable browser reminders.</span>
+                  </span>
+                </label>
+                {createRoutine && (
+                  <div className="mt-4 grid gap-3">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                      {frequencyOptions.map(([value, label]) => (
+                        <button key={value} type="button" onClick={() => setFrequencyType(value)} className={`rounded-2xl px-3 py-2 text-xs font-semibold ring-1 transition ${frequencyType === value ? "bg-[#6200a8] text-white ring-[#6200a8]" : "bg-white text-slate-700 ring-slate-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="text-sm font-semibold text-slate-700 dark:text-white/75">
+                        Reminder time
+                        <input type="time" value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none dark:border-white/10 dark:bg-white/10 dark:text-white" />
+                      </label>
+                      <label className="text-sm font-semibold text-slate-700 dark:text-white/75">
+                        Notify me
+                        <select value={reminderMinutesBefore} onChange={(e) => setReminderMinutesBefore(Number(e.target.value))} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none dark:border-white/10 dark:bg-white/10 dark:text-white">
+                          {[0, 5, 15, 30, 60].map((m) => <option key={m} value={m}>{m === 0 ? "At start time" : `${m} min before`}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-100 dark:bg-white/10 dark:text-violet-200 dark:ring-white/10">
+                      <Bell size={13} /> Saved to dashboard routine
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <div className="mt-5">
+                <CameraSignalControls
+                  enabled={cameraAssistedTiming}
+                  onEnabledChange={(enabled) => updateCameraAssistedTiming(enabled).catch(() => undefined)}
+                />
+              </div>
+
+              <label className="mt-5 block text-sm font-semibold text-slate-700 dark:text-white/75">
+                Optional coaching style
+                <textarea value={optionalNotes} onChange={(e) => setOptionalNotes(e.target.value)} rows={2} className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white" placeholder="Example: interrupt me if I ramble, challenge weak evidence, stay professional" />
+              </label>
+
               {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
 
               <div className="mt-6 flex gap-3">
                 <button type="button" aria-label="Back to scenario" onClick={() => setStep(1)} className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-5 py-4 font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/15">
                   <ArrowLeft size={18} />
                 </button>
-                <button type="button" onClick={() => setStep(3)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-4 font-semibold text-white shadow-[0_18px_38px_rgba(98,0,168,0.22)] transition hover:-translate-y-0.5 hover:bg-[#50008b]">
-                  Next: Pick your environment <ArrowRight size={18} />
+                <button type="submit" disabled={loading || (usage?.remaining === 0 && usage?.limit !== "unlimited")} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-4 font-semibold text-white shadow-[0_18px_38px_rgba(98,0,168,0.22)] transition hover:-translate-y-0.5 hover:bg-[#50008b] disabled:opacity-60">
+                  {loading ? "Building the room…" : usage?.remaining === 0 && usage?.limit !== "unlimited" ? "Session limit reached" : <>Enter rehearsal room <ArrowRight size={18} /></>}
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── Step 3: Environment ── */}
-          {step === 3 && (
+          {/* Steps 3-5 removed — environment defaults to AI Orb (changeable in-session),
+              briefing shown inside the room for Beginner mode, Ready was pure friction. */}
+          {false && step === 3 && (
             <div className="rounded-[2rem] bg-white p-6 shadow-[0_24px_70px_rgba(35,45,75,0.08)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
                 <UsersRound size={16} /> Visual environment
@@ -593,8 +650,7 @@ function SetupForm() {
             </div>
           )}
 
-          {/* ── Step 4: Briefing ── */}
-          {step === 4 && (
+          {false && step === 4 && (
             <div className="space-y-4">
               {/* Persona + pressure arc header */}
               <div className="rounded-[2rem] bg-gradient-to-br from-[#3d006b] to-[#6200a8] p-6 text-white shadow-[0_24px_60px_rgba(98,0,168,0.30)]">
@@ -637,8 +693,7 @@ function SetupForm() {
             </div>
           )}
 
-          {/* ── Step 5: Ready ── */}
-          {step === 5 && (
+          {false && step === 5 && (
             <div className="rounded-[2rem] bg-white p-6 shadow-[0_24px_70px_rgba(35,45,75,0.08)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
               {/* Summary card */}
               <div className="mb-6 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
@@ -706,37 +761,20 @@ function SetupForm() {
 
               {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
 
-              {usage && usage.limit !== "unlimited" && (
+              {usageSection ? (
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                (() => { const u = usageSection!; return (
                 <div className="mt-5 rounded-[1.25rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/[0.05] dark:ring-white/10">
                   <div className="flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-white/70">
-                    <span>{usage.used} of {usage.limit as number} sessions used this month</span>
-                    <span className="text-xs text-slate-400 dark:text-white/38">Resets {usage.resetDate}</span>
+                    <span>{u.used} of {u.numLimit} sessions used this month</span>
+                    <span className="text-xs text-slate-400 dark:text-white/38">Resets {u.resetDate}</span>
                   </div>
-                  <progress
-                    value={usage.used}
-                    max={usage.limit as number}
-                    className={`mt-2 h-2 w-full rounded-full [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-slate-200 dark:[&::-webkit-progress-bar]:bg-white/10 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:transition-all ${(usage.used / (usage.limit as number)) >= 0.9 ? "[&::-webkit-progress-value]:bg-rose-500" : "[&::-webkit-progress-value]:bg-[#6200a8]"}`}
-                  />
-                  {usage.remaining === 0 && (
-                    <p className="mt-2 text-sm font-semibold text-rose-600 dark:text-rose-400">
-                      No sessions remaining. <a href="/pricing" className="underline">Upgrade your plan</a> to continue.
-                    </p>
-                  )}
-                  {typeof usage.remaining === "number" && usage.remaining > 0 && usage.remaining <= 3 && (
-                    <p className="mt-2 text-sm font-semibold text-amber-600 dark:text-amber-400">
-                      {usage.remaining} session{usage.remaining !== 1 ? "s" : ""} remaining this month.
-                    </p>
-                  )}
+                  <progress value={u.used} max={u.numLimit} className={`mt-2 h-2 w-full rounded-full [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-slate-200 dark:[&::-webkit-progress-bar]:bg-white/10 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:transition-all ${u.used / u.numLimit >= 0.9 ? "[&::-webkit-progress-value]:bg-rose-500" : "[&::-webkit-progress-value]:bg-[#6200a8]"}`} />
+                  {u.numRemaining === 0 ? <p className="mt-2 text-sm font-semibold text-rose-600 dark:text-rose-400">No sessions remaining. <a href="/pricing" className="underline">Upgrade your plan</a> to continue.</p> : null}
+                  {u.numRemaining > 0 && u.numRemaining <= 3 ? <p className="mt-2 text-sm font-semibold text-amber-600 dark:text-amber-400">{u.numRemaining} session{u.numRemaining !== 1 ? "s" : ""} remaining this month.</p> : null}
                 </div>
-              )}
-              <div className="mt-6 flex gap-3">
-                <button type="button" aria-label="Back to briefing" onClick={() => setStep(4)} className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-5 py-4 font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/15">
-                  <ArrowLeft size={18} />
-                </button>
-                <button type="submit" disabled={loading || (usage?.remaining === 0 && usage?.limit !== "unlimited")} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-4 font-semibold text-white shadow-[0_18px_38px_rgba(98,0,168,0.22)] transition hover:-translate-y-0.5 hover:bg-[#50008b] disabled:opacity-60">
-                  {loading ? "Building the room..." : usage?.remaining === 0 && usage?.limit !== "unlimited" ? "Session limit reached" : "Enter rehearsal room"} <ArrowRight size={18} />
-                </button>
-              </div>
+                ); })()
+              ) : null}
             </div>
           )}
         </form>

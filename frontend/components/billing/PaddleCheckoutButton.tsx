@@ -7,6 +7,7 @@ import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/fi
 import { getFirebaseDb } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth";
 import { openCheckout } from "@/lib/paddle";
+import { track } from "@/lib/analytics";
 
 interface Props {
   priceId?: string;
@@ -31,7 +32,7 @@ export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label
       if (!db) return;
       updateDoc(doc(db, "checkoutEvents", id), { outcome }).catch(() => undefined);
     }
-    const onComplete = () => resolveEvent("completed");
+    const onComplete = () => { resolveEvent("completed"); track.checkoutCompleted(priceId ?? ""); };
     const onClosed = () => resolveEvent("abandoned");
     window.addEventListener("paddle:payment-complete", onComplete);
     window.addEventListener("paddle:checkout-closed", onClosed);
@@ -59,6 +60,7 @@ export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label
 
   async function handleClick() {
     setLoading(true);
+    track.checkoutInitiated(priceId ?? "", label ?? "");
     try {
       const db = getFirebaseDb();
       if (db) {

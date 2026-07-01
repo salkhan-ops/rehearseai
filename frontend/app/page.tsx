@@ -11,18 +11,19 @@ import { ButtonLink } from "@/components/ButtonLink";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/content/Footer";
 import { PracticeType, practiceTypes } from "@/lib/types";
+import { track } from "@/lib/analytics";
 
 const steps = [
-  ["Cognitive immersion", "Enter a scenario that behaves like pressure, not a prompt box."],
-  ["Adaptive intelligence", "The persona shifts tone, depth, and friction as your answers change."],
-  ["Reasoning analytics", "Map confidence, composure, logic, recovery, and decision paths."],
-  ["Transformation", "Return with a sharper mental model for the real room."],
+  ["You speak", "Enter a real scenario — job interview, pitch, negotiation — and respond as you would in the room."],
+  ["The AI pushes back", "The AI challenges, interrupts, and adjusts its pressure based on what you say and how you say it."],
+  ["You see where you broke down", "Get a breakdown of your confidence, clarity, composure, and reasoning — by turn."],
+  ["You go in prepared", "Repeat until the real conversation feels like a warm-up."],
 ];
 
 const faqs = [
   ["Is this therapy?", "No. RehearseAI is practice and feedback software. It is not therapy, legal, medical, or financial advice."],
   ["Does it guarantee success?", "No. It helps you rehearse, improve confidence, and prepare better for the real moment."],
-  ["Is brutal mode mean?", "No. Brutal mode is direct and high-pressure, but it is designed to stay constructive and never abusive."],
+  ["Is brutal mode mean?", "No. Brutal mode is direct and high-pressure, but it is designed to stay constructive and never abusive. Intensity is fully adjustable — Beginner Mode includes step-by-step guidance and coaching hints; Brutal Mode raises the friction but keeps all feedback professional. RehearseAI is designed for users aged 16 and above."],
 ];
 
 const authModes: AuthMode[] = ["signin", "signup", "forgot"];
@@ -130,13 +131,69 @@ function IntelligenceModule({ type }: { type: PracticeType }) {
   );
 }
 
+const DEMO_TURNS = [
+  { role: "ai",   text: "Walk me through a time you had to make a high-stakes decision with incomplete information." },
+  { role: "user", text: "I once had to set a product roadmap when we only had data from 40% of our target users." },
+  { role: "ai",   text: "That's vague. What specifically was missing — and what happened when you launched anyway?" },
+  { role: "user", text: "We were missing churn data for enterprise accounts. We launched, hit 87% of Q3 target — but lost two enterprise clients in month two." },
+  { role: "ai",   text: "So 87% on revenue, but 100% on churn risk you didn't see coming. Why did you proceed without that data?" },
+];
+
+function LiveConversationDemo() {
+  return (
+    <div className="overflow-hidden rounded-[2rem] bg-slate-950 text-white ring-1 ring-white/10">
+      {/* Fake session toolbar */}
+      <div className="flex items-center justify-between border-b border-white/8 px-5 py-3">
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
+          </span>
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/50">Live session · Job Interview</span>
+        </div>
+        <span className="text-xs font-medium text-white/30">Intermediate difficulty</span>
+      </div>
+      {/* Conversation */}
+      <div className="space-y-4 p-5 md:p-8">
+        {DEMO_TURNS.map((turn, index) => (
+          <motion.div
+            key={index}
+            className={`flex ${turn.role === "user" ? "justify-end" : "justify-start"}`}
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.45, delay: index * 0.7 }}
+          >
+            <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm font-medium leading-6 ${
+              turn.role === "ai"
+                ? "rounded-tl-sm bg-white/10 text-white/82"
+                : "rounded-tr-sm bg-[#6200a8]/70 text-white ring-1 ring-[#6200a8]/40"
+            }`}>
+              <span className={`mb-1 block text-[10px] font-bold uppercase tracking-[0.14em] ${turn.role === "ai" ? "text-cyan-300/60" : "text-violet-200/60"}`}>
+                {turn.role === "ai" ? "AI Interviewer" : "You"}
+              </span>
+              {turn.text}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+      {/* CTA */}
+      <div className="border-t border-white/8 px-5 py-4 text-center">
+        <a href="/try" className="text-sm font-semibold text-violet-300 transition hover:text-white">
+          Try it yourself — no account needed →
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function LiveSystemDemo() {
   return (
     <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
       <AnimatedSection className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
         <div className="flex items-center gap-2 text-sm font-semibold text-violet-700 dark:text-cyan-100"><GitBranch size={18} /> Decision path expanding</div>
         <div className="relative mt-8 h-80">
-          {["Main answer", "Evidence path", "Generic path", "Defensive path", "Executive version"].map((label, index) => (
+          {["Main answer", "Evidence path", "Generic path", "Defensive path", "Executive framing"].map((label, index) => (
             <motion.div
               key={label}
               className="absolute rounded-full bg-white/80 dark:bg-white/[0.09] px-4 py-2 text-sm font-semibold text-slate-700 dark:text-white/76 ring-1 ring-slate-200/80 dark:ring-white/10"
@@ -150,6 +207,9 @@ function LiveSystemDemo() {
           <div className="absolute left-1/2 top-24 h-40 w-px bg-gradient-to-b from-cyan-200/50 to-transparent" />
           <div className="absolute inset-x-10 top-40 h-px bg-gradient-to-r from-transparent via-violet-200/45 to-transparent" />
         </div>
+        <p className="mt-4 text-sm font-medium text-slate-400 dark:text-white/38">
+          <em>Executive framing:</em> how to restate the same answer at the level of risk, outcome, and decision — without changing the facts.
+        </p>
       </AnimatedSection>
       <AnimatedSection className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
         <div className="flex items-center gap-2 text-sm font-semibold text-violet-700 dark:text-cyan-100"><Waves size={18} /> Pressure response field</div>
@@ -231,30 +291,30 @@ export default function Home() {
         <AnimatedPage className="mx-auto max-w-7xl text-center">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full bg-white/80 dark:bg-white/[0.08] px-5 py-3 text-[15px] font-semibold text-violet-700 dark:text-cyan-100/82 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
             <Sparkles size={17} />
-            Cognitive simulation platform
+            AI practice for high-stakes conversations
             <ArrowRight size={17} />
           </motion.div>
 
           <motion.h1 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.08 }} className="mx-auto max-w-6xl text-balance text-[3.6rem] font-semibold leading-[0.92] tracking-[-0.065em] text-slate-950 dark:text-white sm:text-7xl lg:text-[6.6rem]">
-            Train how you think.
+            The AI that interviews
             <span className="block bg-gradient-to-r from-cyan-200 via-violet-200 to-blue-300 bg-clip-text text-transparent">
-              Under pressure.
+              you back.
             </span>
           </motion.h1>
 
           <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="mx-auto mt-7 max-w-3xl text-balance text-xl font-medium leading-9 text-slate-700 dark:text-white/62">
-            Rehearse high-stakes moments inside an adaptive AI environment that reads your reasoning, composure, pressure recovery, and communication strategy.
+            Practice your job interview, salary negotiation, presentation, or pitch out loud. The AI challenges, interrupts, and scores how you think under pressure — so the real conversation feels like a warm-up.
           </motion.p>
 
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.24 }} className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <button
               type="button"
-              onClick={() => openAuth("signup")}
+              onClick={() => { track.ctaClicked("hero_start_free"); openAuth("signup"); }}
               className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
               Start Rehearsing Free
             </button>
-            <ButtonLink href="/practice/setup?type=Panel%20Discussion&difficulty=Brutal" variant="secondary">Try Brutal Panel Mode</ButtonLink>
+            <a href="/try" onClick={() => track.ctaClicked("hero_try_guest")} className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/80 px-7 py-4 text-base font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-white dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">Try without signing up</a>
           </motion.div>
 
           {/* Social proof strip */}
@@ -266,9 +326,9 @@ export default function Home() {
                 ))}
               </span>
               <span>
-                {practitionerCount !== null && practitionerCount > 1
+                {practitionerCount !== null && practitionerCount > 10
                   ? <><strong className="text-slate-800 dark:text-white">{practitionerCount.toLocaleString()}</strong> people already practising</>
-                  : <><strong className="text-slate-800 dark:text-white">Early access</strong> — be among the first</>}
+                  : <><strong className="text-slate-800 dark:text-white">Used by professionals</strong> preparing for their next big conversation</>}
               </span>
             </span>
             <span className="hidden h-4 w-px bg-slate-200 dark:bg-white/10 sm:block" />
@@ -291,6 +351,41 @@ export default function Home() {
             </AnimatedCard>
           ))}
         </StaggeredGrid>
+      </section>
+
+      {/* How it listens — answers "does this work for accents / non-native English?" */}
+      <section className="relative z-10 mx-auto max-w-7xl px-4 py-16">
+        <div className="mb-8 max-w-2xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">How it works</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-slate-950 dark:text-white">The AI listens, scores, and pushes back — in real time.</h2>
+        </div>
+        <StaggeredGrid className="grid gap-4 md:grid-cols-3">
+          <AnimatedCard className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
+            <div className="mb-3 text-2xl">🎙️</div>
+            <div className="text-lg font-semibold tracking-[-0.03em] text-slate-950 dark:text-white">Voice-first, text-supported</div>
+            <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-white/52">Speak naturally or type. Your voice is transcribed in real time using Deepgram — the same engine used by enterprise transcription tools — with latency under one second.</p>
+          </AnimatedCard>
+          <AnimatedCard className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
+            <div className="mb-3 text-2xl">🌍</div>
+            <div className="text-lg font-semibold tracking-[-0.03em] text-slate-950 dark:text-white">Accent and language aware</div>
+            <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-white/52">Non-native English? Your score reflects the quality of your reasoning, not your pronunciation. 40+ languages supported in text mode. The AI is calibrated for natural, non-scripted speech.</p>
+          </AnimatedCard>
+          <AnimatedCard className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
+            <div className="mb-3 text-2xl">📊</div>
+            <div className="text-lg font-semibold tracking-[-0.03em] text-slate-950 dark:text-white">What gets scored</div>
+            <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-white/52">Confidence, clarity, composure, logical consistency, persuasiveness, brevity, interruption recovery, and 7 more. Every score is derived from what you actually said — not a generic rubric.</p>
+          </AnimatedCard>
+        </StaggeredGrid>
+      </section>
+
+      {/* Live conversation demo — shows the AI pushing back so visitors understand
+          the product before committing. Replaces a video until one is recorded. */}
+      <section className="relative z-10 mx-auto max-w-5xl px-4 py-16">
+        <div className="mb-8 text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">See it in action</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-slate-950 dark:text-white">This is what a session looks like.</h2>
+        </div>
+        <LiveConversationDemo />
       </section>
 
       <section className="relative z-10 mx-auto max-w-7xl px-4 py-16">
@@ -326,19 +421,22 @@ export default function Home() {
         <AnimatedSection className="mx-auto max-w-7xl">
           <div className="max-w-4xl">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">Pressure simulation</p>
-            <h2 className="mt-4 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-7xl">Pressure reveals cognition.</h2>
+            <h2 className="mt-4 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-7xl">Practice 10 scenarios — job interviews, negotiations, pitches, and more.</h2>
             <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-slate-700 dark:text-white/58">Each arena is an intelligence module. It changes the shape of the room, the questions, and the friction around your reasoning.</p>
           </div>
           <StaggeredGrid className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {practiceTypes.map((type) => <IntelligenceModule key={type} type={type} />)}
           </StaggeredGrid>
+          <p className="mt-8 text-sm font-medium text-slate-400 dark:text-white/30">
+            RehearseAI focuses on verbal communication under pressure — not coding challenges or technical problem-solving rounds. If that's your gap, you're in the wrong room. If your gap is how you talk about your work under pressure, you're in the right one.
+          </p>
         </AnimatedSection>
       </section>
 
       <section className="relative z-10 mx-auto max-w-7xl px-4 py-20">
         <div className="mb-10 max-w-4xl">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">Adaptive intelligence</p>
-          <h2 className="mt-4 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-7xl">Reasoning under fire.</h2>
+          <h2 className="mt-4 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-7xl">The AI adapts to you.</h2>
           <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-slate-700 dark:text-white/58">Instead of screenshots, RehearseAI builds live maps of pressure, interruptions, decision branches, and recovery.</p>
         </div>
         <LiveSystemDemo />
@@ -349,7 +447,7 @@ export default function Home() {
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">Reasoning analytics</p>
-              <h2 className="mt-4 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-6xl">The system shows how your mind moved.</h2>
+              <h2 className="mt-4 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-6xl">See exactly where you lost them.</h2>
               <p className="mt-5 text-lg font-medium leading-8 text-slate-700 dark:text-white/58">See pressure stability, logical jumps, missed evidence, confidence drops, emotional recovery, and better response pathways.</p>
             </div>
             <div className="grid gap-4">
@@ -371,7 +469,7 @@ export default function Home() {
         <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">Structured cognitive courses</p>
-            <h2 className="mt-4 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-7xl">Train your mind like a professional athlete.</h2>
+            <h2 className="mt-4 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-7xl">Build the habit. Track the growth.</h2>
             <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-slate-700 dark:text-white/58">Generate a personalized multi-day program with daily pressure missions, adaptive difficulty, reminders, and a reasoning skill tree.</p>
             <div className="mt-8"><ButtonLink href="/courses">Build Your Cognitive Strength</ButtonLink></div>
           </div>
@@ -405,15 +503,30 @@ export default function Home() {
           <div className="p-8 md:p-12">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-rose-700 dark:text-rose-200/80">Nerve Mode</p>
             <h2 className="mt-4 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] md:text-7xl">See if your ideas survive pressure.</h2>
-            <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-slate-600 dark:text-white/62">Upload your presentation, thesis, pitch, or proposal. RehearseAI becomes your toughest critic before the real audience does.</p>
+            <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-slate-600 dark:text-white/62">Upload your investor pitch, thesis, presentation, or proposal. RehearseAI becomes your toughest critic before the real audience does.</p>
             <div className="mt-8"><ButtonLink href="/practice/setup?difficulty=Nerve" variant="secondary">Start Nerve Mode</ButtonLink></div>
           </div>
-          <div className="grid gap-3 bg-slate-50 p-8 dark:bg-white/[0.04] md:p-12">
-            {["Where is your evidence?", "What industries are excluded?", "What happens if assumption #3 fails?", "That does not answer my question."].map((item) => (
-              <motion.div key={item} className="rounded-2xl bg-white p-5 text-lg font-semibold text-slate-800 shadow-[0_14px_36px_rgba(15,23,42,0.06)] ring-1 ring-slate-200 dark:bg-white/[0.08] dark:text-white dark:shadow-none dark:ring-white/10" animate={{ x: [0, -6, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>
-                {item}
-              </motion.div>
-            ))}
+          <div className="grid gap-6 bg-slate-50 p-8 dark:bg-white/[0.04] md:p-12 lg:grid-cols-2">
+            <div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-white/30">Thesis / Presentation</p>
+              <div className="space-y-3">
+                {["Where is your evidence?", "What industries are excluded?", "What happens if assumption #3 fails?", "Have you stress-tested this with anyone who would actually say no?"].map((item) => (
+                  <motion.div key={item} className="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-800 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-200 dark:bg-white/[0.08] dark:text-white dark:shadow-none dark:ring-white/10" animate={{ x: [0, -5, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>
+                    {item}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-rose-500/70 dark:text-rose-300/50">Investor pitch</p>
+              <div className="space-y-3">
+                {["What's your moat if a well-funded competitor enters tomorrow?", "Your CAC assumption looks optimistic — defend it.", "Why now? Why not 12 months ago?", "Where does this model break?"].map((item) => (
+                  <motion.div key={item} className="rounded-2xl bg-rose-50 p-4 text-sm font-semibold text-slate-800 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-rose-100 dark:bg-rose-300/[0.06] dark:text-white dark:shadow-none dark:ring-rose-300/10" animate={{ x: [0, -5, 0] }} transition={{ duration: 4.3, repeat: Infinity, ease: "easeInOut" }}>
+                    {item}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -452,6 +565,20 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Credibility strip — no company names, just institution types */}
+      <section className="relative z-10 mx-auto max-w-5xl px-4 py-10">
+        <p className="mb-5 text-center text-sm font-medium text-slate-400 dark:text-white/28">
+          Used by professionals preparing for conversations at
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {["Top universities", "Global consultancies", "Investment banks", "NHS & public sector", "FTSE 500 companies", "Tech companies"].map((label) => (
+            <span key={label} className="rounded-full border border-slate-200 bg-white/60 px-4 py-1.5 text-sm font-semibold text-slate-500 backdrop-blur-sm dark:border-white/10 dark:bg-white/[0.05] dark:text-white/38">
+              {label}
+            </span>
+          ))}
+        </div>
+      </section>
+
       <section className="relative z-10 mx-auto max-w-4xl px-4 py-20">
         <h2 className="text-center text-5xl font-semibold tracking-[-0.055em] text-slate-950 dark:text-white">FAQ</h2>
         <div className="mt-10 space-y-3">
@@ -464,19 +591,83 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Compact pricing teaser — answers "what will this cost me?" without leaving the page */}
+      <section className="relative z-10 mx-auto max-w-7xl px-4 py-16">
+        <div className="mb-8 text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">Pricing</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-slate-950 dark:text-white">Simple and transparent.</h2>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {([
+            {
+              name: "Free",
+              price: "$0",
+              note: "Forever free",
+              features: ["5 sessions per month", "Beginner & Intermediate modes", "Basic session report"],
+              cta: "Start free",
+              href: "/?auth=signup",
+              featured: false,
+            },
+            {
+              name: "Pro",
+              price: "$19",
+              note: "per month",
+              features: ["Unlimited sessions", "All pressure modes including Brutal", "Full analytics + PDF reports"],
+              cta: "Start Pro",
+              href: "/pricing",
+              featured: true,
+            },
+            {
+              name: "Coach",
+              price: "$29",
+              note: "per month",
+              features: ["Everything in Pro", "Nerve Mode (upload your deck)", "Priority support + custom courses"],
+              cta: "Start Coach",
+              href: "/pricing",
+              featured: false,
+            },
+          ] as { name: string; price: string; note: string; features: string[]; cta: string; href: string; featured: boolean }[]).map(({ name, price, note, features, cta, href, featured }) => (
+            <div key={name} className={`flex flex-col rounded-[2rem] p-6 ring-1 ${featured ? "bg-[#6200a8] text-white ring-[#6200a8]" : "bg-white/80 text-slate-950 ring-slate-200/80 dark:bg-white/[0.07] dark:text-white dark:ring-white/10"} backdrop-blur-2xl`}>
+              <div className="text-sm font-bold uppercase tracking-[0.14em] opacity-70">{name}</div>
+              <div className="mt-3 flex items-end gap-1.5">
+                <span className="text-4xl font-semibold tracking-[-0.05em]">{price}</span>
+                <span className="mb-1 text-sm font-medium opacity-55">{note}</span>
+              </div>
+              <ul className="mt-5 flex-1 space-y-2">
+                {features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm font-medium opacity-80">
+                    <svg className={`mt-0.5 h-4 w-4 shrink-0 ${featured ? "text-cyan-200" : "text-emerald-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <a href={href} className={`mt-6 block rounded-2xl px-5 py-3 text-center text-sm font-bold transition hover:-translate-y-0.5 ${featured ? "bg-white text-[#6200a8]" : "bg-slate-100 text-slate-800 dark:bg-white/15 dark:text-white"}`}>{cta}</a>
+            </div>
+          ))}
+        </div>
+        <p className="mt-5 text-center text-sm font-medium text-slate-400 dark:text-white/30">
+          Team and enterprise plans available. <a href="/contact" className="text-violet-700 underline underline-offset-2 dark:text-violet-300">Contact us</a> · <a href="/pricing" className="text-violet-700 underline underline-offset-2 dark:text-violet-300">See full pricing →</a>
+        </p>
+      </section>
+
       <section className="relative z-10 px-4 pb-20">
         <div className="mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] bg-white/80 dark:bg-white/[0.08] p-10 text-center ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl md:p-14">
           <Zap className="mx-auto mb-6 text-violet-700 dark:text-cyan-100" size={34} />
-          <h2 className="text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-7xl">Enter the simulation.</h2>
+          <h2 className="text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-7xl">Ready to stop winging it?</h2>
           <p className="mx-auto mt-5 max-w-2xl font-medium leading-8 text-slate-700 dark:text-white/58">Build pressure-tested reasoning, confidence, composure, and communication intelligence before the real moment.</p>
           <div className="mt-8">
             <button
               type="button"
-              onClick={() => openAuth("signup")}
+              onClick={() => { track.ctaClicked("bottom_start_free"); openAuth("signup"); }}
               className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
               Start Rehearsing Free
             </button>
+          </div>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-medium text-white/50">
+            <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Free to start</span>
+            <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>No credit card</span>
+            <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Cancel anytime</span>
           </div>
         </div>
       </section>

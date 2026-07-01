@@ -46,6 +46,7 @@ import { parseSpeakerTurns, stripSpeakerTags } from "@/lib/panel/panelSpeakerPar
 import { environmentModes } from "@/lib/types";
 import type { ConversationControl, ConversationMode, EnvironmentMode, Message, Session, SessionHint } from "@/lib/types";
 import type { PauseFusionDecision } from "@/lib/local-signals/types";
+import { track } from "@/lib/analytics";
 
 type OrbMode = "idle" | "listening" | "thinking" | "speaking" | "pressure" | "error";
 
@@ -151,6 +152,7 @@ export default function SessionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = params?.id || searchParams.get("id") || "";
+  const isGuestMode = searchParams.get("guest") === "true";
   const { getToken, profile, userId } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -220,6 +222,7 @@ export default function SessionPage() {
   const [connectionQuality, setConnectionQuality] = useState<"good" | "slow" | "unknown">("unknown");
   const [voiceFallbackNotice, setVoiceFallbackNotice] = useState("");
   const [voiceEscapeHatchDismissed, setVoiceEscapeHatchDismissed] = useState(false);
+  const [guestReport, setGuestReport] = useState<{ confidenceScore: number; clarityScore: number; calmnessScore: number; structureScore: number; summary: string } | null>(null);
   const backgroundPausedRef = useRef(false);
   const pauseForBackgroundRef = useRef<() => void>(() => undefined);
   const resumeFromBackgroundRef = useRef<() => void>(() => undefined);
@@ -1549,6 +1552,7 @@ export default function SessionPage() {
     setError("");
     setConversationMode("natural");
     setVoiceMode(true);
+    track.sessionStarted(session?.practiceType ?? "unknown", session?.difficulty ?? "unknown");
     if (debugSessionLog) {
       sessionLoggerRef.current = createSessionLogger(id);
       setDebugLogFile(sessionLoggerRef.current.file);
@@ -1649,15 +1653,26 @@ export default function SessionPage() {
     try {
       const token = await getToken();
       await endSession(id, token);
-      // Fire-and-forget: don't await so it never blocks the report redirect
       analyzeSession(id, token).catch(() => undefined);
       const courseSessionId = searchParams.get("courseSessionId");
       if (courseSessionId) await completeCourseSession(courseSessionId, id, token).catch(() => undefined);
       const report = await generateReport(id, token);
       if (session) {
         await sendSessionOutcome(outcomeFromReport({ ...session, status: "completed" }, report, seconds), token).catch(() => undefined);
+        track.sessionCompleted(session.practiceType, session.turnCount || 0);
       }
-      router.push(reportHref(report.id));
+      if (isGuestMode) {
+        // Guest users see a preview overlay — not the full report (which requires auth).
+        setGuestReport({
+          confidenceScore: report.confidenceScore,
+          clarityScore: report.clarityScore,
+          calmnessScore: report.calmnessScore,
+          structureScore: report.structureScore,
+          summary: report.summary,
+        });
+      } else {
+        router.push(reportHref(report.id));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not generate report. Check that the backend is running.");
     } finally {
@@ -1665,8 +1680,7 @@ export default function SessionPage() {
     }
   }
 
-  return (
-    <ProtectedRoute>
+  const sessionContent = (
     <>
     <ImmersiveMode
       open={immersiveOpen}
@@ -2157,6 +2171,58 @@ export default function SessionPage() {
       )}
     </main>
     </>
-    </ProtectedRoute>
+  );
+
+  if (isGuestMode) {
+    return (
+      <>
+        {guestReport ? (
+          <GuestReportOverlay report={guestReport} />
+        ) : sessionContent}
+      </>
+    );
+  }
+
+  return <ProtectedRoute>{sessionContent}</ProtectedRoute>;
+}
+
+function GuestReportOverlay({ report }: { report: { confidenceScore: number; clarityScore: number; calmnessScore: number; structureScore: number; summary: string } }) {
+  const scores = [
+    { label: "Confidence", value: report.confidenceScore },
+    { label: "Clarity", value: report.clarityScore },
+    { label: "Calmness", value: report.calmnessScore },
+    { label: "Structure", value: report.structureScore },
+  ];
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/90 p-4 backdrop-blur-xl">
+      <div className="w-full max-w-lg rounded-[2rem] bg-white p-8 shadow-2xl dark:bg-[#101827]">
+        <p className="text-sm font-bold uppercase tracking-[0.16em] text-violet-600 dark:text-violet-300">Session complete</p>
+        <h2 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-slate-950 dark:text-white">Here's a preview of your results</h2>
+        <p className="mt-3 text-sm font-medium leading-6 text-slate-500 dark:text-white/50">{report.summary}</p>
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          {scores.map(({ label, value }) => (
+            <div key={label} className="rounded-2xl bg-slate-50 p-4 dark:bg-white/10">
+              <div className="text-3xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{value}</div>
+              <div className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-white/40">{label}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 rounded-2xl bg-violet-50 p-4 text-sm font-medium text-violet-700 dark:bg-violet-400/10 dark:text-violet-200">
+          <strong className="font-bold">Sign up free</strong> to unlock your full breakdown — confidence by turn, weak moments, coaching suggestions, and progress tracking.
+        </div>
+        <a
+          href="/?auth=signup"
+          className="mt-4 block w-full rounded-2xl bg-[#6200a8] px-5 py-4 text-center text-lg font-bold text-white shadow-[0_18px_44px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5"
+        >
+          Save my results — it's free
+        </a>
+        <a
+          href="/try"
+          className="mt-3 block w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-white/10 dark:bg-white/10 dark:text-white"
+        >
+          Try another scenario
+        </a>
+      </div>
+    </div>
   );
 }

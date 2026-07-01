@@ -815,7 +815,12 @@ export async function pauseUser(uid: string, pause: boolean) {
 }
 
 export async function removeUser(uid: string) {
-  return adminRequest(`/api/admin/users/${uid}`, { method: "DELETE" });
+  // Uses the existing PATCH endpoint (always live) rather than DELETE which
+  // requires a backend redeploy. Same soft-delete: sets status to "removed".
+  return adminRequest(`/api/admin/users/${uid}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "removed" }),
+  });
 }
 
 export async function assignPlan(uid: string, plan: Plan, status: string, overrides: Partial<Entitlements> = {}, trialEndsAt = "") {

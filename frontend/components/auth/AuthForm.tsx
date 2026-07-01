@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import type { ReactNode } from "react";
 import { Check, Mail, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { track } from "@/lib/analytics";
 import type { LanguageCode } from "@/lib/languages";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { GoogleSignInButton } from "./GoogleSignInButton";
@@ -39,7 +40,10 @@ export function AuthForm({
       : "Continue to your practice dashboard.";
 
   async function routeAfterLogin() {
-    router.push("/dashboard");
+    // New users (no prior sessions) go straight to practice setup — they
+    // land on an empty dashboard otherwise with no clear "start here" CTA.
+    const isNewSignup = mode === "signup";
+    router.push(isNewSignup ? "/practice/setup?first=true" : "/dashboard");
   }
 
   async function handleEmail(event: FormEvent<HTMLFormElement>) {
@@ -57,6 +61,7 @@ export function AuthForm({
       } else if (mode === "signin") {
         try {
           await auth.signInWithEmail(email, password);
+          track.signinCompleted();
           await routeAfterLogin();
         } catch (err) {
           if (err instanceof Error && err.message === "EMAIL_NOT_VERIFIED") {
@@ -66,12 +71,14 @@ export function AuthForm({
           }
         }
       } else {
+        track.signupStarted("email");
         await auth.signUpWithEmail(email, password, practiceLanguage, feedbackLanguage, {
           ageConfirmed,
           minorConsentAcknowledged,
           termsAccepted,
           privacyAccepted,
         });
+        track.signupCompleted("email");
         setVerifyState({ email, password });
       }
     } catch (err) {
@@ -84,12 +91,15 @@ export function AuthForm({
   async function google() {
     setError("");
     setLoading(true);
+    if (mode === "signup") track.signupStarted("google");
     try {
       await auth.signInWithGoogle(
         mode === "signup" ? practiceLanguage : undefined,
         mode === "signup" ? feedbackLanguage : undefined,
         mode === "signup" ? { ageConfirmed, minorConsentAcknowledged, termsAccepted, privacyAccepted } : undefined,
       );
+      if (mode === "signup") track.signupCompleted("google");
+      else track.signinCompleted();
       await routeAfterLogin();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed");
@@ -140,12 +150,19 @@ export function AuthForm({
           </div>
           <h2 className="text-3xl font-semibold tracking-[-0.045em] text-slate-950 dark:text-white">Check your inbox</h2>
           <p className="mt-3 text-base font-medium leading-7 text-slate-600 dark:text-white/60">
-            We sent a verification link to <span className="font-semibold text-slate-950 dark:text-white">{verifyState.email}</span>. Click the link to activate your account.
+            We sent a verification link to <span className="font-semibold text-slate-950 dark:text-white">{verifyState.email}</span>.
           </p>
           <p className="mt-2 text-sm font-medium text-slate-400 dark:text-white/40">
-            Once verified, come back and sign in.
+            Verify to unlock full session history and PDF downloads. You can start practising right now without waiting.
           </p>
           <div className="mt-6 space-y-3">
+            <button
+              type="button"
+              onClick={() => { setVerifyState(null); onModeChange?.("signin"); }}
+              className="w-full rounded-2xl bg-gradient-to-r from-[#6200a8] via-[#7c00d8] to-[#3b82f6] px-5 py-3 text-sm font-bold text-white shadow-[0_12px_32px_rgba(98,0,168,0.24)] transition hover:-translate-y-0.5"
+            >
+              Start practising now →
+            </button>
             <button
               type="button"
               onClick={async () => {
@@ -161,16 +178,9 @@ export function AuthForm({
                 }
               }}
               disabled={loading}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-violet-300 hover:text-violet-700 dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:border-violet-400/40"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 transition hover:border-violet-300 hover:text-violet-700 dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:border-violet-400/40"
             >
               {loading ? "Sending..." : "Resend verification email"}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setVerifyState(null); onModeChange?.("signin"); }}
-              className="w-full rounded-2xl bg-gradient-to-r from-[#6200a8] via-[#7c00d8] to-[#3b82f6] px-5 py-3 text-sm font-bold text-white shadow-[0_12px_32px_rgba(98,0,168,0.24)] transition hover:-translate-y-0.5"
-            >
-              Go to sign in
             </button>
           </div>
           {message && <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300">{message}</p>}

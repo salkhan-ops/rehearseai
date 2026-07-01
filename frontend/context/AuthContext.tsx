@@ -55,6 +55,7 @@ type AuthContextValue = {
   loading: boolean;
   userId: string;
   isAdmin: boolean;
+  emailVerified: boolean;
   getToken: () => Promise<string | null>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<void>;
@@ -200,10 +201,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function signInWithEmailAction(email: string, password: string) {
       const auth = requireAuthClient();
       const result = await signInWithEmailAndPassword(auth, email, password);
-      if (!result.user.emailVerified) {
-        await firebaseSignOut(auth);
-        throw new Error("EMAIL_NOT_VERIFIED");
-      }
+      // Non-blocking: let unverified users in so they can reach their first session.
+      // A soft banner in the app prompts them to verify. PDF download and session
+      // history require verification; first-time practice does not.
       setProfile(await upsertUserProfile(result.user));
     }
 
@@ -280,6 +280,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     loading,
     userId: user?.uid || "guest",
+    emailVerified: user?.emailVerified ?? false,
     isAdmin: profile?.role === "admin",
     getToken: async () => user?.getIdToken() || null,
     signInWithEmail: signInWithEmailAction,

@@ -22,13 +22,17 @@ export default function AdminUsersPage() {
   const [assigning, setAssigning] = useState<AdminUser | null>(null);
   const [ghost, setGhost] = useState<GhostState>({ phase: "idle" });
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
 
   const refresh = () => getUsers().then(setUsers);
   useEffect(() => { refresh(); getPlans().then(setPlans); }, []);
 
   const filtered = users.filter((user) => {
     const haystack = `${user.uid} ${user.email || ""} ${user.displayName || ""}`.toLowerCase();
-    return (!search || haystack.includes(search.toLowerCase())) && (!role || (user.role || "user") === role) && (!plan || (user.planId || "free") === plan) && (!status || (user.status || "active") === status);
+    const userStatus = user.status || "active";
+    // Hide removed users by default unless explicitly filtered for
+    if (userStatus === "removed" && status !== "removed") return false;
+    return (!search || haystack.includes(search.toLowerCase())) && (!role || (user.role || "user") === role) && (!plan || (user.planId || "free") === plan) && (!status || userStatus === status);
   });
 
   async function handleDetectGhosts() {
@@ -55,6 +59,13 @@ export default function AdminUsersPage() {
   return (
     <AdminLayout>
       <AdminHeader title="Users" subtitle="Search, filter, inspect, change roles, and assign plans." />
+
+      {actionError && (
+        <div className="mb-4 flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 px-5 py-3">
+          <span className="text-sm font-medium text-red-800">{actionError}</span>
+          <button type="button" onClick={() => setActionError("")} className="rounded-xl bg-white px-3 py-1.5 text-sm font-semibold ring-1 ring-slate-200 hover:bg-slate-50">Dismiss</button>
+        </div>
+      )}
 
       {/* Ghost session banner */}
       {ghost.phase === "confirm" && (
@@ -85,7 +96,7 @@ export default function AdminUsersPage() {
         <AdminSearchBar value={search} onChange={setSearch} placeholder="Search email, UID, or display name" />
         <select aria-label="Filter by role" value={role} onChange={(event) => setRole(event.target.value)} className="rounded-2xl bg-white px-4 py-3 font-semibold ring-1 ring-slate-200"><option value="">All roles</option><option value="user">user</option><option value="admin">admin</option></select>
         <select aria-label="Filter by plan" value={plan} onChange={(event) => setPlan(event.target.value)} className="rounded-2xl bg-white px-4 py-3 font-semibold ring-1 ring-slate-200"><option value="">All plans</option>{plans.map((item) => <option key={item.planId} value={item.planId}>{item.name}</option>)}</select>
-        <select aria-label="Filter by status" value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-2xl bg-white px-4 py-3 font-semibold ring-1 ring-slate-200"><option value="">All status</option>{["active", "trialing", "past_due", "cancelled", "disabled"].map((item) => <option key={item}>{item}</option>)}</select>
+        <select aria-label="Filter by status" value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-2xl bg-white px-4 py-3 font-semibold ring-1 ring-slate-200"><option value="">All status</option>{["active", "trialing", "past_due", "cancelled", "disabled", "removed"].map((item) => <option key={item}>{item}</option>)}</select>
         <button
           type="button"
           onClick={handleDetectGhosts}
@@ -118,7 +129,7 @@ export default function AdminUsersPage() {
                 </button>
                 {confirmRemove === user.uid ? (
                   <span className="flex gap-1">
-                    <button type="button" onClick={async (event) => { event.stopPropagation(); await removeUser(user.uid); setConfirmRemove(null); refresh(); }} className="rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700">
+                    <button type="button" onClick={async (event) => { event.stopPropagation(); try { await removeUser(user.uid); setConfirmRemove(null); refresh(); } catch (err) { setActionError(err instanceof Error ? err.message : "Remove failed"); setConfirmRemove(null); } }} className="rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700">
                       Confirm remove
                     </button>
                     <button type="button" onClick={(event) => { event.stopPropagation(); setConfirmRemove(null); }} className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold ring-1 ring-slate-200">

@@ -15,17 +15,21 @@ export function ProtectedRoute({ children, adminOnly = false }: { children: Reac
       router.replace("/signin");
       return;
     }
-    if (!profile?.ageConfirmed) {
+    // Wait for Firestore profile to load before making the age-check decision —
+    // profile===null while it's still being fetched, not a confirmed absence.
+    if (!profile) return;
+    if (!profile.ageConfirmed) {
       router.replace("/age-check");
       return;
     }
     if (adminOnly && !isAdmin) {
       setDenied(true);
     }
-  }, [adminOnly, isAdmin, loading, profile?.ageConfirmed, router, user]);
+  }, [adminOnly, isAdmin, loading, profile, router, user]);
 
-  if (loading || !user) return <div className="px-4 py-12 text-center font-semibold text-slate-600 dark:text-white/60">Checking access...</div>;
-  if (!profile?.ageConfirmed) return <div className="px-4 py-12 text-center font-semibold text-slate-600 dark:text-white/60">Checking age eligibility...</div>;
+  if (loading || !user || !profile) return <div className="px-4 py-12 text-center font-semibold text-slate-600 dark:text-white/60">Checking access...</div>;
+  // Only redirect existing legacy users who never confirmed age; new signups have ageConfirmed:true set during signup.
+  if (!profile.ageConfirmed) return <div className="px-4 py-12 text-center font-semibold text-slate-600 dark:text-white/60">Checking age eligibility…</div>;
   if (profile?.status === "disabled" || profile?.status === "removed") {
     return (
       <div className="mx-auto max-w-xl px-4 py-12 text-center">
