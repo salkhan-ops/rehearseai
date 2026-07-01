@@ -131,6 +131,7 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
   const prewarmWsRef = useRef<WebSocket | null>(null);
   const prewarmStreamRef = useRef<MediaStream | null>(null);
   const prewarmRunRef = useRef(0);
+  const prewarmKeepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [provider, setProvider] = useState<Provider>("mock");
   const [providerReason, setProviderReason] = useState("");
@@ -199,6 +200,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     wsRef.current = null;
     // Cancel any in-progress pre-warm so its resources don't linger
     prewarmRunRef.current += 1;
+    if (prewarmKeepAliveRef.current) clearInterval(prewarmKeepAliveRef.current);
+    prewarmKeepAliveRef.current = null;
     try { prewarmWsRef.current?.close(); } catch { /* ignore */ }
     prewarmWsRef.current = null;
     prewarmStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -223,9 +226,29 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
         return;
       }
       prewarmWsRef.current = socket;
+      // Deepgram closes silent sockets after a short timeout. While the AI is still
+      // speaking there is intentionally no microphone audio, so keep the pre-warmed
+      // connection alive until startListening() takes ownership and starts recording.
+      socket.onopen = () => {
+        if (prewarmWsRef.current !== socket) return;
+        if (prewarmKeepAliveRef.current) clearInterval(prewarmKeepAliveRef.current);
+        prewarmKeepAliveRef.current = setInterval(() => {
+          if (prewarmWsRef.current === socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "KeepAlive" }));
+          }
+        }, 3000);
+      };
       // Minimal handlers — real handlers attached when startListening() takes ownership
-      socket.onerror = () => { if (prewarmWsRef.current === socket) prewarmWsRef.current = null; };
-      socket.onclose = () => { if (prewarmWsRef.current === socket) prewarmWsRef.current = null; };
+      socket.onerror = () => {
+        if (prewarmWsRef.current === socket) prewarmWsRef.current = null;
+        if (prewarmKeepAliveRef.current) clearInterval(prewarmKeepAliveRef.current);
+        prewarmKeepAliveRef.current = null;
+      };
+      socket.onclose = () => {
+        if (prewarmWsRef.current === socket) prewarmWsRef.current = null;
+        if (prewarmKeepAliveRef.current) clearInterval(prewarmKeepAliveRef.current);
+        prewarmKeepAliveRef.current = null;
+      };
     } catch {
       if (prewarmStreamRef.current) { prewarmStreamRef.current.getTracks().forEach((t) => t.stop()); prewarmStreamRef.current = null; }
     }
@@ -324,6 +347,8 @@ export function useRealtimeVoice({ browserSpeechCode = "en-US", deepgramCode = "
     let transcriptWatchdog: ReturnType<typeof setTimeout> | null = null;
 
     const attachAndRun = async (socket: WebSocket, stream: MediaStream) => {
+      if (prewarmKeepAliveRef.current) clearInterval(prewarmKeepAliveRef.current);
+      prewarmKeepAliveRef.current = null;
       if (runId !== listeningRunRef.current || speakingRef.current) {
         stream.getTracks().forEach((t) => t.stop());
         listeningActiveRef.current = false;
