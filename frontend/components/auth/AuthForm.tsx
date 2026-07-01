@@ -16,9 +16,11 @@ export type AuthMode = "signin" | "signup" | "forgot";
 export function AuthForm({
   mode,
   onModeChange,
+  onAuthenticated,
 }: {
   mode: AuthMode;
   onModeChange?: (mode: AuthMode) => void;
+  onAuthenticated?: () => void;
 }) {
   const router = useRouter();
   const auth = useAuth();
@@ -40,8 +42,18 @@ export function AuthForm({
       : "Continue to your practice dashboard.";
 
   async function routeAfterLogin() {
-    // New users (no prior sessions) go straight to practice setup — they
-    // land on an empty dashboard otherwise with no clear "start here" CTA.
+    if (onAuthenticated) {
+      onAuthenticated();
+      return;
+    }
+    // If a returnTo param was passed (e.g. from pricing page upgrade), honour it.
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = params.get("returnTo");
+    if (returnTo && returnTo.startsWith("/")) {
+      router.push(returnTo);
+      return;
+    }
+    // New users go straight to practice setup; returning users go to dashboard.
     const isNewSignup = mode === "signup";
     router.push(isNewSignup ? "/practice/setup?first=true" : "/dashboard");
   }

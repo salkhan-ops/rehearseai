@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { ArrowRight, BrainCircuit, CalendarDays, GitBranch, Radio, Sparkles, Trophy, Waves, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
 import { AnimatedCard, AnimatedPage, AnimatedSection, StaggeredGrid } from "@/components/animations";
 import { AuthDialog } from "@/components/auth/AuthDialog";
@@ -12,6 +13,7 @@ import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/content/Footer";
 import { PracticeType, practiceTypes } from "@/lib/types";
 import { track } from "@/lib/analytics";
+import { useAuth } from "@/lib/auth";
 
 const steps = [
   ["You speak", "Enter a real scenario — job interview, pitch, negotiation — and respond as you would in the room."],
@@ -243,6 +245,8 @@ async function fetchPractitionerCount(): Promise<number | null> {
 }
 
 export default function Home() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [practitionerCount, setPractitionerCount] = useState<number | null>(null);
 
@@ -282,6 +286,15 @@ export default function Home() {
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
+  function startFree(location: string) {
+    track.ctaClicked(location);
+    if (user) {
+      router.push("/practice");
+      return;
+    }
+    openAuth("signup");
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-white text-slate-950 dark:bg-[#07111f] dark:text-white">
       <AmbientBackground />
@@ -309,7 +322,7 @@ export default function Home() {
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.24 }} className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <button
               type="button"
-              onClick={() => { track.ctaClicked("hero_start_free"); openAuth("signup"); }}
+              onClick={() => startFree("hero_start_free")}
               className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
               Start Rehearsing Free
@@ -605,7 +618,7 @@ export default function Home() {
               note: "Forever free",
               features: ["5 sessions per month", "Beginner & Intermediate modes", "Basic session report"],
               cta: "Start free",
-              href: "/?auth=signup",
+              href: user ? "/practice" : "/?auth=signup",
               featured: false,
             },
             {
@@ -658,7 +671,7 @@ export default function Home() {
           <div className="mt-8">
             <button
               type="button"
-              onClick={() => { track.ctaClicked("bottom_start_free"); openAuth("signup"); }}
+              onClick={() => startFree("bottom_start_free")}
               className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
               Start Rehearsing Free

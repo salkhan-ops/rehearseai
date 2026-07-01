@@ -93,8 +93,10 @@ function fallbackProfile(user: User): AppUserProfile {
       allowLocalSignalTelemetry: false,
       allowRawVideoStorage: false,
     },
-    ageConfirmed: false,
-    minorConsentAcknowledged: false,
+    // Assume confirmed in fallback — the real value is in Firestore; if the write
+    // failed we don't want to block the user with the age-check wall on every load.
+    ageConfirmed: true,
+    minorConsentAcknowledged: true,
   };
 }
 
@@ -124,16 +126,23 @@ async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, fe
   try {
     const userRef = doc(db, "users", user.uid);
     const existing = await getDoc(userRef);
+    const isNewUser = !existing.exists();
     const existingData = existing.exists() ? existing.data() : {};
+    // For existing users, NEVER overwrite role/planId/planName/status — the
+    // Firestore security rule blocks changes to these fields from the client.
+    // Only include them in the write when creating a brand-new document.
+    const protectedFields = isNewUser ? {
+      role: "user",
+      planId: "free",
+      planName: "Free",
+      status: "active",
+    } : {};
     const profile = {
       uid: user.uid,
       email: user.email,
       displayName: user.displayName,
       photoURL: user.photoURL,
-      role: existingData.role || "user",
-      planId: existingData.planId || "free",
-      planName: existingData.planName || "Free",
-      status: existingData.status || "active",
+      ...protectedFields,
       createdAt: existingData.createdAt || serverTimestamp(),
       updatedAt: serverTimestamp(),
       lastLoginAt: serverTimestamp(),
@@ -160,10 +169,10 @@ async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, fe
       email: user.email,
       displayName: user.displayName,
       photoURL: user.photoURL,
-      role: profile.role,
-      planId: profile.planId,
-      planName: profile.planName,
-      status: profile.status,
+      role: (existingData.role || "user") as "user" | "admin",
+      planId: existingData.planId || "free",
+      planName: existingData.planName || "Free",
+      status: (existingData.status || "active") as AppUserProfile["status"],
       preferredPracticeLanguage: profile.preferredPracticeLanguage,
       preferredFeedbackLanguage: profile.preferredFeedbackLanguage,
       privacySettings: profile.privacySettings,

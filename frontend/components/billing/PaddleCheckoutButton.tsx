@@ -50,12 +50,17 @@ export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label
     );
   }
 
-  // Not logged in — send to signup first so we have a real UID for the webhook
+  // Not logged in — open the auth dialog in-place so the user never leaves the
+  // pricing page. After signing in, they click upgrade again to open checkout.
   if (!user) {
     return (
-      <Link href="/?auth=signup" className={className}>
+      <button
+        type="button"
+        className={className}
+        onClick={() => window.dispatchEvent(new CustomEvent("rehearseai:auth", { detail: "signup" }))}
+      >
         {children}
-      </Link>
+      </button>
     );
   }
 

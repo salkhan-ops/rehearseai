@@ -7,10 +7,12 @@ export function AuthDialog({
   mode,
   onClose,
   onModeChange,
+  onAuthenticated,
 }: {
   mode: AuthMode | null;
   onClose: () => void;
   onModeChange: (mode: AuthMode) => void;
+  onAuthenticated?: () => void;
 }) {
   if (!mode) {
     return null;
@@ -29,7 +31,7 @@ export function AuthDialog({
           <X size={18} />
         </button>
         <div className="max-h-[92vh] overflow-y-auto rounded-[1.5rem]">
-          <AuthForm mode={mode} onModeChange={onModeChange} />
+          <AuthForm mode={mode} onModeChange={onModeChange} onAuthenticated={onAuthenticated} />
         </div>
       </div>
     </div>

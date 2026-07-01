@@ -15,7 +15,22 @@ const nextConfig = {
   },
   turbopack: {
     root: frontendRoot
-  }
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            // Allow Google Sign-in popup to communicate back to the parent window.
+            // "same-origin" (Next.js default) blocks cross-origin popups like Google Auth.
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

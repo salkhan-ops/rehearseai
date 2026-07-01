@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, CheckCircle2, ChevronDown, Clock, PartyPopper, Sparkles, Zap } from "lucide-react";
 import { Nav } from "@/components/Nav";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
+import { AuthDialog } from "@/components/auth/AuthDialog";
+import type { AuthMode } from "@/components/auth/AuthForm";
 import { PaddleCheckoutButton } from "@/components/billing/PaddleCheckoutButton";
 import { defaultCoursePackages, defaultPlans, getCoursePackages, getPublicPlans, type CoursePackage, type Plan } from "@/lib/admin";
 import { useAuth } from "@/lib/auth";
@@ -68,10 +70,21 @@ export default function PricingPage() {
   const [packages, setPackages] = useState<CoursePackage[]>(defaultCoursePackages.filter((p) => p.isActive));
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
 
   useEffect(() => {
     getPublicPlans().then(setPlans).catch(() => undefined);
     getCoursePackages().then(setPackages).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    function onAuthRequest(event: Event) {
+      const requestedMode = (event as CustomEvent<AuthMode>).detail;
+      setAuthMode(requestedMode === "signin" || requestedMode === "forgot" ? requestedMode : "signup");
+    }
+
+    window.addEventListener("rehearseai:auth", onAuthRequest);
+    return () => window.removeEventListener("rehearseai:auth", onAuthRequest);
   }, []);
 
   useEffect(() => {
@@ -90,6 +103,7 @@ export default function PricingPage() {
   }, []);
 
   return (
+    <>
     <main className="cog-bg min-h-screen text-primary-token">
       <Nav />
       <AnimatedPage className="mx-auto max-w-6xl px-4 py-14">
@@ -250,5 +264,12 @@ export default function PricingPage() {
         </div>
       </AnimatedPage>
     </main>
+    <AuthDialog
+      mode={authMode}
+      onClose={() => setAuthMode(null)}
+      onModeChange={setAuthMode}
+      onAuthenticated={() => setAuthMode(null)}
+    />
+    </>
   );
 }

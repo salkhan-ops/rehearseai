@@ -174,7 +174,17 @@ export function Nav() {
                 {loading ? "..." : "Sign in"}
               </Link>
             )}
-            <Link href="/?auth=signup" onClick={() => { track.ctaClicked("nav_start_free"); openAuth("signup"); }} className="rounded-2xl bg-[#6200a8] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b]">
+            <Link
+              href={user ? "/practice" : "/?auth=signup"}
+              onClick={(event) => {
+                track.ctaClicked(user ? "nav_practice_now" : "nav_start_free");
+                if (!user) {
+                  event.preventDefault();
+                  openAuth("signup");
+                }
+              }}
+              className="rounded-2xl bg-[#6200a8] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
+            >
               Start free
             </Link>
           </div>
