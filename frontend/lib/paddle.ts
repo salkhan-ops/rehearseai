@@ -27,10 +27,12 @@ export async function getPaddle(): Promise<Paddle | undefined> {
 export async function openCheckout(priceId: string, uid?: string, customerEmail?: string): Promise<boolean> {
   const paddle = await getPaddle();
   if (!paddle || !priceId) return false;
+  console.log("[Paddle] opening checkout", { priceId, uid, customerEmail, env: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT });
   paddle.Checkout.open({
     items: [{ priceId, quantity: 1 }],
     ...(customerEmail ? { customer: { email: customerEmail } } : {}),
-    customData: uid ? { uid } : undefined,
+    // Only pass customData when we have a real authenticated user ID
+    ...(uid && uid !== "guest" ? { customData: { uid } } : {}),
     settings: { displayMode: "overlay", theme: "dark" },
   });
   return true;

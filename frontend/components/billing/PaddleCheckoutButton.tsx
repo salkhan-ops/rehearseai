@@ -50,6 +50,15 @@ export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label
     );
   }
 
+  // Not logged in — send to signup first so we have a real UID for the webhook
+  if (!user) {
+    return (
+      <Link href="/?auth=signup" className={className}>
+        {children}
+      </Link>
+    );
+  }
+
   if (!priceId) {
     return (
       <Link href={fallbackHref} className={className}>
