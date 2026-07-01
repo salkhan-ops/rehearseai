@@ -7,6 +7,7 @@ import { Nav } from "@/components/Nav";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { PaddleCheckoutButton } from "@/components/billing/PaddleCheckoutButton";
 import { defaultCoursePackages, defaultPlans, getCoursePackages, getPublicPlans, type CoursePackage, type Plan } from "@/lib/admin";
+import { useAuth } from "@/lib/auth";
 
 const stakeLabel: Record<CoursePackage["stakeLevel"], string> = {
   high: "High stakes",
@@ -61,6 +62,8 @@ const faqs = [
 ];
 
 export default function PricingPage() {
+  const { profile } = useAuth();
+  const currentPlanId = profile?.planId ?? null;
   const [plans, setPlans] = useState<Plan[]>(defaultPlans.filter((p) => p.isPublic && p.isActive));
   const [packages, setPackages] = useState<CoursePackage[]>(defaultCoursePackages.filter((p) => p.isActive));
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -139,12 +142,16 @@ export default function PricingPage() {
                     </li>
                   ))}
                 </ul>
-                {plan.priceMonthly === 0 ? (
+                {currentPlanId === plan.planId ? (
+                  <div className="mt-8 flex items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-5 py-3.5 text-center font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/20">
+                    <CheckCircle2 size={16} className="shrink-0" /> Your current plan
+                  </div>
+                ) : plan.priceMonthly === 0 ? (
                   <Link
                     href="/practice"
-                    className={`mt-8 block w-full rounded-2xl px-5 py-3.5 text-center font-semibold transition hover:-translate-y-0.5 surface-medium text-primary-token ring-1 ring-[var(--border-soft)]`}
+                    className="mt-8 block w-full rounded-2xl px-5 py-3.5 text-center font-semibold transition hover:-translate-y-0.5 surface-medium text-primary-token ring-1 ring-[var(--border-soft)]"
                   >
-                    {ctaLabel(plan)}
+                    {currentPlanId && currentPlanId !== "free" ? "Switch to Free" : ctaLabel(plan)}
                   </Link>
                 ) : (
                   <PaddleCheckoutButton
@@ -153,7 +160,7 @@ export default function PricingPage() {
                     label={plan.name}
                     className={`mt-8 block w-full rounded-2xl px-5 py-3.5 text-center font-semibold transition hover:-translate-y-0.5 disabled:opacity-60 ${plan.isFeatured ? "bg-[var(--accent-primary)] text-white shadow-[0_18px_42px_rgba(109,40,217,0.24)]" : "surface-medium text-primary-token ring-1 ring-[var(--border-soft)]"}`}
                   >
-                    {ctaLabel(plan)}
+                    {currentPlanId && currentPlanId !== "free" ? `Switch to ${plan.name}` : ctaLabel(plan)}
                   </PaddleCheckoutButton>
                 )}
               </div>
@@ -199,8 +206,16 @@ export default function PricingPage() {
                     label={pkg.title}
                     className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-[var(--accent-primary)] px-5 py-3 text-center font-semibold text-white transition hover:-translate-y-0.5 disabled:opacity-60"
                   >
-                    {pkg.paddlePriceId ? "Buy now" : "Get access"} <ArrowRight size={16} />
+                    {currentPlanId && currentPlanId !== "free"
+                      ? <>Buy separately <ArrowRight size={16} /></>
+                      : <>{pkg.paddlePriceId ? "Buy now" : "Get access"} <ArrowRight size={16} /></>
+                    }
                   </PaddleCheckoutButton>
+                  {currentPlanId && currentPlanId !== "free" && (
+                    <p className="mt-2 text-center text-xs font-medium text-secondary-token">
+                      One-time purchase — sessions are in addition to your subscription.
+                    </p>
+                  )}
                 </div>
               </AnimatedCard>
             ))}

@@ -220,12 +220,34 @@ class FirestoreService:
                     "categoryPerformance": {analytics.sessionId: analytics.metrics.reasoningQuality},
                     "growthMetrics": analytics.historicalInsights,
                     "recurringWeaknesses": analytics.heatmapData,
+                    # Append real per-session scores for genuine trend calculation
+                    f"sessionScores.{analytics.sessionId}": {
+                        "sessionId": analytics.sessionId,
+                        "confidence": analytics.metrics.confidence,
+                        "clarity": analytics.metrics.clarity,
+                        "reasoning": analytics.metrics.reasoningQuality,
+                        "composure": analytics.metrics.emotionalComposure,
+                        "persuasion": analytics.metrics.persuasiveness,
+                        "overall": round((analytics.metrics.confidence + analytics.metrics.clarity + analytics.metrics.reasoningQuality + analytics.metrics.emotionalComposure + analytics.metrics.persuasiveness) / 5, 1),
+                        "createdAt": analytics.createdAt,
+                    },
                     "updatedAt": analytics.createdAt,
                 },
                 merge=True,
             )
+            # Track per-session completed dates for real streak calculation
+            self.client.collection("historicalPerformance").document(analytics.userId).set(
+                {"completedDates": firestore.ArrayUnion([analytics.createdAt[:10]])},
+                merge=True,
+            )
         self.analytics[analytics.id] = analytics
         return analytics
+
+    async def get_historical_performance(self, user_id: str) -> dict:
+        if self.client:
+            doc = self.client.collection("historicalPerformance").document(user_id).get()
+            return doc.to_dict() or {}
+        return {}
 
     async def get_analytics_by_report(self, report: Report) -> Optional[PerformanceAnalytics]:
         for analytics in self.analytics.values():
@@ -256,7 +278,7 @@ class FirestoreService:
                 "allowTelemetry": True,
                 "allowModelImprovement": True,
                 "allowRawAudioStorage": False,
-                "allowCameraAssistedTiming": False,
+                "allowCameraAssistedTiming": True,
                 "allowLocalSignalTelemetry": False,
                 "allowRawVideoStorage": False,
             }),
@@ -282,7 +304,7 @@ class FirestoreService:
             "allowTelemetry": True,
             "allowModelImprovement": True,
             "allowRawAudioStorage": False,
-            "allowCameraAssistedTiming": False,
+            "allowCameraAssistedTiming": True,
             "allowLocalSignalTelemetry": False,
             "allowRawVideoStorage": False,
         }

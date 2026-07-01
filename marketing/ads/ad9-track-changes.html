@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080, initial-scale=1">
+<title>Ad 9 — Track Changes · 1080×1350</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { background:#0c0c0f; }
+  body { font-family:Arial, Helvetica, sans-serif; }
+  .stage { width:1080px; height:1350px; margin:0 auto; overflow:hidden; position:relative; background:#f7cd3a; color:#171512; }
+
+  /* Doc-editor chrome — instantly reads as "a real document," not an ad */
+  .toolbar { height:88px; padding:0 50px; display:flex; align-items:center; justify-content:space-between; background:#171512; color:#eee9df; }
+  .file { display:flex; align-items:center; gap:12px; font-size:18px; font-weight:700; }
+  .file-dot { width:10px; height:10px; border-radius:50%; background:#e8401f; }
+  .file-name { opacity:.65; font-weight:500; }
+  .mode-pill { display:flex; align-items:center; gap:10px; padding:9px 16px; border-radius:100px; background:rgba(255,255,255,0.1); font-size:13px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+  .mode-dot { width:8px; height:8px; border-radius:50%; background:#e8401f; animation:blink 1s steps(2,end) infinite; }
+
+  .copy { padding:46px 54px 0; }
+  .kicker { display:flex; align-items:center; gap:14px; font-size:15px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; color:#e8401f; }
+  .kicker:before { content:""; width:38px; height:4px; background:#e8401f; }
+  h1 { max-width:880px; margin-top:18px; font-family:Georgia, 'Times New Roman', serif; font-size:62px; line-height:1.0; letter-spacing:-2.5px; font-weight:700; }
+  h1 em { font-style:italic; color:#e8401f; }
+
+  /* The document card — kept narrower than the stage so the margin comment has
+     room to sit fully inside the canvas instead of being clipped by overflow:hidden */
+  .doc {
+    position:relative; margin:36px 0 0 54px; width:730px; min-height:600px;
+    background:#fffdf9; border:2px solid #171512; box-shadow:14px 14px 0 #171512;
+    padding:40px 44px 110px;
+    animation:land .6s cubic-bezier(.2,.9,.25,1) both;
+  }
+  .doc-label { font-size:13px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; color:#8a8378; padding-bottom:14px; border-bottom:2px solid #e7e1d4; }
+  .doc-q { margin-top:22px; font-family:Georgia, serif; font-size:27px; font-weight:bold; line-height:1.3; }
+  .doc-a { margin-top:20px; font-size:23px; line-height:1.65; }
+  .strike { color:#a39c8f; text-decoration:line-through; text-decoration-color:#e8401f; text-decoration-thickness:2.5px; }
+  .insert { display:inline; color:#15803d; font-weight:700; text-decoration:underline; text-decoration-color:#b9f64a; text-decoration-thickness:3px; text-underline-offset:3px; }
+
+  /* Margin comment, like a real suggestion thread */
+  .comment {
+    position:absolute; right:-250px; top:340px; width:270px; z-index:5;
+    background:#fffdf9; border:2px solid #171512; box-shadow:8px 8px 0 #171512;
+    padding:18px 20px; opacity:0; animation:popIn .5s ease 1.1s both;
+  }
+  .comment-head { display:flex; align-items:center; gap:9px; font-size:13px; font-weight:900; }
+  .avatar { width:26px; height:26px; border-radius:50%; background:#171512; color:#eee9df; display:grid; place-items:center; font-size:11px; font-weight:900; }
+  .comment-body { margin-top:10px; font-size:17px; line-height:1.4; font-weight:600; color:#35302a; }
+  .comment-actions { margin-top:14px; display:flex; gap:8px; }
+  .comment-actions span { padding:6px 12px; border:2px solid #171512; font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.04em; }
+  .accept { background:#b9f64a; }
+  .reject { background:#eee9df; color:#8a8378; }
+
+  /* Bottom-of-doc status strip */
+  .doc-status { position:absolute; left:46px; right:46px; bottom:34px; padding-top:18px; border-top:2px solid #e7e1d4; display:flex; justify-content:space-between; font-size:14px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; color:#8a8378; }
+  .doc-status b { color:#15803d; }
+
+  /* Verdict strip — fills the space between the document and the footer with a
+     real beat (the outcome of the edit) instead of empty canvas. */
+  .verdict { margin:54px 54px 0; display:flex; align-items:center; gap:26px; }
+  .verdict-side { flex:1; border:2px solid #171512; padding:22px 26px; }
+  .verdict-side.bad { background:#e7e1d4; color:#6b6357; }
+  .verdict-side.good { background:#b9f64a; color:#171512; }
+  .verdict-tag { font-size:13px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; opacity:.65; }
+  .verdict-word { margin-top:6px; font-family:Georgia, serif; font-size:30px; font-weight:bold; }
+  .verdict-arrow { font-size:34px; font-weight:900; color:#e8401f; }
+
+  .footer { position:absolute; z-index:4; left:0; right:0; bottom:0; height:158px; padding:32px 54px; background:#e8401f; color:#1c0c06; display:flex; align-items:center; justify-content:space-between; }
+  .footer-copy { font-family:Georgia, serif; font-size:28px; font-weight:bold; line-height:1.14; max-width:600px; }
+  .cta { display:flex; align-items:center; gap:14px; padding:21px 28px; background:#171512; color:#fff9ed; font-size:21px; font-weight:900; text-decoration:none; }
+  .cta span { font-size:26px; line-height:1; }
+
+  @keyframes land { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes popIn { from { opacity:0; transform:translateY(10px) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
+  @keyframes blink { 50% { opacity:.15; } }
+  @media (prefers-reduced-motion:reduce) { * { animation:none!important; } }
+</style>
+</head>
+<body>
+<main class="stage">
+  <div class="toolbar">
+    <div class="file"><span class="file-dot"></span> Interview Prep <span class="file-name">— Draft 1</span></div>
+    <div class="mode-pill"><span class="mode-dot"></span> Suggesting</div>
+  </div>
+
+  <section class="copy">
+    <div class="kicker">What feedback actually looks like</div>
+    <h1>Your answer needs<br>a red pen,<br><em>not a pep talk.</em></h1>
+  </section>
+
+  <article class="doc">
+    <div class="doc-label">RehearseAI · Live Transcript</div>
+    <div class="doc-q">"Why should we hire you?"</div>
+    <p class="doc-a">
+      <span class="strike">"So basically, I think I'm, like, a pretty hard worker and I try my best to help out whenever stuff comes up."</span><br><br>
+      <span class="insert">"I caught a $40K billing bug before launch by pairing QA with engineering a sprint early — that's what 'whenever stuff comes up' means to me."</span>
+    </p>
+    <div class="doc-status"><span>Edits</span><b>1 accepted</b></div>
+
+    <div class="comment">
+      <div class="comment-head"><span class="avatar">AI</span> RehearseAI</div>
+      <div class="comment-body">Cut the vague claim. Replace it with the specific story — name the number.</div>
+      <div class="comment-actions"><span class="accept">✓ Accept</span><span class="reject">✕ Dismiss</span></div>
+    </div>
+  </article>
+
+  <div class="verdict">
+    <div class="verdict-side bad"><div class="verdict-tag">What they hear</div><div class="verdict-word">Forgettable</div></div>
+    <div class="verdict-arrow">→</div>
+    <div class="verdict-side good"><div class="verdict-tag">What they remember</div><div class="verdict-word">You.</div></div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-copy">Nobody ships the first draft.<br>Don't interview with one.</div>
+    <a class="cta" href="https://rehearseai.dev/">Get your redline <span>→</span></a>
+  </footer>
+</main>
+</body>
+</html>
+
+<!--
+FACEBOOK CAMPAIGN COPY
+PRIMARY TEXT: The gap between your okay answer and your best one usually isn't talent — it's that nobody marked up the first draft. RehearseAI listens to your real answer, tells you exactly which line is vague and what to say instead, and lets you run it back until the specific version is the one that comes out under pressure.
+HEADLINE: Your answer needs a red pen, not a pep talk.
+DESCRIPTION: Real-time feedback on what you actually said.
+CTA: Sign Up
+FORMAT: 1080×1350 (4:5) · Facebook/Instagram Feed
+-->

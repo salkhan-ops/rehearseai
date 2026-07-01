@@ -14,8 +14,32 @@ def clamp(value: float) -> int:
 FILLER_WORDS = {"um", "uh", "like", "basically", "actually", "just", "sort of", "kind of", "maybe"}
 
 
+def _compute_streak(completed_dates: list[str]) -> int:
+    """Count consecutive calendar days ending today from a list of ISO date strings."""
+    if not completed_dates:
+        return 0
+    from datetime import date, timedelta
+    unique = sorted(set(completed_dates), reverse=True)
+    streak = 0
+    expected = date.today()
+    for day_str in unique:
+        try:
+            day = date.fromisoformat(day_str)
+        except ValueError:
+            continue
+        if day == expected or day == expected - timedelta(days=1) and streak == 0:
+            streak += 1
+            expected = day - timedelta(days=1)
+        elif day == expected:
+            streak += 1
+            expected = day - timedelta(days=1)
+        else:
+            break
+    return max(1, streak)
+
+
 class AnalyticsService:
-    def build(self, session: Session, report: Report, messages: list[Message], previous_sessions_count: int = 0) -> PerformanceAnalytics:
+    def build(self, session: Session, report: Report, messages: list[Message], previous_sessions_count: int = 0, historical: dict | None = None) -> PerformanceAnalytics:
         user_messages = [message for message in messages if message.role == "user"]
         if not user_messages:
             user_messages = [Message(id="synthetic", role="user", content=session.goal, createdAt=session.createdAt)]
@@ -113,14 +137,26 @@ class AnalyticsService:
             {"weakness": "Unsupported claims", "frequency": max(1, 5 - structure_bonus // 3), "severity": 100 - metrics.reasoningQuality},
             {"weakness": "Over-explaining", "frequency": clamp(avg_words / 12), "severity": 100 - metrics.brevityEfficiency},
             {"weakness": "Pressure recovery", "frequency": 3 if session.difficulty == "Brutal" else 1, "severity": 100 - metrics.recoveryAfterPressure},
-            {"weakness": "Vague evidence", "frequency": 4, "severity": 100 - metrics.intellectualDepth},
-            {"weakness": "Missed framing", "frequency": 3, "severity": 100 - metrics.responseStructure},
+            {"weakness": "Vague evidence", "frequency": max(1, vague_count), "severity": 100 - metrics.intellectualDepth},
+            {"weakness": "Missed framing", "frequency": max(1, max(0, len(user_messages) - structure_bonus)), "severity": 100 - metrics.responseStructure},
         ]
 
-        trend_data = [
-            {"session": f"S{max(1, previous_sessions_count - 3 + index)}", "overall": clamp(mean([m[1] for m in radar_metrics]) - (4 - index) * 3), "reasoning": clamp(metrics.reasoningQuality - (4 - index) * 2)}
-            for index in range(1, 6)
-        ]
+        # Use real stored session scores when available; fall back to honest "not enough data" stub
+        session_scores = historical.get("sessionScores") if historical else None
+        current_overall = round(mean([m[1] for m in radar_metrics]), 1)
+        if session_scores and len(session_scores) >= 2:
+            sorted_scores = sorted(session_scores.values(), key=lambda x: x.get("createdAt", ""))
+            trend_data = [
+                {
+                    "session": f"S{i + 1}",
+                    "overall": clamp(s.get("overall", current_overall)),
+                    "reasoning": clamp(s.get("reasoning", metrics.reasoningQuality)),
+                }
+                for i, s in enumerate(sorted_scores[-5:])
+            ]
+        else:
+            # Not enough history yet — only show current session, no fabricated prior points
+            trend_data = [{"session": "This session", "overall": clamp(current_overall), "reasoning": clamp(metrics.reasoningQuality)}]
 
         tree = ReasoningTree(
             id=str(uuid4()),
@@ -142,22 +178,55 @@ class AnalyticsService:
             createdAt=utc_now_iso(),
         )
 
-        replay_items = [
-            {
+        def _replay_for_turn(index: int, message: Message) -> dict:
+            words = message.content.split()
+            word_count = len(words)
+            text = message.content.lower()
+            has_evidence = any(w in text for w in ["because", "example", "measured", "result", "data", "evidence", "specifically"])
+            has_filler = sum(text.count(w) for w in FILLER_WORDS) > 2
+            is_long = word_count > 55
+            is_short = word_count < 15
+            turn_pressure = clamp(100 - (timeline_data[index - 1]["performance"] if index <= len(timeline_data) else 70))
+
+            if is_long and not has_evidence:
+                analysis = "Long answer without a clear proof point — the listener may disengage before the conclusion."
+                concise = "Lead with one claim, back it with one specific example, then stop."
+                persuasive = "Add a concrete outcome: 'I did X, and the result was Y.'"
+            elif is_short:
+                analysis = "Very brief — you may have the right instinct but not enough support to land it."
+                concise = "This is already tight. Try adding one fact to anchor the claim."
+                persuasive = "Expand with one example or a number to make this stick."
+            elif has_filler and not has_evidence:
+                analysis = "Filler words and no evidence — this is the pattern that signals uncertainty to an interviewer."
+                concise = "Cut the hedge words. State the claim directly, then support it."
+                persuasive = "Replace one 'basically' or 'kind of' with a specific fact."
+            elif has_evidence:
+                analysis = "Good — you backed the claim with something specific. This is the strongest pattern."
+                concise = "Already well-structured. Could tighten by removing any trailing qualifiers."
+                persuasive = "This answer is close to its strongest form. Add one measurable outcome if you can."
+            else:
+                analysis = "Reasonable answer but the claim is unsupported — the listener can agree or disagree without evidence."
+                concise = "State the claim in one sentence, then add one example in the next."
+                persuasive = "Specificity beats repetition — replace a general point with a real case."
+
+            pressure_state = "under pressure" if turn_pressure > 50 else "stable"
+            turning_point = "The question needed evidence before more framing." if not has_evidence else "Strong moment — you gave the listener something to hold onto."
+
+            return {
                 "turn": index,
                 "response": message.content,
-                "analysis": "This answer is strongest when it moves from claim to evidence to outcome.",
-                "pressureState": "stable" if len(message.content.split()) < 50 else "rushed",
-                "criticalMoment": "Potential over-explaining under pressure." if len(message.content.split()) > 55 else "Controlled response window.",
-                "decisionTurningPoint": "The listener needed proof before more explanation.",
-                "betterConcise": "I would frame it as problem, action, and measurable result.",
-                "morePersuasive": "The strongest proof is a specific example where I delivered under similar constraints.",
-                "executiveStyle": "The decision comes down to risk reduction, speed, and measurable impact.",
-                "technicalVersion": "I would define the constraint, isolate the assumption, test it, and report the metric movement.",
-                "emotionallyIntelligent": "I hear the concern. I would clarify the risk first, then answer directly.",
+                "analysis": analysis,
+                "pressureState": pressure_state,
+                "criticalMoment": f"Turn {index}: {analysis.split('—')[0].strip()}",
+                "decisionTurningPoint": turning_point,
+                "betterConcise": concise,
+                "morePersuasive": persuasive,
+                "executiveStyle": "Lead with the outcome, then the action that produced it." if not is_short else "This length is executive-ready. Add one number.",
+                "technicalVersion": "Define the constraint, state your action, report the metric." if not has_evidence else "Already specific — good technical clarity.",
+                "emotionallyIntelligent": "Acknowledge the concern first, then answer with evidence." if turn_pressure > 45 else "Composed delivery — reinforce with a concrete example.",
             }
-            for index, message in enumerate(user_messages[:5], start=1)
-        ]
+
+        replay_items = [_replay_for_turn(i, m) for i, m in enumerate(user_messages[:5], start=1)]
         pressure_stability = clamp(mean([item["stability"] for item in pressure_data]) if pressure_data else metrics.emotionalComposure)
         emotional_recovery = clamp(mean([item["recovery"] for item in pressure_data]) if pressure_data else metrics.recoveryAfterPressure)
         resilience_score = clamp((pressure_stability + emotional_recovery + metrics.handlingInterruptions) / 3)
@@ -203,14 +272,14 @@ class AnalyticsService:
                 "overExplanationRisk": clamp(max(0, avg_words - 42) * 2.4),
             },
             benchmarkMetrics={
-                "clarityPercentile": clamp(metrics.clarity - 4 + previous_sessions_count),
-                "reasoningPercentile": clamp(metrics.reasoningQuality - 2 + previous_sessions_count),
-                "pressureHandlingPercentile": clamp(resilience_score - 3 + previous_sessions_count),
+                "clarityScore": metrics.clarity,
+                "reasoningScore": metrics.reasoningQuality,
+                "pressureHandlingScore": resilience_score,
                 "topPerformerGap": clamp(88 - mean([metrics.clarity, metrics.reasoningQuality, resilience_score])),
                 "benchmarkNotes": [
-                    "Top performers answer with fewer unsupported claims.",
-                    "High performers recover from interruptions before adding detail.",
-                    "Benchmarks are anonymized and never expose private user data.",
+                    "Top performers lead with evidence before conclusions.",
+                    "High performers recover from interruptions without over-explaining.",
+                    "These scores are based on your session only — cross-user benchmarks are not yet available.",
                 ],
             },
             adaptivePersona={
@@ -236,15 +305,13 @@ class AnalyticsService:
                 "createdAt": utc_now_iso(),
             },
             progression={
-                "streak": min(30, max(1, previous_sessions_count + 1)),
+                "streak": _compute_streak(historical.get("completedDates", []) if historical else []),
+                "totalSessions": previous_sessions_count + 1,
                 "skillLevel": "Strategic Operator" if resilience_score >= 82 else "Pressure Builder" if resilience_score >= 70 else "Foundation",
-                "confidenceEvolution": clamp(metrics.confidence - 65),
-                "reasoningEvolution": clamp(metrics.reasoningQuality - 65),
-                "communicationIntelligenceGrowth": clamp(mean([metrics.clarity, metrics.directness, metrics.brevityEfficiency]) - 65),
                 "achievements": [
-                    "Handled interruption without losing clarity" if metrics.handlingInterruptions > 72 else "Completed pressure simulation",
-                    f"Improved logical consistency by {max(1, metrics.logicalConsistency - 68)}%",
-                    f"Completed {session.difficulty} {session.practiceType} level 1",
+                    "Handled interruption without losing clarity" if metrics.handlingInterruptions > 72 else "Completed a full pressure simulation",
+                    f"{'Backed claims with evidence' if evidence_count > 2 else 'Identified evidence as the next focus area'}",
+                    f"Completed {session.difficulty} difficulty — {session.practiceType}",
                 ],
             },
             shareHighlights={
@@ -277,10 +344,14 @@ class AnalyticsService:
             replayItems=replay_items,
             decisionTrees=[tree],
             historicalInsights=[
-                f"Confidence is tracking {max(0, metrics.confidence - 70)} points above the baseline for this scenario.",
-                "Reasoning quality improves when answers use evidence before conclusions.",
-                "Brevity is the highest leverage improvement area if responses exceed 45 words.",
+                f"Your confidence score this session: {metrics.confidence}/100{'. That is above your recent average.' if historical and metrics.confidence > historical.get('rollingAverages', {}).get('confidence', 0) else '.'}",
+                f"{'Filler words appeared ' + str(filler_count) + ' times — cutting this below 3 is the fastest clarity win.' if filler_count > 3 else 'Low filler word count — strong signal of composure.'}",
+                f"{'Average answer length was ' + str(round(avg_words)) + ' words — target 30–45 for maximum clarity.' if avg_words > 45 or avg_words < 20 else 'Answer length is in the ideal 20–45 word range.'}",
             ],
-            milestones=["Complete 3 sessions this week", "Reach 85+ reasoning quality", "Reduce over-explaining for two sessions in a row"],
+            milestones=[
+                f"Reduce filler words below 3 in your next session" if filler_count > 3 else "Keep filler words under control — you are close to the top",
+                f"Back every claim with one specific example" if evidence_count < 3 else "Add a measurable outcome to at least one answer",
+                f"Reach {min(100, metrics.reasoningQuality + 8)}+ on reasoning quality" if metrics.reasoningQuality < 85 else "Maintain reasoning quality above 85 for 3 sessions in a row",
+            ],
             createdAt=utc_now_iso(),
         )

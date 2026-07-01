@@ -195,6 +195,22 @@ async def admin_remove_admin(uid: str, request: Request):
     return await request.app.state.store.admin_set_role(uid, "user")
 
 
+@router.delete("/api/admin/users/{uid}")
+async def admin_delete_user(uid: str, request: Request):
+    """Soft-delete: marks status=removed in Firestore and purges in-memory entry."""
+    await require_admin_mvp()
+    store = request.app.state.store
+    before = await store.admin_get_user(uid) or {}
+    if store.client:
+        store.client.collection("users").document(uid).set(
+            {"status": "removed", "removedAt": __import__("datetime").datetime.utcnow().isoformat()},
+            merge=True,
+        )
+    store.admin_users.pop(uid, None)
+    await log_action(request, "delete user", "user", uid, before=before, after={"status": "removed"})
+    return {"deleted": uid}
+
+
 @router.get("/api/admin/users/ghosts")
 async def detect_ghost_users(request: Request):
     await require_admin_mvp()

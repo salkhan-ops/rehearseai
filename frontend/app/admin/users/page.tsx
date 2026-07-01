@@ -7,7 +7,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { AdminSearchBar } from "@/components/admin/AdminSearchBar";
 import { AssignPlanModal } from "@/components/admin/AssignPlanModal";
 import { UserDetailPanel } from "@/components/admin/UserDetailPanel";
-import { AdminUser, deleteGhostSessions, detectGhostSessions, getPlans, getUsers, Plan, setUserAdmin } from "@/lib/admin";
+import { AdminUser, deleteGhostSessions, detectGhostSessions, getPlans, getUsers, pauseUser, Plan, removeUser, setUserAdmin } from "@/lib/admin";
 
 type GhostState = { phase: "idle" } | { phase: "detecting" } | { phase: "confirm"; count: number; uids: string[] } | { phase: "deleting" } | { phase: "done"; deleted: number };
 
@@ -21,6 +21,7 @@ export default function AdminUsersPage() {
   const [selected, setSelected] = useState<AdminUser | null>(null);
   const [assigning, setAssigning] = useState<AdminUser | null>(null);
   const [ghost, setGhost] = useState<GhostState>({ phase: "idle" });
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   const refresh = () => getUsers().then(setUsers);
   useEffect(() => { refresh(); getPlans().then(setPlans); }, []);
@@ -103,11 +104,32 @@ export default function AdminUsersPage() {
               <div className="text-sm font-medium text-slate-500">{user.planName || "Free"} • {user.status || "active"}</div>
               <div className="text-sm font-semibold">{user.role || "user"}</div>
               <Link href="/admin/assign-plan" onClick={(event) => event.stopPropagation()} className="text-sm font-semibold text-[#476bff]">Legacy assign</Link>
-              <span className="flex gap-2">
+              <span className="flex flex-wrap gap-2">
                 <button type="button" onClick={async (event) => { event.stopPropagation(); setAssigning(user); }} className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold ring-1 ring-slate-200">Assign</button>
                 <button type="button" onClick={async (event) => { event.stopPropagation(); await setUserAdmin(user.uid, user.role !== "admin"); refresh(); }} className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold ring-1 ring-slate-200">
                   {user.role === "admin" ? "Remove admin" : "Make admin"}
                 </button>
+                <button
+                  type="button"
+                  onClick={async (event) => { event.stopPropagation(); await pauseUser(user.uid, user.status !== "disabled"); refresh(); }}
+                  className={`rounded-xl px-3 py-2 text-sm font-semibold ring-1 ${user.status === "disabled" ? "bg-amber-50 text-amber-700 ring-amber-200 hover:bg-amber-100" : "bg-slate-50 ring-slate-200 hover:bg-slate-100"}`}
+                >
+                  {user.status === "disabled" ? "Unpause" : "Pause"}
+                </button>
+                {confirmRemove === user.uid ? (
+                  <span className="flex gap-1">
+                    <button type="button" onClick={async (event) => { event.stopPropagation(); await removeUser(user.uid); setConfirmRemove(null); refresh(); }} className="rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700">
+                      Confirm remove
+                    </button>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); setConfirmRemove(null); }} className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold ring-1 ring-slate-200">
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <button type="button" onClick={(event) => { event.stopPropagation(); setConfirmRemove(user.uid); }} className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-red-600 ring-1 ring-red-200 hover:bg-red-50">
+                    Remove
+                  </button>
+                )}
               </span>
             </div>
           ))}

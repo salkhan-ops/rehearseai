@@ -119,8 +119,9 @@ class GeminiService:
         report: Report,
         history: list[Message],
         previous_sessions_count: int = 0,
+        historical: dict | None = None,
     ) -> PerformanceAnalytics:
-        fallback = AnalyticsService().build(session, report, history, previous_sessions_count)
+        fallback = AnalyticsService().build(session, report, history, previous_sessions_count, historical or {})
         if not self.enabled or self.report_model is None:
             return fallback
         try:

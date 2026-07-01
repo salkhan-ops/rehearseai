@@ -26,6 +26,15 @@ export function ProtectedRoute({ children, adminOnly = false }: { children: Reac
 
   if (loading || !user) return <div className="px-4 py-12 text-center font-semibold text-slate-600 dark:text-white/60">Checking access...</div>;
   if (!profile?.ageConfirmed) return <div className="px-4 py-12 text-center font-semibold text-slate-600 dark:text-white/60">Checking age eligibility...</div>;
+  if (profile?.status === "disabled" || profile?.status === "removed") {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-12 text-center">
+        <div className="rounded-[1.5rem] bg-amber-50 p-6 font-semibold text-amber-800 ring-1 ring-amber-100 dark:bg-amber-400/10 dark:text-amber-200 dark:ring-amber-400/20">
+          Your account has been suspended. Contact support if you think this is a mistake.
+        </div>
+      </div>
+    );
+  }
   if (adminOnly && !isAdmin) {
     return (
       <div className="mx-auto max-w-xl px-4 py-12 text-center">

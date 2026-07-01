@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080, initial-scale=1">
+<title>Ad 8 — Same Question, Two Versions · 1080×1080</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { background:#111; }
+  body { font-family:Arial, Helvetica, sans-serif; }
+  .stage { width:1080px; height:1080px; margin:0 auto; overflow:hidden; position:relative; background:#f6f1e8; color:#101d39; }
+  .head { height:150px; padding:40px 50px 28px; border-bottom:3px solid #101d39; display:flex; justify-content:space-between; align-items:flex-start; }
+  .brand { font-size:22px; font-weight:1000; letter-spacing:-.8px; }
+  .headline { font-size:39px; line-height:.93; font-weight:1000; letter-spacing:-2px; text-transform:uppercase; text-align:right; }
+  .headline span { color:#fb4f3d; }
+  .question { height:100px; padding:27px 50px; font-family:Georgia, serif; font-size:31px; font-style:italic; font-weight:bold; text-align:center; border-bottom:3px solid #101d39; }
+  .split { height:665px; display:grid; grid-template-columns:1fr 1fr; }
+  .side { position:relative; padding:38px 40px; overflow:hidden; }
+  .side.left { background:#d9d4cc; border-right:3px solid #101d39; color:#61646c; }
+  .side.right { background:#3558f4; color:#fff; }
+  .label { display:inline-flex; gap:9px; align-items:center; padding:9px 13px; border:2px solid currentColor; font-size:14px; font-weight:1000; letter-spacing:1.5px; text-transform:uppercase; }
+  .x, .check { width:20px; height:20px; display:grid; place-items:center; border-radius:50%; font-size:14px; }
+  .x { background:#61646c; color:#d9d4cc; }
+  .check { background:#b9f64a; color:#101d39; }
+  .portrait { height:150px; margin-top:27px; display:flex; justify-content:center; align-items:flex-end; }
+  .head-shape { width:86px; height:86px; border-radius:50%; position:relative; }
+  .left .head-shape { background:#96989d; }
+  .right .head-shape { background:#ffb59f; }
+  .body-shape { position:absolute; width:160px; height:80px; margin-top:73px; border-radius:80px 80px 0 0; }
+  .left .body-shape { background:#96989d; }
+  .right .body-shape { background:#101d39; }
+  .sweat { position:absolute; width:13px; height:22px; border-radius:50% 50% 50% 0; background:#4e79db; right:-21px; top:17px; transform:rotate(-25deg); }
+  .wave { height:52px; margin:30px 0 24px; display:flex; align-items:center; justify-content:center; gap:7px; }
+  .wave i { display:block; width:7px; height:var(--h); background:currentColor; border-radius:5px; animation:pulse 1s ease-in-out infinite alternate; animation-delay:var(--d); }
+  .left .wave { opacity:.45; }
+  .transcript { min-height:145px; font-size:23px; line-height:1.35; font-weight:800; }
+  .left .transcript { filter:blur(.25px); }
+  .right .transcript strong { color:#b9f64a; }
+  .result { position:absolute; left:40px; right:40px; bottom:35px; padding-top:19px; border-top:2px solid currentColor; font-size:16px; font-weight:1000; letter-spacing:1px; text-transform:uppercase; display:flex; justify-content:space-between; }
+  .left .result b { text-decoration:line-through; }
+  .right .result b { color:#b9f64a; }
+  .footer { height:165px; border-top:3px solid #101d39; padding:30px 50px; display:flex; align-items:center; justify-content:space-between; background:#f6f1e8; }
+  .footer-copy { font-size:25px; line-height:1.1; font-weight:1000; letter-spacing:-1px; }
+  .footer-copy span { color:#fb4f3d; }
+  .cta { background:#b9f64a; color:#101d39; border:3px solid #101d39; box-shadow:7px 7px 0 #101d39; padding:20px 25px; font-size:20px; font-weight:1000; text-decoration:none; }
+  @keyframes pulse { to { transform:scaleY(.4); } }
+  @media (prefers-reduced-motion:reduce) { * { animation:none!important; } }
+</style>
+</head>
+<body>
+<main class="stage">
+  <header class="head"><div class="brand">REHEARSE<span style="color:#fb4f3d">AI</span></div><h1 class="headline">Same question.<br><span>Two versions of you.</span></h1></header>
+  <div class="question">“Why should we hire you?”</div>
+  <section class="split">
+    <article class="side left">
+      <div class="label"><span class="x">×</span> Winged it</div>
+      <div class="portrait"><div class="body-shape"></div><div class="head-shape"><span class="sweat"></span></div></div>
+      <div class="wave"><i style="--h:14px;--d:.1s"></i><i style="--h:27px;--d:.3s"></i><i style="--h:12px;--d:.2s"></i><i style="--h:33px;--d:.5s"></i><i style="--h:18px;--d:.1s"></i><i style="--h:10px;--d:.4s"></i></div>
+      <p class="transcript">“I’m a hard worker and, um, I think I’d be a really good fit for the culture…”</p>
+      <div class="result"><span>Signal</span><b>Generic</b></div>
+    </article>
+    <article class="side right">
+      <div class="label"><span class="check">✓</span> Rehearsed it</div>
+      <div class="portrait"><div class="body-shape"></div><div class="head-shape"></div></div>
+      <div class="wave"><i style="--h:24px;--d:.1s"></i><i style="--h:41px;--d:.3s"></i><i style="--h:30px;--d:.2s"></i><i style="--h:50px;--d:.5s"></i><i style="--h:35px;--d:.1s"></i><i style="--h:22px;--d:.4s"></i></div>
+      <p class="transcript">“You need someone who can turn unclear goals into shipped work. <strong>That’s the pattern across my last three launches.</strong>”</p>
+      <div class="result"><span>Signal</span><b>Specific</b></div>
+    </article>
+  </section>
+  <footer class="footer">
+    <div class="footer-copy">Confidence isn't a personality trait.<br><span>It's a previous attempt.</span></div>
+    <a class="cta" href="https://rehearseai.dev/">Meet version two →</a>
+  </footer>
+</main>
+</body>
+</html>
+
+<!--
+FACEBOOK CAMPAIGN COPY
+PRIMARY TEXT: Confidence can look like talent from the outside. Usually, it's repetition. RehearseAI lets you answer realistic questions out loud, hear where you drift, and take another run until your strongest answer is the one that shows up.
+HEADLINE: Meet the version of you who rehearsed.
+DESCRIPTION: Practice out loud. Get feedback. Go again.
+CTA: Sign Up
+FORMAT: 1080×1080 (1:1) · Facebook/Instagram Feed
+-->

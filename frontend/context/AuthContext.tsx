@@ -24,7 +24,7 @@ export type AppUserProfile = {
   role: "user" | "admin";
   planId: string;
   planName: string;
-  status: "active" | "trialing" | "past_due" | "cancelled";
+  status: "active" | "trialing" | "past_due" | "cancelled" | "disabled" | "removed";
   preferredPracticeLanguage: LanguageCode;
   preferredFeedbackLanguage: LanguageCode;
   privacySettings: {
@@ -88,7 +88,7 @@ function fallbackProfile(user: User): AppUserProfile {
       allowTelemetry: true,
       allowModelImprovement: true,
       allowRawAudioStorage: false,
-      allowCameraAssistedTiming: false,
+      allowCameraAssistedTiming: true,
       allowLocalSignalTelemetry: false,
       allowRawVideoStorage: false,
     },
@@ -142,7 +142,7 @@ async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, fe
         allowTelemetry: true,
         allowModelImprovement: true,
         allowRawAudioStorage: false,
-        allowCameraAssistedTiming: false,
+        allowCameraAssistedTiming: true,
         allowLocalSignalTelemetry: false,
         allowRawVideoStorage: false,
       },

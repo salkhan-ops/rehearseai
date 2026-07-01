@@ -44,5 +44,8 @@ async def get_report_analytics(report_id: str, request: Request, current_user_id
         raise HTTPException(status_code=404, detail="Session not found")
     messages = await store.get_messages(session.id)
     previous_sessions = await store.list_user_sessions(session.userId)
-    analytics = await request.app.state.ai.generate_performance_analytics(session, report, messages, len(previous_sessions))
+    historical = await store.get_historical_performance(session.userId)
+    analytics = await request.app.state.ai.generate_performance_analytics(
+        session, report, messages, len(previous_sessions), historical
+    )
     return await store.save_analytics(analytics)

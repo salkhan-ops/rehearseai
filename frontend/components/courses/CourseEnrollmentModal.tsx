@@ -81,7 +81,7 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4 backdrop-blur-xl">
-      <div className="w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-2xl ring-1 ring-slate-200 dark:bg-[#101827] dark:ring-white/10">
+      <div className="w-full max-w-2xl overflow-y-auto max-h-[calc(100vh-2rem)] rounded-[2rem] bg-white p-6 shadow-2xl ring-1 ring-slate-200 dark:bg-[#101827] dark:ring-white/10">
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4">

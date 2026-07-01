@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080, initial-scale=1">
+<title>Ad 6 — Your First Draft, Live · 1080×1350</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { background:#191714; }
+  body { font-family:Arial, Helvetica, sans-serif; }
+  .stage {
+    width:1080px; height:1350px; margin:0 auto; overflow:hidden; position:relative;
+    background:#f2eadb; color:#171512;
+  }
+  .noise { position:absolute; inset:0; opacity:.24; background-image:radial-gradient(#171512 0.7px, transparent .8px); background-size:7px 7px; mix-blend-mode:multiply; }
+  .top { position:relative; z-index:2; height:108px; padding:34px 54px; border-bottom:3px solid #171512; display:flex; align-items:center; justify-content:space-between; }
+  .brand { font-size:24px; font-weight:900; letter-spacing:-1px; }
+  .edition { font-size:14px; font-weight:800; letter-spacing:2px; text-transform:uppercase; }
+  .issue { display:inline-block; margin-left:12px; padding:7px 11px; color:#f2eadb; background:#171512; }
+  .copy { position:relative; z-index:2; padding:54px 54px 0; }
+  .kicker { display:flex; align-items:center; gap:14px; font-size:16px; font-weight:900; letter-spacing:2px; text-transform:uppercase; color:#e53e28; }
+  .kicker:before { content:""; width:42px; height:5px; background:#e53e28; }
+  h1 { max-width:950px; margin-top:25px; font-family:Georgia, 'Times New Roman', serif; font-size:87px; line-height:.91; letter-spacing:-5px; font-weight:900; }
+  h1 em { color:#e53e28; font-style:italic; }
+  .deck { width:570px; margin-top:25px; font-size:23px; line-height:1.38; font-weight:700; }
+  .paper {
+    position:absolute; z-index:3; width:720px; height:430px; left:180px; top:710px;
+    background:#fffdfa; border:2px solid #171512; box-shadow:18px 18px 0 #171512; padding:42px 48px;
+    transform:rotate(-1.4deg); animation:land .7s cubic-bezier(.2,.9,.25,1) both;
+  }
+  .paper-head { display:flex; justify-content:space-between; padding-bottom:16px; border-bottom:2px solid #171512; font-size:13px; font-weight:900; letter-spacing:1.5px; text-transform:uppercase; }
+  .question { margin-top:30px; font-family:Georgia, serif; font-size:31px; line-height:1.18; font-weight:bold; }
+  .answer { margin-top:28px; font-size:23px; line-height:1.55; color:#35302a; }
+  .answer .bad { position:relative; color:#777068; }
+  .answer .bad:after { content:""; position:absolute; height:4px; left:-3px; right:-3px; top:52%; background:#e53e28; transform:rotate(-2deg); }
+  .rewrite { display:inline; color:#166534; font-weight:900; border-bottom:3px solid #74a66a; }
+  .margin-note { position:absolute; right:-78px; top:225px; width:180px; color:#e53e28; font-family:'Comic Sans MS', cursive; font-size:22px; font-weight:bold; transform:rotate(7deg); }
+  .arrow { position:absolute; right:-38px; top:187px; width:85px; height:45px; border-top:4px solid #e53e28; transform:rotate(18deg); }
+  .arrow:after { content:""; position:absolute; left:-3px; top:-11px; width:17px; height:17px; border-left:4px solid #e53e28; border-bottom:4px solid #e53e28; transform:rotate(-35deg); }
+  .stamp { position:absolute; left:-115px; bottom:28px; border:5px double #e53e28; color:#e53e28; padding:14px 18px 10px; font-size:22px; font-weight:900; letter-spacing:2px; text-transform:uppercase; transform:rotate(-10deg); }
+  .footer { position:absolute; z-index:4; left:0; right:0; bottom:0; height:150px; padding:34px 54px; background:#e53e28; color:#fff9ed; display:flex; align-items:center; justify-content:space-between; }
+  .footer-copy { font-family:Georgia, serif; font-size:29px; font-weight:bold; line-height:1.12; }
+  .cta { display:flex; align-items:center; gap:15px; padding:21px 28px; background:#171512; color:#fff; font-size:21px; font-weight:900; text-decoration:none; }
+  .cta span { font-size:28px; line-height:1; }
+  @keyframes land { from { opacity:0; transform:translateY(45px) rotate(-4deg); } to { opacity:1; transform:translateY(0) rotate(-1.4deg); } }
+  @media (prefers-reduced-motion:reduce) { * { animation:none!important; } }
+</style>
+</head>
+<body>
+<main class="stage">
+  <div class="noise"></div>
+  <header class="top">
+    <div class="brand">REHEARSE<span style="color:#e53e28">AI</span></div>
+    <div class="edition">Career survival guide <span class="issue">No. 06</span></div>
+  </header>
+  <section class="copy">
+    <div class="kicker">A small workplace tragedy</div>
+    <h1>Your first draft<br>shouldn't happen<br><em>out loud.</em></h1>
+    <p class="deck">The answer in your head always sounds better. Rehearse it, hear it, sharpen it—before the room goes quiet.</p>
+  </section>
+  <article class="paper">
+    <div class="paper-head"><span>Interview rehearsal / take 03</span><span>RehearseAI</span></div>
+    <div class="question">“Tell me about a time you led through ambiguity.”</div>
+    <p class="answer"><span class="bad">“So, yeah… there were a lot of moving parts…”</span><br><span class="rewrite">“I aligned three teams around one measurable decision: cut scope, ship Friday, learn Monday.”</span></p>
+    <div class="arrow"></div><div class="margin-note">Lead with the decision.</div>
+    <div class="stamp">Rehearsed</div>
+  </article>
+  <footer class="footer">
+    <div class="footer-copy">Messy here.<br>Ready in the room.</div>
+    <a class="cta" href="https://rehearseai.dev/">Start free at rehearseai.dev <span>→</span></a>
+  </footer>
+</main>
+</body>
+</html>
+
+<!--
+FACEBOOK CAMPAIGN COPY
+PRIMARY TEXT: Your best interview answer probably won't arrive perfectly formed under fluorescent lighting. RehearseAI gives you a place to say the awkward first version, get actionable feedback, and try again—before the interview counts.
+HEADLINE: Your first draft shouldn't happen live.
+DESCRIPTION: Practice difficult answers out loud with AI.
+CTA: Sign Up
+FORMAT: 1080×1350 (4:5) · Facebook/Instagram Feed
+-->

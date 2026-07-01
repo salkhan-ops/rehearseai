@@ -807,6 +807,17 @@ export async function setUserAdmin(uid: string, admin: boolean) {
   await updateDoc(doc(db, "users", uid), { role: admin ? "admin" : "user", updatedAt: serverTimestamp() });
 }
 
+export async function pauseUser(uid: string, pause: boolean) {
+  return adminRequest(`/api/admin/users/${uid}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: pause ? "disabled" : "active" }),
+  });
+}
+
+export async function removeUser(uid: string) {
+  return adminRequest(`/api/admin/users/${uid}`, { method: "DELETE" });
+}
+
 export async function assignPlan(uid: string, plan: Plan, status: string, overrides: Partial<Entitlements> = {}, trialEndsAt = "") {
   try {
     await adminRequest(`/api/admin/users/${uid}/assign-plan`, {

@@ -65,7 +65,7 @@ const defaultPrivacySettings: PrivacySettings = {
   allowTelemetry: true,
   allowModelImprovement: true,
   allowRawAudioStorage: false,
-  allowCameraAssistedTiming: false,
+  allowCameraAssistedTiming: true,
   allowLocalSignalTelemetry: false,
   allowRawVideoStorage: false,
 };
@@ -164,7 +164,7 @@ export default function SessionPage() {
   const [visualMode, setVisualMode] = useState<EnvironmentMode>("AI Orb");
   const [conversationMode, setConversationMode] = useState<ConversationMode>("natural");
   const [voiceMode, setVoiceMode] = useState(false);
-  const [cameraAssistedTiming, setCameraAssistedTiming] = useState(false);
+  const [cameraAssistedTiming, setCameraAssistedTiming] = useState(true);
   const [adaptiveMode, setAdaptiveMode] = useState(false);
   const [immersiveOpen, setImmersiveOpen] = useState(false);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(profile?.privacySettings || defaultPrivacySettings);

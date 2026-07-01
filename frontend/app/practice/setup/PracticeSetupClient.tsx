@@ -173,7 +173,7 @@ function SetupForm() {
       allowTelemetry: true,
       allowModelImprovement: true,
       allowRawAudioStorage: false,
-      allowCameraAssistedTiming: false,
+      allowCameraAssistedTiming: true,
       allowLocalSignalTelemetry: false,
       allowRawVideoStorage: false as const,
     };
