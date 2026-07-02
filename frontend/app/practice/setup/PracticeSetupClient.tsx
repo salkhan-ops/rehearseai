@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Bell, BookOpen, CalendarClock, Check, Clock, Sparkles, Target, UsersRound, Zap } from "lucide-react";
 import { Suspense } from "react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth";
 import { getCourseConfig } from "@/lib/courseConfig";
 import { canUsePracticeType, getDailyDocUsage, getUserEntitlements, getSessionUsage, incrementDailyDocCount, type UsageInfo } from "@/lib/entitlements";
 import { sessionHref } from "@/lib/routes";
+import { trackLead } from "@/lib/metaPixel";
 import { updateTelemetryConsent } from "@/lib/telemetry";
 import type { LanguageCode } from "@/lib/languages";
 import { difficulties, Difficulty, environmentModes, nerveEntryTypes, nervePersonas, practiceTypes, PracticeType, visaTypes, type VisaType } from "@/lib/types";
@@ -117,6 +118,7 @@ function SetupForm() {
   // Skip environment / briefing / ready steps for brand-new users — they just
   // want to start. Steps 3-5 are available on every subsequent session.
   const isFirstSession = params.get("first") === "true";
+  const leadTrackedRef = useRef(false);
   const [step, setStep] = useState(1);
   const [practiceType, setPracticeType] = useState<PracticeType>((params.get("type") as PracticeType) || "Job Interview");
   const [visaType, setVisaType] = useState<VisaType>("Visitor / Business (B-1/B-2)");
@@ -149,6 +151,12 @@ function SetupForm() {
   const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>("en");
   const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>("en");
   const [cameraAssistedTiming, setCameraAssistedTiming] = useState(Boolean(profile?.privacySettings?.allowCameraAssistedTiming));
+
+  useEffect(() => {
+    if (!isFirstSession || leadTrackedRef.current) return;
+    leadTrackedRef.current = true;
+    trackLead();
+  }, [isFirstSession]);
 
   useEffect(() => {
     getUserEntitlements(userId).then((e) => {

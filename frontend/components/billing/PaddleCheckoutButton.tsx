@@ -8,6 +8,27 @@ import { getFirebaseDb } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth";
 import { openCheckout } from "@/lib/paddle";
 import { track } from "@/lib/analytics";
+import { trackInitiateCheckout, trackPurchase } from "@/lib/metaPixel";
+
+type PaddleCompletionData = {
+  id?: string;
+  transaction_id?: string;
+  currency_code?: string;
+  totals?: { total?: string | number; currency_code?: string };
+};
+
+function paddlePurchase(data?: PaddleCompletionData) {
+  if (!data) return null;
+  const currency = data.currency_code || data.totals?.currency_code || "USD";
+  const minorAmount = Number(data.totals?.total);
+  if (!Number.isFinite(minorAmount)) return null;
+  const zeroDecimal = new Set(["JPY", "KRW", "VND"]);
+  return {
+    value: zeroDecimal.has(currency.toUpperCase()) ? minorAmount : minorAmount / 100,
+    currency,
+    transactionId: data.transaction_id || data.id,
+  };
+}
 
 interface Props {
   priceId?: string;
@@ -26,13 +47,18 @@ export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label
   useEffect(() => {
     function resolveEvent(outcome: "completed" | "abandoned") {
       const id = pendingEventId.current;
-      if (!id) return;
+      if (!id) return null;
       pendingEventId.current = null;
       const db = getFirebaseDb();
-      if (!db) return;
-      updateDoc(doc(db, "checkoutEvents", id), { outcome }).catch(() => undefined);
+      if (db) updateDoc(doc(db, "checkoutEvents", id), { outcome }).catch(() => undefined);
+      return id;
     }
-    const onComplete = () => { resolveEvent("completed"); track.checkoutCompleted(priceId ?? ""); };
+    const onComplete = (event: Event) => {
+      if (!resolveEvent("completed")) return;
+      track.checkoutCompleted(priceId ?? "");
+      const purchase = paddlePurchase((event as CustomEvent<PaddleCompletionData>).detail);
+      if (purchase) trackPurchase(purchase.value, purchase.currency, purchase.transactionId);
+    };
     const onClosed = () => resolveEvent("abandoned");
     window.addEventListener("paddle:payment-complete", onComplete);
     window.addEventListener("paddle:checkout-closed", onClosed);
@@ -75,6 +101,7 @@ export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label
   async function handleClick() {
     setLoading(true);
     track.checkoutInitiated(priceId ?? "", label ?? "");
+    pendingEventId.current = `local-${Date.now()}`;
     try {
       const db = getFirebaseDb();
       if (db) {
@@ -92,7 +119,11 @@ export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label
       // non-fatal — don't block checkout
     }
     const launched = await openCheckout(priceId!, userId ?? undefined, user?.email ?? undefined);
-    if (!launched) router.push(fallbackHref);
+    if (launched) trackInitiateCheckout({ content_ids: priceId!, content_name: label || "RehearseAI checkout" });
+    if (!launched) {
+      pendingEventId.current = null;
+      router.push(fallbackHref);
+    }
     setLoading(false);
   }
 

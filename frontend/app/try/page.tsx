@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import { Nav } from "@/components/Nav";
 import { createSession } from "@/lib/api";
 import { track } from "@/lib/analytics";
+import { useAuth } from "@/lib/auth";
 
 const QUICK_STARTS = [
   {
@@ -33,16 +34,22 @@ const QUICK_STARTS = [
 
 export default function TryPage() {
   const router = useRouter();
+  const { getToken, loading: authLoading, profile, user, userId } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function startGuestSession(type: string, context: string, goal: string) {
+  async function startQuickSession(type: string, context: string, goal: string) {
+    if (!user) {
+      router.push("/?auth=signup&returnTo=/try");
+      return;
+    }
     setLoading(true);
     setError("");
-    track.ctaClicked("guest_try_" + type.toLowerCase().replace(/\s/g, "_"));
+    track.ctaClicked("quick_try_" + type.toLowerCase().replace(/\s/g, "_"));
     try {
+      const token = await getToken();
       const session = await createSession({
-        userId: "guest",
+        userId,
         practiceType: type as never,
         difficulty: "Intermediate",
         topic: type,
@@ -53,10 +60,10 @@ export default function TryPage() {
         durationPreference: 10,
         environmentMode: "AI Orb",
         preferredConversationMode: "natural",
-      });
-      router.push(`/session/${session.id}?guest=true`);
-    } catch {
-      setError("Could not start the session — please try again.");
+      }, token);
+      router.push(`/session/${session.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start the session — please try again.");
       setLoading(false);
     }
   }
@@ -66,13 +73,15 @@ export default function TryPage() {
       <Nav />
       <div className="mx-auto max-w-2xl px-4 py-20 text-center">
         <p className="inline-flex items-center gap-2 rounded-full surface-low px-4 py-2 text-sm font-semibold text-secondary-token">
-          No account needed · 1 free session
+          {user ? "Quick practice · saved to your account" : "Free account required · no card needed"}
         </p>
         <h1 className="mt-6 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-primary-token md:text-6xl">
           Pick a scenario.<br />Start talking.
         </h1>
         <p className="mx-auto mt-5 max-w-lg text-lg font-medium leading-7 text-secondary-token">
-          The AI will respond, challenge, and score you — exactly as it does for full members. No card, no email.
+          {user
+            ? "Choose a scenario and go straight into a saved practice session."
+            : "Create a free account to protect your session, save your report, and track progress."}
         </p>
 
         <div className="mt-10 grid gap-4">
@@ -80,8 +89,8 @@ export default function TryPage() {
             <button
               key={type}
               type="button"
-              disabled={loading}
-              onClick={() => startGuestSession(type, context, goal)}
+              disabled={loading || authLoading}
+              onClick={() => startQuickSession(type, context, goal)}
               className="flex items-center justify-between rounded-[1.5rem] surface-high p-6 text-left ring-1 ring-[var(--border-soft)] transition hover:-translate-y-0.5 hover:ring-[var(--accent-primary)] disabled:opacity-50"
             >
               <div className="flex items-center gap-4">
@@ -106,12 +115,17 @@ export default function TryPage() {
           </p>
         )}
 
-        <p className="mt-8 text-sm font-medium text-secondary-token">
-          Want to save your results and track progress?{" "}
-          <a href="/?auth=signup" className="font-semibold text-[var(--accent-primary)] underline underline-offset-2">
-            Create a free account
-          </a>
-        </p>
+        {user ? (
+          <p className="mt-8 text-sm font-medium text-secondary-token">
+            Results will be saved to {profile?.displayName || user.displayName || "your account"}.{" "}
+            <a href="/history" className="font-semibold text-[var(--accent-primary)] underline underline-offset-2">View session history</a>
+          </p>
+        ) : (
+          <p className="mt-8 text-sm font-medium text-secondary-token">
+            Already have an account?{" "}
+            <a href="/?auth=signin&returnTo=/try" className="font-semibold text-[var(--accent-primary)] underline underline-offset-2">Sign in</a>
+          </p>
+        )}
 
         {/* What to expect — reduces cold-start anxiety before the first session */}
         <div className="mt-14 rounded-[1.75rem] surface-low p-6 text-left ring-1 ring-[var(--border-soft)]">

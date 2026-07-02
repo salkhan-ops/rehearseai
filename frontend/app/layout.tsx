@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Suspense } from "react";
+import { MetaPixel } from "@/components/analytics/MetaPixel";
 import { AuthProvider } from "@/context/AuthContext";
 import { CookieConsent } from "@/components/CookieConsent";
 import "reactflow/dist/style.css";
@@ -31,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
+        <Suspense fallback={null}><MetaPixel /></Suspense>
         {GA_ID && (
           <>
             <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />

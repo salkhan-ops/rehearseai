@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, CalendarClock, ChevronDown, Download, Flame, Lightbulb, Lock, TrendingUp } from "lucide-react";
 import { RadarPerformanceChart } from "@/components/analytics/RadarPerformanceChart";
 import { ImprovementTrendChart } from "@/components/analytics/ImprovementTrendChart";
@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth";
 import { isRtlLanguage } from "@/lib/languages";
 import type { PerformanceAnalytics, Report, SessionHint } from "@/lib/types";
 import { SessionReplayTimeline } from "@/components/report/SessionReplayTimeline";
+import { trackCustom } from "@/lib/metaPixel";
 
 function ReportAmbient() {
   return (
@@ -45,6 +46,7 @@ export default function ReportPage() {
   const [hints, setHints] = useState<SessionHint[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [deepOpen, setDeepOpen] = useState(false);
+  const feedbackViewedRef = useRef(false);
   const { getToken, profile } = useAuth();
   const isPro = Boolean(profile?.planId && profile.planId !== "free");
 
@@ -55,7 +57,15 @@ export default function ReportPage() {
       const [nextReport, nextAnalytics] = await Promise.all([getReport(id, token), getReportAnalytics(id, token)]);
       const nextHints = await getSessionHints(nextReport.sessionId, token).catch(() => []);
       return [nextReport, nextAnalytics, nextHints] as const;
-    }).then(([r, a, h]) => { setReport(r); setAnalytics(a); setHints(h); });
+    }).then(([r, a, h]) => {
+      setReport(r);
+      setAnalytics(a);
+      setHints(h);
+      if (!feedbackViewedRef.current) {
+        feedbackViewedRef.current = true;
+        trackCustom("FeedbackViewed", { report_id: r.id, session_id: r.sessionId });
+      }
+    });
   }, [id, getToken]);
 
   if (!report || !analytics) {

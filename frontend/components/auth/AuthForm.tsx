@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { Check, Mail, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { track } from "@/lib/analytics";
+import { trackCompleteRegistration } from "@/lib/metaPixel";
 import type { LanguageCode } from "@/lib/languages";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { GoogleSignInButton } from "./GoogleSignInButton";
@@ -91,6 +92,7 @@ export function AuthForm({
           privacyAccepted,
         });
         track.signupCompleted("email");
+        trackCompleteRegistration();
         setVerifyState({ email, password });
       }
     } catch (err) {
@@ -110,7 +112,10 @@ export function AuthForm({
         mode === "signup" ? feedbackLanguage : undefined,
         mode === "signup" ? { ageConfirmed, minorConsentAcknowledged, termsAccepted, privacyAccepted } : undefined,
       );
-      if (mode === "signup") track.signupCompleted("google");
+      if (mode === "signup") {
+        track.signupCompleted("google");
+        trackCompleteRegistration();
+      }
       else track.signinCompleted();
       await routeAfterLogin();
     } catch (err) {

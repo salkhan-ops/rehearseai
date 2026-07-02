@@ -47,6 +47,7 @@ import { environmentModes } from "@/lib/types";
 import type { ConversationControl, ConversationMode, EnvironmentMode, Message, Session, SessionHint } from "@/lib/types";
 import type { PauseFusionDecision } from "@/lib/local-signals/types";
 import { track } from "@/lib/analytics";
+import { trackCustom } from "@/lib/metaPixel";
 
 type OrbMode = "idle" | "listening" | "thinking" | "speaking" | "pressure" | "error";
 
@@ -188,6 +189,7 @@ export default function SessionPage() {
   const naturalDeepgramFinalReceivedRef = useRef(false);
   const isFinalizingTurnRef = useRef(false);
   const sessionActiveRef = useRef(true);
+  const metaSessionStartedRef = useRef(false);
   const speakWasInterruptedRef = useRef(false);
   // Conversation/turn-taking debug logs are dev-only — gated on NODE_ENV in addition to the
   // NEXT_PUBLIC_DEBUG_* flags so a stray env var can never surface them on the live website.
@@ -1300,6 +1302,22 @@ export default function SessionPage() {
     finish();
   }, [durationMinutes, loading, seconds, session]);
 
+  function trackMetaSessionStart() {
+    if (metaSessionStartedRef.current || !session) return;
+    metaSessionStartedRef.current = true;
+    const params = { practice_type: session.practiceType, difficulty: session.difficulty };
+    const eventName = session.practiceType === "U.S. Visa Interview"
+      ? "VisaInterviewStarted"
+      : session.practiceType === "Salary Negotiation"
+        ? "SalaryNegotiationStarted"
+        : session.practiceType === "Thesis Defense"
+          ? "ThesisDefenseStarted"
+          : session.practiceType === "Job Interview"
+            ? "InterviewStarted"
+            : null;
+    if (eventName) trackCustom(eventName, params);
+  }
+
   async function submitContent(
     content: string,
     fromVoice = false,
@@ -1313,6 +1331,7 @@ export default function SessionPage() {
     } = {},
   ) {
     if (!content.trim()) return;
+    trackMetaSessionStart();
     const submitEmotion = naturalMetricsRef.current.speechEmotion;
     setError("");
     setAutoSubmitNotice(fromVoice ? "Checking whether to wait..." : "");
@@ -1553,6 +1572,7 @@ export default function SessionPage() {
     setConversationMode("natural");
     setVoiceMode(true);
     track.sessionStarted(session?.practiceType ?? "unknown", session?.difficulty ?? "unknown");
+    trackMetaSessionStart();
     if (debugSessionLog) {
       sessionLoggerRef.current = createSessionLogger(id);
       setDebugLogFile(sessionLoggerRef.current.file);
@@ -1660,6 +1680,7 @@ export default function SessionPage() {
       if (session) {
         await sendSessionOutcome(outcomeFromReport({ ...session, status: "completed" }, report, seconds), token).catch(() => undefined);
         track.sessionCompleted(session.practiceType, session.turnCount || 0);
+        trackCustom("SessionCompleted", { practice_type: session.practiceType, turn_count: session.turnCount || 0 });
       }
       if (isGuestMode) {
         // Guest users see a preview overlay — not the full report (which requires auth).

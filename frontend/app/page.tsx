@@ -317,7 +317,7 @@ export default function Home() {
             >
               Start Rehearsing Free
             </button>
-            <a href="/try" onClick={() => track.ctaClicked("hero_try_guest")} className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/80 px-7 py-4 text-base font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-white dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">Try without signing up</a>
+            <a href="/try" onClick={() => track.ctaClicked("hero_quick_practice")} className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/80 px-7 py-4 text-base font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-white dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">Try a quick session</a>
           </motion.div>
 
           {/* Social proof strip */}
