@@ -6,14 +6,14 @@ RehearseAI is a full-stack cognitive performance training platform: adaptive pre
 
 ## Stack
 
-- **Frontend:** Next.js 15 App Router, TypeScript, Tailwind CSS, Framer Motion, Firebase JS SDK
+- **Frontend:** Next.js 16 App Router, React 19, TypeScript, Tailwind CSS, Framer Motion, Firebase JS SDK
 - **Backend:** FastAPI (Python), Firebase Admin SDK
 - **Database:** Google Firestore (native mode)
 - **AI:** Google Gemini API (flash-lite for roleplay, flash for reports), with mock fallback
 - **Voice STT:** Deepgram, proxied through FastAPI WebSocket
 - **Voice TTS:** Cartesia Sonic, proxied through FastAPI
 - **Payments:** Paddle Billing v2 (sandbox configured, production-switchable)
-- **Hosting target:** Next.js frontend (local / private), FastAPI on Google Cloud Run
+- **Hosting:** Next.js frontend and FastAPI backend on Google Cloud Run
 
 ## Architecture and standards
 
@@ -102,12 +102,15 @@ docker compose up --build
 ### Courses and intake
 
 - Custom course builder (5-step wizard: Goal / Situation / Arenas + Weak Spots / Commitment / Self-Assessment)
+- Signed-in course catalogue at `/courses/templates` uses the same active `coursePackages` and Paddle prices as `/pricing`
+- Structured 7, 14, and 21-day courses are separate one-time purchases; they are not included with Free, Pro, or Coach
 - Pre-course intake wizard (`CourseIntakeWizard`) — 3-step animated form per practice type
 - Intake answers (`IntakeAnswers`) stored on enrollment payload and feed the session AI system prompt
 - Auto-suggested difficulty from confidence + frequency + pressure self-ratings
 - Course detail page with sessions calendar, skill tree, progress, and streak stats
 - Course completion screen — banner with share button (`navigator.share` or clipboard fallback)
-- Course templates (admin-managed), enrollment via `CourseEnrollmentModal`
+- `CourseEnrollmentModal` opens Paddle checkout when needed and only creates the calendar after backend purchase verification
+- A package purchase can activate one course calendar; subsequent visits continue through **My courses** rather than creating unlimited duplicate calendars
 
 ### Progress and longitudinal tracking
 
@@ -124,11 +127,17 @@ docker compose up --build
 ### Billing — Paddle Billing v2
 
 - `openCheckout()` passes Firebase UID as Paddle `customData`
+- Free, Pro monthly/annual, and Coach monthly/annual are recurring subscription products governing session limits and premium capabilities
+- Course packages are independent one-time products priced by their configured package records (for example 7-day, 14-day, and 21-day products)
+- Pro and Coach do **not** grant course-package access
 - Backend webhook (`POST /api/payments/paddle/webhook`) handles:
   - `subscription.created/activated/updated` → assigns plan via `admin_assign_plan()`
   - `subscription.canceled` → downgrades to free, logs churn event
   - `transaction.completed` → activates course package on `userEntitlements/{uid}`
 - Frontend auto-refreshes on `paddle:payment-complete` DOM event
+- After a course payment completes, the user is returned to `/courses/templates?package=...&payment=complete` to configure and activate that exact purchase
+- `POST /api/courses/enroll-template` and `POST /api/course-sessions/{id}/start` enforce the package purchase server-side; client UI state is never sufficient authorization
+- `GET /api/courses/package-access` returns only the authenticated user's active purchased package IDs (plus admin status)
 - `BillingSection` on settings page: plan badge, session usage bar, active packages, two-phase cancel flow
 - Cancel confirmation shows feature-loss list; "Keep my plan" is primary CTA
 
@@ -211,6 +220,21 @@ PADDLE_WEBHOOK_SECRET=your_webhook_secret
 ```
 
 Configure the Paddle sandbox webhook to point at `POST /api/payments/paddle/webhook`. The Firebase UID is passed automatically via `customData`.
+
+### Commerce contract
+
+| Product | Billing model | Grants |
+| --- | --- | --- |
+| Free | No charge | Free monthly session allowance and basic features |
+| Pro | Monthly or annual subscription | Higher monthly session allowance, advanced reports, and configured Pro modes |
+| Coach | Monthly or annual subscription | Coach session allowance, pressure modes, personas, and benchmarking |
+| Course package | One-time purchase | One activation of the exact purchased 7, 14, or 21-day package |
+
+Course access is determined from `userEntitlements/{uid}.purchases[].packageId`, status, and expiry. The legacy `allowCourseTemplates` field remains in the typed entitlement schema for backward compatibility but is `false` for all plans and is not accepted by the course authorization endpoints.
+
+Signed-in users can always reach all purchasable products from the visible **Plans & courses** navigation item. The pricing page remains the canonical combined storefront; `/courses/templates` is the signed-in one-time course catalogue.
+
+Before production testing, confirm every active `coursePackages` document has the correct `paddlePriceId`. A missing price ID is displayed but cannot open checkout and falls back to support rather than granting access.
 
 ## AI cost controls
 

@@ -42,6 +42,3 @@ gcloud run deploy rehearseai-frontend \
   --allow-unauthenticated \
   --update-env-vars NEXT_PUBLIC_PAYMENTS_ENABLED=true \
   --project rehearseai-prod
-
-
-

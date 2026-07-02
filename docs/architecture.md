@@ -6,7 +6,7 @@ RehearseAI is not claiming external certification. The current posture is standa
 
 ## Executive Summary
 
-RehearseAI is a cognitive performance training platform. Users rehearse high-pressure conversations, receive AI coaching, build recurring practice routines, complete structured course programs, and review reports with 15-metric analytics. Subscriptions and course packages are sold through Paddle Billing v2 with a live webhook-driven entitlement pipeline.
+RehearseAI is a cognitive performance training platform. Users rehearse high-pressure conversations, receive AI coaching, build recurring practice routines, purchase structured course programs, and review reports with 15-metric analytics. Recurring subscriptions and one-time course packages are distinct products sold through Paddle Billing v2 with a live webhook-driven entitlement pipeline.
 
 The system has six core layers:
 
@@ -29,7 +29,7 @@ flowchart LR
   Frontend --> NaturalConv[Natural Conversation Engine\nTurn-Taking / State Machine]
   Frontend --> MediaPipe[MediaPipe Face Landmarker\nCamera-Assisted Timing]
   Frontend --> LocalML[Local Pause ML\nPause Fusion Engine]
-  Frontend --> Paddle[Paddle Checkout Overlay]
+  Frontend --> Paddle[Paddle Checkout Overlay\nSubscriptions or One-Time Courses]
 
   MediaPipe --> LocalML
   LocalML --> NaturalConv
@@ -41,6 +41,8 @@ flowchart LR
   API --> PaddleWebhook[Paddle Webhook Processor]
 
   PaddleWebhook --> FirestoreAdmin
+  FirestoreAdmin --> Entitlements[Plans and Package Purchases]
+  Entitlements --> API
 
   FirestoreAdmin --> Data[(Firestore Collections)]
   FirestoreRules --> Data
@@ -69,7 +71,8 @@ flowchart LR
 | Natural conversation engine | `frontend/lib/conversation` | Client-side state machine and turn-taking logic that decides when the user has finished speaking without requiring push-to-talk. |
 | MediaPipe face tracking | `frontend/lib/mediapipe` | Loads the MediaPipe Face Landmarker WASM model in-browser to extract face-presence and blink/gaze signals that improve turn-taking timing accuracy. |
 | Local ML signals | `frontend/lib/local-signals`, `frontend/lib/local-ml` | Pause fusion engine combining voice timing and camera signals into a single pause-intent decision. Rule-based now; designed for future ONNX/TFLite model swap. |
-| Paddle billing | `backend/app/services/paddle_service.py`, `frontend/lib/paddle.ts` | Checkout integration, webhook processing, entitlement sync, and revenue/churn event logging. |
+| Paddle billing | `backend/app/services/paddle_service.py`, `frontend/lib/paddle.ts` | Subscription and one-time checkout integration, webhook processing, purchase sync, and revenue/churn event logging. |
+| Course commerce | `frontend/app/pricing`, `frontend/app/courses/templates`, `backend/app/routes/courses.py` | Displays canonical prices, routes signed-in users to checkout, verifies exact package purchases, prevents duplicate activation, and protects course-session start. |
 | Database | Firestore | Full application state including identity, practice, courses, billing, revenue ops, telemetry, and admin logs. |
 | Security rules | `firestore.rules` | Client-side data access restrictions for user-owned and admin-only collections. |
 | ML scaffold | `backend/ml` | Offline classifier training placeholders for future consented telemetry learning. |
@@ -108,12 +111,16 @@ flowchart LR
 
 ### Courses and Intake
 
-1. User creates a course through the 5-step `CourseGenerator` wizard (Goal / Situation / Arenas + Weak Spots / Commitment / Self-Assessment) or enrolls in a course template.
-2. Before scheduling begins, `CourseIntakeWizard` collects situation context, event date, weak spots, confidence, and practice frequency through a 3-step animated form.
-3. `IntakeAnswers` (situation, eventDate, weakSpots, confidenceLevel, practiceFrequency) are stored on the course document and fed into the session AI system prompt as briefing context.
-4. Difficulty is auto-suggested from the average of confidence and frequency self-ratings.
-5. Course sessions generate practice missions over time. Users track progress, streak, and skill growth on the course detail page.
-6. When `completedSessions === totalSessions`, the course detail page renders a completion banner with a share button and a link to the progress view.
+1. A signed-in user opens **Plans & courses** or `/courses/templates`; both surfaces use active `coursePackages` records and their configured Paddle price IDs.
+2. The user chooses a specific 7, 14, or 21-day package. Free, Pro, and Coach users follow the same one-time course purchase rule; subscriptions do not authorize course packages.
+3. If the exact `packageId` is not already active, `CourseEnrollmentModal` opens Paddle checkout before course activation.
+4. Paddle's `transaction.completed` webhook appends the purchased package to `userEntitlements/{uid}.purchases`.
+5. The frontend returns to the selected package, collects intake and scheduling information, and submits the authenticated enrollment request with `packageId`.
+6. FastAPI verifies the exact active purchase, expiry, and prior activation before constructing the course calendar. A client-side success flag cannot bypass this check.
+7. Starting any package course session performs the purchase check again. Legacy unpaid template courses are therefore unable to start.
+8. Users track progress, streak, and skill growth on the course detail page. Completed programmes remain available under **My courses**.
+
+Custom-course generation is a separate product capability and does not represent a purchased fixed-duration package.
 
 ### Pre-Event Countdown
 
@@ -123,14 +130,51 @@ flowchart LR
 
 ### Billing — Paddle Webhook Pipeline
 
-1. User clicks a pricing CTA; `openCheckout(priceId, uid, email)` opens the Paddle overlay with `customData: { uid }`.
-2. After payment, Paddle fires a webhook to `POST /api/payments/paddle/webhook`.
-3. `PaddleService.process_webhook()` reads `custom_data.uid` and `event_type`:
+1. The canonical `/pricing` storefront displays recurring Free/Pro/Coach plans and separate one-time course packages. Signed-in navigation exposes it directly as **Plans & courses**.
+2. User clicks a pricing CTA; `openCheckout(priceId, uid, email)` opens the Paddle overlay with `customData: { uid }`.
+3. After payment, Paddle fires a webhook to `POST /api/payments/paddle/webhook`.
+4. `PaddleService.process_webhook()` reads `custom_data.uid`, the purchased price ID, and `event_type`:
    - `subscription.created/activated/updated` → `admin_assign_plan(uid, {...})` sets the user's plan in `userEntitlements` and writes a record to `revenueTransactions`.
    - `subscription.canceled` → downgrades to free plan, writes to `revenueTransactions` (status: canceled), and writes a detailed record to `churnEvents` including Paddle's cancellation reason and comment.
    - `transaction.completed` → finds the matching package by price ID, writes an `ArrayUnion` purchase to `userEntitlements/{uid}.purchases`, and logs to `revenueTransactions`.
-4. Any processing failure or missing UID writes a record to `webhookErrors` for admin review.
-5. The frontend `BillingSection` listens for the `paddle:payment-complete` DOM event and refreshes entitlement data after a 3-second webhook propagation delay.
+5. Any processing failure or missing UID writes a record to `webhookErrors` for admin review.
+6. Subscription assignment updates plan capabilities but never grants a one-time course package.
+7. Course checkout returns to the selected package. Enrollment retries briefly while the webhook propagates, but FastAPI remains the authority and returns HTTP 403 until the purchase exists.
+
+#### Commerce and authorization diagram
+
+```mermaid
+flowchart TD
+  SignedIn[Signed-in user] --> Store[Plans & courses / pricing]
+  Store --> Subscription{Product type}
+  Subscription -->|Pro or Coach| Recurring[Paddle recurring checkout]
+  Subscription -->|7 / 14 / 21-day course| OneTime[Paddle one-time checkout]
+  Recurring --> Webhook[Paddle webhook]
+  OneTime --> Webhook
+  Webhook -->|subscription event| PlanDoc[userEntitlements plan + capabilities]
+  Webhook -->|transaction.completed| Purchase[userEntitlements purchases + packageId]
+  Purchase --> Setup[Course intake and schedule]
+  Setup --> Enroll[POST /api/courses/enroll-template]
+  Enroll --> Verify{Exact active package purchase?}
+  Verify -->|No| Deny[403 Payment required]
+  Verify -->|Yes, unused| Calendar[Create one course calendar]
+  Calendar --> Start[Start course session]
+  Start --> VerifyAgain{Purchase still valid?}
+  VerifyAgain -->|No| Deny
+  VerifyAgain -->|Yes| Practice[Create practice session]
+  PlanDoc -. does not authorize .-> Verify
+```
+
+#### Product entitlement contract
+
+| Product | Payment | Authorization source | Course package access |
+| --- | --- | --- | --- |
+| Free | None | Plan entitlements | No |
+| Pro | Monthly/annual | Plan entitlements | No |
+| Coach | Monthly/annual | Plan entitlements | No |
+| Fixed-duration course | One-time | Active `purchases[].packageId` | Exact purchased package only |
+
+`allowCourseTemplates` is retained only as a backward-compatible schema field. It is false in plan defaults and is deliberately ignored by package-course authorization.
 
 ### Revenue and Operations Logging
 
@@ -194,6 +238,7 @@ The target security model follows least privilege and defense in depth:
 
 - **Authentication** — Firebase Auth for email/password, Google sign-in, password reset, and identity tokens.
 - **Authorization** — Firestore rules for direct client reads/writes; backend/admin authorization for privileged APIs.
+- **Commerce authorization** — course enrollment and course-session start require an authenticated Firebase UID and a server-verified active purchase for the exact package ID. Subscription plan flags and frontend state cannot grant course access.
 - **Secrets** — API keys stay in backend `.env`, Cloud Run environment variables, or Secret Manager. Frontend variables are limited to `NEXT_PUBLIC_*` values.
 - **Data ownership** — users read their own sessions, reports, entitlements, courses, schedules, and history.
 - **Admin isolation** — admin-only collections and APIs manage billing metadata, entitlements, plans, logs, contact messages, templates, safety events, revenue, and churn.
@@ -291,7 +336,7 @@ flowchart TB
 
 Production targets:
 
-- Frontend: local/private testing at `http://localhost:3000`
+- Frontend: Next.js service on Google Cloud Run (`https://rehearseai.dev`)
 - Backend: `https://rehearseai-backend-805488057071.us-central1.run.app`
 - Repository: `https://github.com/salkhan-ops/rehearseai`
 - Google Cloud project: `rehearseai-prod`
