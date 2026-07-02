@@ -775,6 +775,11 @@ export async function savePlan(plan: Plan) {
 }
 
 export async function getUsers() {
+  try {
+    return await adminRequest<AdminUser[]>("/api/admin/users");
+  } catch {
+    // Local-only fallback when the admin backend is not running.
+  }
   const db = dbOrThrow();
   const snapshot = await getDocs(query(collection(db, "users"), where("email", "!=", null)));
   return snapshot.docs.map((item) => item.data() as AdminUser);

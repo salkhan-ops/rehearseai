@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Product } from "@/lib/admin";
 
 function listFromText(value: string) {
@@ -10,6 +10,7 @@ function listFromText(value: string) {
 export function ProductEditor({ product, onSave }: { product: Product; onSave: (product: Product) => Promise<void> }) {
   const [draft, setDraft] = useState(product);
   const [saving, setSaving] = useState(false);
+  useEffect(() => setDraft(product), [product]);
   return (
     <div className="rounded-[1.25rem] bg-white p-5 shadow-[0_14px_38px_rgba(35,45,75,0.045)] ring-1 ring-slate-200/75">
       <div className="grid gap-3 md:grid-cols-3">

@@ -134,57 +134,46 @@ function IntelligenceModule({ type }: { type: PracticeType }) {
   );
 }
 
-const DEMO_TURNS = [
-  { role: "ai",   text: "Walk me through a time you had to make a high-stakes decision with incomplete information." },
-  { role: "user", text: "I once had to set a product roadmap when we only had data from 40% of our target users." },
-  { role: "ai",   text: "That's vague. What specifically was missing — and what happened when you launched anyway?" },
-  { role: "user", text: "We were missing churn data for enterprise accounts. We launched, hit 87% of Q3 target — but lost two enterprise clients in month two." },
-  { role: "ai",   text: "So 87% on revenue, but 100% on churn risk you didn't see coming. Why did you proceed without that data?" },
-];
-
-function LiveConversationDemo() {
+function VideoConversationOverlay() {
   return (
-    <div className="overflow-hidden rounded-[2rem] bg-slate-950 text-white ring-1 ring-white/10">
-      {/* Fake session toolbar */}
-      <div className="flex items-center justify-between border-b border-white/8 px-5 py-3">
-        <div className="flex items-center gap-2.5">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
+    <div className="pointer-events-none absolute inset-x-[4%] bottom-[7%] z-10 mx-auto max-w-3xl">
+      <div className="rounded-2xl border border-white/15 bg-slate-950/70 p-2.5 text-white shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-3.5">
+        <div className="flex items-center justify-between gap-3 px-1 pb-2 text-[8px] font-bold uppercase tracking-[0.16em] text-cyan-100/65 sm:text-[10px]">
+          <span className="flex items-center gap-2">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-300 opacity-70" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-cyan-300" />
+            </span>
+            Live exchange
           </span>
-          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/50">Live session · Job Interview</span>
+          <span className="text-white/35">Evidence probe</span>
         </div>
-        <span className="text-xs font-medium text-white/30">Intermediate difficulty</span>
-      </div>
-      {/* Conversation */}
-      <div className="space-y-4 p-5 md:p-8">
-        {DEMO_TURNS.map((turn, index) => (
+        <div className="grid gap-2 sm:grid-cols-[0.92fr_1.08fr]">
           <motion.div
-            key={index}
-            className={`flex ${turn.role === "user" ? "justify-end" : "justify-start"}`}
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.45, delay: index * 0.7 }}
+            className="rounded-xl rounded-tr-sm bg-violet-500/20 px-3 py-2 ring-1 ring-violet-300/20"
+            animate={{ opacity: [0, 1, 1, 1, 0], y: [5, 0, 0, 0, -3] }}
+            transition={{ duration: 10, times: [0, 0.08, 0.76, 0.94, 1], repeat: Infinity, ease: "easeInOut" }}
           >
-            <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm font-medium leading-6 ${
-              turn.role === "ai"
-                ? "rounded-tl-sm bg-white/10 text-white/82"
-                : "rounded-tr-sm bg-[#6200a8]/70 text-white ring-1 ring-[#6200a8]/40"
-            }`}>
-              <span className={`mb-1 block text-[10px] font-bold uppercase tracking-[0.14em] ${turn.role === "ai" ? "text-cyan-300/60" : "text-violet-200/60"}`}>
-                {turn.role === "ai" ? "AI Interviewer" : "You"}
-              </span>
-              {turn.text}
-            </div>
+            <span className="block text-[8px] font-bold uppercase tracking-[0.13em] text-violet-200/65 sm:text-[9px]">You</span>
+            <p className="mt-0.5 text-[10px] font-medium leading-4 text-white/86 sm:text-xs">“I led the launch, but some of the customer data was incomplete.”</p>
           </motion.div>
-        ))}
-      </div>
-      {/* CTA */}
-      <div className="border-t border-white/8 px-5 py-4 text-center">
-        <a href="/try" className="text-sm font-semibold text-violet-300 transition hover:text-white">
-          Try it yourself — no account needed →
-        </a>
+          <motion.div
+            className="rounded-xl rounded-tl-sm bg-cyan-300/10 px-3 py-2 ring-1 ring-cyan-200/15"
+            animate={{ opacity: [0, 0, 1, 1, 0], y: [5, 5, 0, 0, -3] }}
+            transition={{ duration: 10, times: [0, 0.25, 0.34, 0.94, 1], repeat: Infinity, ease: "easeInOut" }}
+          >
+            <span className="block text-[8px] font-bold uppercase tracking-[0.13em] text-cyan-200/65 sm:text-[9px]">AI interviewer</span>
+            <p className="mt-0.5 text-[10px] font-medium leading-4 text-white/86 sm:text-xs">“What was missing, and why was proceeding still the right decision?”</p>
+          </motion.div>
+        </div>
+        <motion.div
+          className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-emerald-300/10 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.12em] text-emerald-200/80 ring-1 ring-emerald-200/10 sm:text-[9px]"
+          animate={{ opacity: [0, 0, 0, 1, 1, 0] }}
+          transition={{ duration: 10, times: [0, 0.45, 0.52, 0.6, 0.94, 1], repeat: Infinity, ease: "easeInOut" }}
+        >
+          <span>Coaching signal</span>
+          <span className="text-white/55">Specificity ↑ · evidence requested</span>
+        </motion.div>
       </div>
     </div>
   );
@@ -392,14 +381,31 @@ export default function Home() {
         </StaggeredGrid>
       </section>
 
-      {/* Live conversation demo — shows the AI pushing back so visitors understand
-          the product before committing. Replaces a video until one is recorded. */}
+      {/* Short product recording: real session UI, optimized for silent autoplay. */}
       <section className="relative z-10 mx-auto max-w-5xl px-4 py-16">
         <div className="mb-8 text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">See it in action</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-slate-950 dark:text-white">This is what a session looks like.</h2>
         </div>
-        <LiveConversationDemo />
+        <div className="overflow-hidden rounded-[2rem] bg-slate-950 shadow-[0_28px_80px_rgba(15,23,42,0.22)] ring-1 ring-slate-900/10 dark:ring-white/10">
+          <div className="relative">
+          <video
+            className="block h-auto w-full"
+            autoPlay
+            muted
+            loop
+            playsInline
+            controls
+            preload="metadata"
+            poster="/media/rehearseai-session-demo-poster.jpg"
+            aria-label="RehearseAI live interview session demonstration"
+          >
+            <source src="/media/rehearseai-session-demo.mp4" type="video/mp4" />
+            Your browser does not support embedded video.
+          </video>
+          <VideoConversationOverlay />
+          </div>
+        </div>
       </section>
 
       <section className="relative z-10 mx-auto max-w-7xl px-4 py-16">

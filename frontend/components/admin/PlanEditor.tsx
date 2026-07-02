@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EntitlementEditor } from "./EntitlementEditor";
 import type { Plan } from "@/lib/admin";
 
 export function PlanEditor({ plan, onSave }: { plan: Plan; onSave: (plan: Plan) => Promise<void> }) {
   const [draft, setDraft] = useState(plan);
   const [saving, setSaving] = useState(false);
+  useEffect(() => setDraft(plan), [plan]);
   return (
     <div className="rounded-[1.25rem] bg-white p-5 shadow-[0_14px_38px_rgba(35,45,75,0.045)] ring-1 ring-slate-200/75">
       <div className="grid gap-3 md:grid-cols-3">
