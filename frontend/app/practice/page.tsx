@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type React from "react";
-import { ArrowUpRight, BriefcaseBusiness, GraduationCap, Handshake, MessageCircle, MessageSquareWarning, Mic2, Presentation, Radio, Scale, ShoppingBag, Sparkles } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, GraduationCap, Landmark, MessageCircle, MessageSquareWarning, Mic2, Presentation, Radio, Scale, ShoppingBag, Sparkles } from "lucide-react";
 import { AnimatedCard, AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Nav } from "@/components/Nav";
@@ -11,6 +11,7 @@ import { PracticeType, practiceTypes } from "@/lib/types";
 
 const arenaMeta: Record<PracticeType, { icon: React.ReactNode; line: string; pressure: string; color: string; tag: string }> = {
   "Job Interview": { icon: <BriefcaseBusiness size={17} />, line: "Answer sharp follow-ups without sounding rehearsed.", pressure: "Hiring manager + team lead", color: "from-sky-500 to-violet-600", tag: "Final round" },
+  "U.S. Visa Interview": { icon: <Landmark size={17} />, line: "Practice concise, truthful answers under consular scrutiny.", pressure: "Consular officer", color: "from-blue-600 to-rose-500", tag: "Visa prep" },
   "Presentation / Public Speaking": { icon: <Presentation size={17} />, line: "Handle skeptical audience questions while keeping structure.", pressure: "Live Q&A simulation", color: "from-cyan-500 to-blue-600", tag: "Stage mode" },
   "Panel Discussion": { icon: <Mic2 size={17} />, line: "Stay crisp while multiple voices challenge your assumptions.", pressure: "Interruptions + moderator", color: "from-fuchsia-500 to-violet-700", tag: "Panel heat" },
   "Thesis Defense": { icon: <GraduationCap size={17} />, line: "Defend methods, logic, and originality under academic pressure.", pressure: "Committee examiner", color: "from-indigo-500 to-sky-600", tag: "Deep logic" },

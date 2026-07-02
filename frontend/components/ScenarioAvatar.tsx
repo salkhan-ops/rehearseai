@@ -6,6 +6,7 @@ import type { PracticeType } from "@/lib/types";
 
 const scenes: Record<PracticeType, { label: string; role: string; accent: string; prompt: string }> = {
   "Job Interview": { label: "Hiring room", role: "Hiring manager", accent: "from-sky-400 to-violet-600", prompt: "Probe vague answers" },
+  "U.S. Visa Interview": { label: "Consular window", role: "Consular officer", accent: "from-blue-500 to-rose-500", prompt: "Check consistency" },
   "Presentation / Public Speaking": { label: "Live Q&A", role: "Skeptical audience", accent: "from-cyan-400 to-blue-600", prompt: "Question clarity" },
   "Panel Discussion": { label: "Panel room", role: "Sharp panelist", accent: "from-fuchsia-400 to-violet-700", prompt: "Interrupt lightly" },
   "Thesis Defense": { label: "Defense room", role: "Academic examiner", accent: "from-indigo-400 to-sky-600", prompt: "Test logic" },

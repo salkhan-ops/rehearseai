@@ -21,6 +21,12 @@ const intakeConfig: Record<PracticeType, IntakeConfig> = {
     eventLabel: "When is your interview?",
     weakSpots: ["Structuring answers (STAR)", "Freezing under pressure", "Being too vague", "Handling unexpected questions", "Showing enthusiasm", "Salary discussion", "Demonstrating depth"],
   },
+  "U.S. Visa Interview": {
+    situationLabel: "Which U.S. visa interview are you preparing for?",
+    situationPlaceholder: "e.g. F-1 student visa for an MS program",
+    eventLabel: "When is your consular interview?",
+    weakSpots: ["Explaining travel purpose", "Answering concisely", "Funding questions", "Home-country ties", "Study or work plans", "Document consistency", "Unexpected follow-ups"],
+  },
   "Presentation / Public Speaking": {
     situationLabel: "What are you presenting and to whom?",
     situationPlaceholder: "e.g. Q3 roadmap to 12 board members",

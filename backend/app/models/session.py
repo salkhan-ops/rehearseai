@@ -2,9 +2,11 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 DocumentMode = Literal["neutral", "harsh_critical", "socratic", "supportive", "profile"]
+VisaType = Literal["Visitor / Business (B-1/B-2)", "Student (F-1)", "Employment / Work"]
 
 PracticeType = Literal[
     "Job Interview",
+    "U.S. Visa Interview",
     "Presentation / Public Speaking",
     "Panel Discussion",
     "Thesis Defense",
@@ -42,6 +44,7 @@ class SessionCreate(BaseModel):
     context: str = Field(min_length=2, max_length=1500)
     goal: str = Field(min_length=2, max_length=500)
     optionalNotes: Optional[str] = Field(default=None, max_length=1000)
+    visaType: Optional[VisaType] = None
     practiceLanguage: str = Field(default="en", max_length=8)
     feedbackLanguage: str = Field(default="en", max_length=8)
     durationPreference: int = Field(default=10, ge=1, le=120)
@@ -65,6 +68,7 @@ class Session(BaseModel):
     context: str
     goal: str
     optionalNotes: Optional[str] = None
+    visaType: Optional[VisaType] = None
     practiceLanguage: str = "en"
     feedbackLanguage: str = "en"
     durationPreference: int = 10

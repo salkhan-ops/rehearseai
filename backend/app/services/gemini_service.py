@@ -299,6 +299,7 @@ class GeminiService:
     def _mock_opening(self, session: Session) -> str:
         openings = {
             "Job Interview": f"Let us begin with the real question. For {session.topic}, what is the strongest evidence that you are ready for this role?",
+            "U.S. Visa Interview": f"Good morning. What is the purpose of your proposed travel to the United States for {session.topic}?",
             "Presentation / Public Speaking": f"I am in the audience and I need a reason to care. Open your {session.topic} in one clear sentence.",
             "Panel Discussion": f"I will start the panel. On {session.topic}, what is your position, and what would you say to someone who disagrees?",
             "Thesis Defense": f"Let us begin with your central claim. What is the most defensible argument in your {session.topic}, and where is it vulnerable?",

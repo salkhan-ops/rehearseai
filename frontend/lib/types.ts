@@ -9,9 +9,11 @@ export const practiceTypes = [
   "Sales Pitch",
   "Casual Chat",
   "Podcast / Interview Show",
+  "U.S. Visa Interview",
 ] as const;
 
 export const difficulties = ["Beginner", "Intermediate", "Advanced", "Brutal", "Nerve"] as const;
+export const visaTypes = ["Visitor / Business (B-1/B-2)", "Student (F-1)", "Employment / Work"] as const;
 export const nerveEntryTypes = ["Topic", "Presentation", "Thesis", "Startup Pitch", "Report / Proposal"] as const;
 export const nervePersonas = ["Investor", "Professor", "Executive", "Board Member", "Regulator", "Consultant", "Client", "Mixed Panel"] as const;
 export const environmentModes = [
@@ -28,6 +30,7 @@ export const environmentModes = [
 ] as const;
 
 export type PracticeType = (typeof practiceTypes)[number];
+export type VisaType = (typeof visaTypes)[number];
 export type Difficulty = (typeof difficulties)[number] | "Friendly" | "Realistic";
 export type NerveEntryType = (typeof nerveEntryTypes)[number];
 export type NervePersona = (typeof nervePersonas)[number];
@@ -106,6 +109,7 @@ export type Session = {
   context: string;
   goal: string;
   optionalNotes?: string;
+  visaType?: VisaType;
   practiceLanguage?: string;
   feedbackLanguage?: string;
   durationPreference?: number;
@@ -245,6 +249,7 @@ export type SessionPayload = {
   context: string;
   goal: string;
   optionalNotes?: string;
+  visaType?: VisaType;
   practiceLanguage?: string;
   feedbackLanguage?: string;
   durationPreference?: number;

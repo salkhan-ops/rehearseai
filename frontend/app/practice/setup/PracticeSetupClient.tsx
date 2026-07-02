@@ -18,7 +18,7 @@ import { canUsePracticeType, getDailyDocUsage, getUserEntitlements, getSessionUs
 import { sessionHref } from "@/lib/routes";
 import { updateTelemetryConsent } from "@/lib/telemetry";
 import type { LanguageCode } from "@/lib/languages";
-import { difficulties, Difficulty, environmentModes, nerveEntryTypes, nervePersonas, practiceTypes, PracticeType } from "@/lib/types";
+import { difficulties, Difficulty, environmentModes, nerveEntryTypes, nervePersonas, practiceTypes, PracticeType, visaTypes, type VisaType } from "@/lib/types";
 import type { ConversationMode, DocumentMode, EnvironmentMode, NerveEntryType, NervePersona } from "@/lib/types";
 import type { Entitlements } from "@/lib/admin";
 
@@ -30,11 +30,16 @@ const frequencyOptions = [
   ["custom", "Mon / Wed / Fri"],
 ] as const;
 
-const quickStarts: Record<PracticeType, Array<{ label: string; topic: string; context: string; goal: string; notes: string }>> = {
+const quickStarts: Record<PracticeType, Array<{ label: string; topic: string; context: string; goal: string; notes: string; visaType?: VisaType }>> = {
   "Job Interview": [
     { label: "Final-round PM interview", topic: "Senior product manager interview", context: "I am meeting a skeptical VP in a final round. They care about judgment, prioritization, leadership, and handling ambiguity.", goal: "Sound clear, calm, senior, and evidence-backed under pressure.", notes: "Push me when I become generic or vague." },
     { label: "Career switch story", topic: "Career transition interview", context: "I need to explain why I am moving into this role and make my previous experience feel relevant.", goal: "Tell a convincing story without rambling.", notes: "Probe weak logic and missing evidence." },
     { label: "Technical role screening", topic: "Software engineering or technical role interview", context: "I am being screened by a technical lead who will test my system design thinking, past architectural decisions, and trade-off reasoning.", goal: "Demonstrate technical depth, clear reasoning, and honest acknowledgement of trade-offs.", notes: "Drill into specifics — don't accept hand-wavy architecture answers." },
+  ],
+  "U.S. Visa Interview": [
+    { label: "Visitor / business visa", visaType: "Visitor / Business (B-1/B-2)", topic: "U.S. B-1/B-2 visa interview", context: "I am applying for temporary travel to the United States and need to explain my purpose, itinerary, funding, and circumstances clearly and truthfully.", goal: "Give brief, consistent answers without sounding memorized or evasive.", notes: "Act as a professional consular officer. Probe inconsistencies, but do not invent legal requirements or promise an outcome." },
+    { label: "Student visa", visaType: "Student (F-1)", topic: "U.S. F-1 student visa interview", context: "I need to explain my program choice, academic plans, funding, and post-study intentions in a concise and truthful way.", goal: "Show a coherent study plan and answer follow-ups calmly.", notes: "Check consistency across my school choice, finances, academic background, and plans. Do not coach me to conceal facts." },
+    { label: "Work visa", visaType: "Employment / Work", topic: "U.S. employment visa interview", context: "I am preparing to discuss my employer, role, qualifications, and supporting petition or application accurately.", goal: "Answer role and eligibility questions clearly while staying aligned with my real documents.", notes: "Ask realistic document and employment follow-ups. This is communication practice, not legal advice." },
   ],
   "Presentation / Public Speaking": [
     { label: "Investor-style update", topic: "Quarterly strategy presentation", context: "I am presenting strategy to a skeptical group that may question priorities, numbers, and tradeoffs.", goal: "Stay structured and persuasive during Q&A.", notes: "Ask sharp audience questions." },
@@ -114,6 +119,7 @@ function SetupForm() {
   const isFirstSession = params.get("first") === "true";
   const [step, setStep] = useState(1);
   const [practiceType, setPracticeType] = useState<PracticeType>((params.get("type") as PracticeType) || "Job Interview");
+  const [visaType, setVisaType] = useState<VisaType>("Visitor / Business (B-1/B-2)");
   const [difficulty, setDifficulty] = useState<Difficulty>((params.get("difficulty") as Difficulty) || "Intermediate");
   const [loading, setLoading] = useState(false);
   const [entitlements, setEntitlements] = useState<Entitlements | null>(null);
@@ -162,11 +168,12 @@ function SetupForm() {
   useEffect(() => {
     setDurationPreference(getCourseConfig(practiceType).defaultDuration);
     setCustomDuration(false);
-    if (practiceType === "Job Interview" || practiceType === "Thesis Defense" || practiceType === "Sales Pitch" || practiceType === "Podcast / Interview Show") {
+    if (practiceType === "Job Interview" || practiceType === "U.S. Visa Interview" || practiceType === "Thesis Defense" || practiceType === "Sales Pitch" || practiceType === "Podcast / Interview Show") {
       setDocumentMode("profile");
     } else {
       setDocumentMode("neutral");
     }
+    if (practiceType === "U.S. Visa Interview") setUseDocument(true);
   }, [practiceType]);
 
   async function updateCameraAssistedTiming(enabled: boolean) {
@@ -186,6 +193,14 @@ function SetupForm() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    if (practiceType === "U.S. Visa Interview") {
+      const words = documentText.trim() ? documentText.trim().split(/\s+/).length : 0;
+      if (!visaType) { setError("Select the U.S. visa interview type."); return; }
+      if (!useDocument || words < 50) {
+        setError("Paste a redacted application and background brief of at least 50 words so the officer can keep questions relevant and consistent.");
+        return;
+      }
+    }
     if (entitlements) {
       if (difficulty === "Brutal" && !entitlements.allowBrutalMode) { setError("Brutal mode requires Pro or Coach."); return; }
       if (difficulty === "Nerve" && !entitlements.allowNerveMode && !entitlements.allowBrutalMode) { setError("Nerve Mode requires Pro or Coach."); return; }
@@ -214,6 +229,7 @@ function SetupForm() {
       }
       const session = await createSession({
         userId, practiceType, difficulty, topic, context, goal, optionalNotes,
+        ...(practiceType === "U.S. Visa Interview" ? { visaType } : {}),
         practiceLanguage, feedbackLanguage, durationPreference, environmentMode, preferredConversationMode,
         ...(difficulty === "Nerve" ? { nerveEntryType, nervePersona, nerveMaterialName, nerveMaterialText } : {}),
         ...(useDocument && documentText.trim() ? { documentText: documentText.trim(), documentName: "pasted document", documentMode } : {}),
@@ -236,11 +252,12 @@ function SetupForm() {
     }
   }
 
-  function applyTemplate(t: { topic: string; context: string; goal: string; notes: string }) {
+  function applyTemplate(t: { topic: string; context: string; goal: string; notes: string; visaType?: VisaType }) {
     setTopic(t.topic);
     setContext(t.context);
     setGoal(t.goal);
     setOptionalNotes(t.notes);
+    if (t.visaType) setVisaType(t.visaType);
   }
 
   async function generateScenario() {
@@ -309,6 +326,16 @@ function SetupForm() {
                   {practiceTypes.map((type) => <option key={type}>{type}</option>)}
                 </select>
               </label>
+
+              {practiceType === "U.S. Visa Interview" && (
+                <label className="mt-5 block text-sm font-semibold text-slate-700 dark:text-white/75">
+                  U.S. visa interview type
+                  <select value={visaType} onChange={(e) => setVisaType(e.target.value as VisaType)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white">
+                    {visaTypes.map((type) => <option key={type}>{type}</option>)}
+                  </select>
+                  <span className="mt-2 block text-xs font-medium leading-5 text-slate-500 dark:text-white/45">This selection is sent to the officer persona and retained for every question in the session.</span>
+                </label>
+              )}
 
               <div className="mt-5">
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
@@ -482,18 +509,21 @@ function SetupForm() {
               <section className="mt-5 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
-                    <BookOpen size={16} /> Ground in a document
+                    <BookOpen size={16} /> {practiceType === "U.S. Visa Interview" ? "Application and background brief (required)" : "Ground in a document"}
                   </div>
                   <button
                     type="button"
-                    onClick={() => { setUseDocument((v) => !v); if (useDocument) setDocumentText(""); }}
+                    onClick={() => { if (practiceType !== "U.S. Visa Interview") { setUseDocument((v) => !v); if (useDocument) setDocumentText(""); } }}
+                    disabled={practiceType === "U.S. Visa Interview"}
                     className={`rounded-xl px-3 py-1.5 text-xs font-bold ring-1 transition ${useDocument ? "bg-slate-950 text-white ring-slate-950 dark:bg-white dark:text-slate-950" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white/60 dark:ring-white/10"}`}
                   >
                     {useDocument ? "On" : "Off"}
                   </button>
                 </div>
                 <p className="mt-1 text-xs font-medium text-slate-500 dark:text-white/45">
-                  Paste your CV, research, pitch deck, or any text — the AI reads it before the session and asks targeted questions from it.
+                  {practiceType === "U.S. Visa Interview"
+                    ? "Paste a redacted summary of your real application, travel or study/work purpose, funding, background, and relevant CV details. Never paste passport, case, bank-account, or other sensitive identification numbers."
+                    : "Paste your CV, research, pitch deck, or any text — the AI reads it before the session and asks targeted questions from it."}
                 </p>
 
                 {useDocument && (
@@ -511,8 +541,9 @@ function SetupForm() {
 
                     <div>
                       <div className="mb-2 text-xs font-semibold text-slate-600 dark:text-white/60">Document mode</div>
+                      {practiceType === "U.S. Visa Interview" && <p className="mb-2 text-xs font-medium text-violet-700 dark:text-violet-300">Profile mode is locked for visa practice so questions stay grounded in your supplied facts.</p>}
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                        {([ ["profile", "Profile"], ["neutral", "Neutral"], ["harsh_critical", "Harsh Critical"], ["socratic", "Socratic"], ["supportive", "Supportive"] ] as [DocumentMode, string][]).map(([id, label]) => (
+                        {([ ["profile", "Profile"], ["neutral", "Neutral"], ["harsh_critical", "Harsh Critical"], ["socratic", "Socratic"], ["supportive", "Supportive"] ] as [DocumentMode, string][]).filter(([id]) => practiceType !== "U.S. Visa Interview" || id === "profile").map(([id, label]) => (
                           <button key={id} type="button" onClick={() => setDocumentMode(id)}
                             className={`rounded-xl py-2.5 text-xs font-bold ring-1 transition ${documentMode === id ? "bg-slate-950 text-white ring-slate-950 shadow-[0_8px_20px_rgba(15,23,42,0.14)] dark:bg-white dark:text-slate-950" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white/60 dark:ring-white/10"}`}
                           >{label}</button>
@@ -537,7 +568,7 @@ function SetupForm() {
                           }}
                           rows={7}
                           className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
-                          placeholder={documentMode === "profile" ? "Paste your CV, LinkedIn bio, research summary, pitch deck, or any background document. The AI will read it before the session and ask targeted questions from it…" : "Paste your thesis, pitch deck, research proposal, or any text you want to defend…"}
+                          placeholder={practiceType === "U.S. Visa Interview" ? "Paste a redacted application/background brief: purpose, intended dates, itinerary or program/employer, funding, education/work history, and relevant ties. Include only truthful facts…" : documentMode === "profile" ? "Paste your CV, LinkedIn bio, research summary, pitch deck, or any background document. The AI will read it before the session and ask targeted questions from it…" : "Paste your thesis, pitch deck, research proposal, or any text you want to defend…"}
                         />
                       </label>
                       {(() => {

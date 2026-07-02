@@ -32,6 +32,7 @@ const authModes: AuthMode[] = ["signin", "signup", "forgot"];
 
 const categoryMeta: Record<PracticeType, { shape: string; line: string; accent: string }> = {
   "Job Interview": { shape: "structured geometry", line: "Probe vague claims and turn stories into evidence.", accent: "from-cyan-300 to-violet-500" },
+  "U.S. Visa Interview": { shape: "consular checkpoint", line: "Answer purpose, funding, and eligibility questions clearly.", accent: "from-blue-300 to-rose-500" },
   "Presentation / Public Speaking": { shape: "audience wave", line: "Stay clear when attention and skepticism rise.", accent: "from-sky-300 to-blue-600" },
   "Panel Discussion": { shape: "multi-node network", line: "Think through interruptions without losing your thread.", accent: "from-fuchsia-300 to-violet-700" },
   "Thesis Defense": { shape: "layered reasoning map", line: "Defend assumptions, methods, limits, and logic.", accent: "from-indigo-300 to-cyan-500" },

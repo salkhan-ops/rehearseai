@@ -1,7 +1,7 @@
 from app.models.message import Message
 from app.models.session import Session
 from app.prompts.report_prompts import REPORT_SCHEMA
-from app.prompts.roleplay_prompts import CROSS_MODULE_RULES, DIFFICULTY_BEHAVIOR, DOCUMENT_GUARDRAIL, DOCUMENT_MODES, MODULE_ESCALATION, MODULE_GUARDRAILS, PERSONAS, PROFILE_GUARDRAIL
+from app.prompts.roleplay_prompts import CROSS_MODULE_RULES, DIFFICULTY_BEHAVIOR, DOCUMENT_GUARDRAIL, DOCUMENT_MODES, MODULE_ESCALATION, MODULE_GUARDRAILS, PERSONAS, PROFILE_GUARDRAIL, VISA_DOCUMENT_GUARDRAIL
 from app.prompts.panel_prompts import build_panel_block, is_panel_mode
 from typing import Optional
 
@@ -144,7 +144,7 @@ def build_document_block(session: Session) -> str:
         return ""
     doc_mode = session.documentMode or "neutral"
     mode_instruction = DOCUMENT_MODES.get(doc_mode, DOCUMENT_MODES["neutral"])
-    guardrail = PROFILE_GUARDRAIL if doc_mode == "profile" else DOCUMENT_GUARDRAIL
+    guardrail = VISA_DOCUMENT_GUARDRAIL if session.practiceType == "U.S. Visa Interview" else PROFILE_GUARDRAIL if doc_mode == "profile" else DOCUMENT_GUARDRAIL
     word_count = len(session.documentText.split())
     non_alpha = sum(1 for c in session.documentText if not c.isalpha() and not c.isspace())
     symbol_ratio = non_alpha / max(1, len(session.documentText))
@@ -257,6 +257,11 @@ def build_roleplay_prompt(session: Session, history: list[Message], max_history_
 """
     module_escalation = MODULE_ESCALATION.get(session.practiceType, "")
     module_guardrail = MODULE_GUARDRAILS.get(session.practiceType, "")
+    tone_instruction = (
+        "Use a neutral, concise, procedural tone. Do not use sarcasm, irony, intimidation, or trick questions at any difficulty level."
+        if session.practiceType == "U.S. Visa Interview"
+        else "Use natural emotion appropriate to the role. At Advanced, Brutal, and Nerve levels, dry wit may sharpen a vague or evasive answer without becoming abusive."
+    )
     document_block = build_document_block(session)
     panel_block = build_panel_block(session.environmentMode) if is_panel_mode(session.environmentMode) else ""
     reasoning_chain_block = build_reasoning_chain_block(session, history, coordination_context)
@@ -288,6 +293,7 @@ Module-specific escalation rules ({session.practiceType}):
 {document_block}
 Scenario:
 - Practice type: {session.practiceType}
+- U.S. visa interview type: {session.visaType or "Not applicable"}
 - Topic: {session.topic}
 - Context: {session.context}
 - User goal: {session.goal}
@@ -332,7 +338,7 @@ Conversation so far:
 
 {reply_instruction}
 Respond directly to the user's latest words; do not repeat generic goal reminders, slogans, or the same coaching phrase across turns.
-Use natural emotion appropriate to the role: curious, skeptical, concerned, impatient, warm, or impressed — and let that emotion shift and intensify as the conversation deepens. Vary sentence openings and rhythm. At Advanced, Brutal, and Nerve levels, sarcasm and dry wit are permitted and expected; deploy them when the user is vague, circular, or evasive.
+{tone_instruction}
 Be creative in how you challenge: sometimes use a sharp analogy, sometimes a historical parallel, sometimes a reductio ad absurdum — not just a direct objection. Occasionally attack the same weak claim from multiple angles (definitional, evidential, consequential) in a single tight response to create synonymic pressure.
 Adapt pressure dynamically based on the user's behavior AND the turn count — it must escalate within this conversation, not stay flat. Challenge vague logic, probe unsupported assumptions, and increase depth when performance is strong. If the user appears overwhelmed, soften tone slightly while staying realistic. Never be abusive. Do not give a feedback report yet.
 
@@ -348,6 +354,11 @@ def build_opening_prompt(session: Session) -> str:
     practice_language = LANGUAGE_NAMES.get(session.practiceLanguage, "English")
     document_block = build_document_block(session)
     panel_block = build_panel_block(session.environmentMode) if is_panel_mode(session.environmentMode) else ""
+    opening_tone = (
+        "Use a neutral, concise, procedural opening. Do not use sarcasm, irony, or language implying approval or refusal."
+        if session.practiceType == "U.S. Visa Interview"
+        else "Use a natural emotional tone appropriate to the role. At Intermediate and above, a dry observation or light irony may signal realistic pressure."
+    )
     opening_instruction = (
         "Open the discussion: one panel member greets the candidate and asks the first question. "
         "Prefix with that member's name. Keep response under 40 words total."
@@ -372,6 +383,7 @@ Difficulty:
 {document_block}
 Scenario:
 - Practice type: {session.practiceType}
+- U.S. visa interview type: {session.visaType or "Not applicable"}
 - Topic: {session.topic}
 - Context: {session.context}
 - User goal: {session.goal}
@@ -384,7 +396,7 @@ Scenario:
 {panel_block}
 {opening_instruction}
 Do not explain the product. Do not give generic advice. Do not say "stay focused on your goal."
-Use a natural emotional tone appropriate to the role — personality should be evident from the very first sentence. At Intermediate and above, a dry observation or light irony in the opener signals immediately that this is a real, engaging counterpart. At Brutal and Nerve, the first line should put the user on notice.
+{opening_tone}
 """
 
 
@@ -397,6 +409,7 @@ def build_report_prompt(session: Session, history: list[Message]) -> str:
 Create a structured RehearseAI feedback report for this completed practice session.
 
 Practice type: {session.practiceType}
+U.S. visa interview type: {session.visaType or "Not applicable"}
 Difficulty: {session.difficulty}
 Topic: {session.topic}
 Context: {session.context}

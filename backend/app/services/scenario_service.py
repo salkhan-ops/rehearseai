@@ -11,6 +11,10 @@ FALLBACK_SCENARIOS = {
         "You are interviewing for a product manager role at a fast-growing AI startup. The interviewer believes your previous experience is too academic.",
         "You are in a final-round interview with a skeptical VP who wants proof that you can make tradeoffs under ambiguity.",
     ],
+    "U.S. Visa Interview": [
+        "You are at a U.S. consular interview window. The officer asks concise questions about your stated travel purpose, circumstances, funding, and supporting information.",
+        "You are in a U.S. visa interview where the officer notices a possible inconsistency and asks calm, direct follow-up questions.",
+    ],
     "Presentation / Public Speaking": [
         "You are presenting quarterly results to skeptical executives after a disappointing quarter.",
         "You are explaining a new strategy to a team that worries the plan is too vague and risky.",
@@ -83,6 +87,19 @@ class ScenarioService:
 
     def _fallback(self, request: ScenarioRequest) -> PracticeScenario:
         prompt = random.choice(FALLBACK_SCENARIOS[request.category])
+        if request.category == "U.S. Visa Interview":
+            return PracticeScenario(
+                category=request.category,
+                difficulty=request.difficulty,
+                title="U.S. visa interview practice",
+                topic=prompt.split(".")[0][:150],
+                setting=prompt,
+                emotionalContext="The interview is brief and professional. The officer is neutral and attentive to clarity and consistency.",
+                pressureSituation="The officer asks direct follow-ups when an answer is vague, overlong, or appears inconsistent with information the applicant has provided.",
+                objective="Answer truthfully, calmly, and concisely while remaining consistent with your real application and circumstances.",
+                personalityDynamics="The officer is professional and procedural, never abusive, and never predicts or promises an immigration outcome.",
+                optionalNotes="Communication practice only, not legal advice. Never coach concealment, fabrication, or alteration of facts or documents.",
+            )
         return PracticeScenario(
             category=request.category,
             difficulty=request.difficulty,

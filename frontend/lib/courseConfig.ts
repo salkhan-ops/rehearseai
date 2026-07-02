@@ -32,6 +32,24 @@ export const courseConfigs: Record<PracticeType, CourseConfig> = {
     ],
   },
 
+  "U.S. Visa Interview": {
+    defaultDuration: 7,
+    minDuration: 5,
+    maxDuration: 12,
+    aiPersona: "U.S. consular officer — professional, concise, observant, and focused on whether the applicant's answers are truthful and internally consistent.",
+    pressureArc: "Travel purpose → personal circumstances → funding or sponsorship → consistency follow-ups",
+    arcPhases: ["Purpose", "Background", "Funding", "Consistency check"],
+    successLooks: "Truthful, direct answers that match the applicant's real documents. Calm delivery, no memorized speeches, and no guessing when the applicant does not know.",
+    prepSections: ({ topic, context, goal }) => [
+      { heading: "Who you're facing", body: "A professional U.S. consular officer conducting a short interview. The officer may move quickly and ask a follow-up when an answer is vague, overlong, or inconsistent." },
+      { heading: "What to bring", body: "Use only your real circumstances and the information in your actual application and supporting documents. You may paste a redacted personal preparation summary, but do not include passport numbers, case numbers, bank details, or other sensitive identifiers." },
+      { heading: "Your brief", body: `Interview type: ${topic || "your U.S. visa application"}.\n\n${context || "Prepare to explain your purpose, circumstances, funding, and plans accurately."}\n\nYour win condition: ${goal || "answer truthfully, clearly, and concisely under pressure."}` },
+      { heading: "How to show up", body: "Voice practice best matches the pace of a consular interview. Keep answers direct and natural. If you do not know or do not remember something, say so rather than inventing an answer." },
+      { heading: "Important boundary", body: "This is communication practice, not legal advice, eligibility assessment, or a prediction of approval. Rehearse truthful answers only. Never hide, alter, or manufacture facts to improve an answer." },
+      { heading: "What good looks like", body: "You answer the question asked, support it with one relevant detail when needed, and remain consistent with your real application. You do not recite speeches or volunteer unrelated information." },
+    ],
+  },
+
   "Presentation / Public Speaking": {
     defaultDuration: 8,
     minDuration: 5,

@@ -14,6 +14,7 @@ import { practiceTypes } from "@/lib/types";
 
 const weakSpotBank: Record<PracticeType, string[]> = {
   "Job Interview": ["Structuring answers (STAR)", "Freezing under pressure", "Being too vague", "Handling unexpected questions", "Demonstrating depth", "Salary discussion"],
+  "U.S. Visa Interview": ["Explaining travel purpose", "Answering concisely", "Funding questions", "Home-country ties", "Study or work plans", "Document consistency"],
   "Presentation / Public Speaking": ["Opening with impact", "Losing the thread", "Handling interruptions", "Q&A under pressure", "Filler words", "Pacing"],
   "Panel Discussion": ["Being too long-winded", "Getting cut off", "Holding position under challenge", "Standing out memorably", "Responding quickly"],
   "Thesis Defense": ["Methodology challenges", "Defending assumptions", "Going blank under pressure", "Acknowledging limitations", "Managing time"],
