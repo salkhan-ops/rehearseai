@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, BrainCircuit, ChevronDown, Dumbbell, GraduationCap, LayoutDashboard, LogOut, Menu, Moon, Sparkles, Sun, X, Zap } from "lucide-react";
+import { BookOpen, BrainCircuit, ChevronDown, CreditCard, Dumbbell, GraduationCap, LayoutDashboard, LogOut, Menu, Moon, Sparkles, Sun, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { track } from "@/lib/analytics";
@@ -9,7 +9,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const trainLinks = [
   { href: "/practice", label: "Quick session", description: "Pick an arena, go in now", icon: Zap },
-  { href: "/courses/templates", label: "Browse courses", description: "Structured multi-week programs", icon: GraduationCap },
+  { href: "/courses/templates", label: "Buy a course", description: "Separate 7, 14, and 21-day packages", icon: GraduationCap },
   { href: "/courses", label: "My courses", description: "Track your active programs", icon: BookOpen },
   { href: "/courses/new", label: "Create custom course", description: "Build a personalised program", icon: Dumbbell },
 ];
@@ -115,6 +115,9 @@ export function Nav() {
               </div>
               <Link href="/dashboard" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
                 <LayoutDashboard size={14} /> Dashboard
+              </Link>
+              <Link href="/pricing" className="inline-flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-2 text-violet-700 transition hover:bg-violet-100 dark:bg-violet-400/10 dark:text-violet-200 dark:hover:bg-violet-400/15">
+                <CreditCard size={14} /> Plans & courses
               </Link>
             </>
           ) : (
@@ -232,6 +235,10 @@ export function Nav() {
                   <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-white/10">
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-white"><LayoutDashboard size={15} /></span>
                     <span className="text-sm font-semibold text-slate-900 dark:text-white">Dashboard</span>
+                  </Link>
+                  <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl bg-violet-50 px-3 py-3 text-violet-700 transition hover:bg-violet-100 dark:bg-violet-400/10 dark:text-violet-200">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-white text-violet-700 dark:bg-white/10 dark:text-violet-200"><CreditCard size={15} /></span>
+                    <span className="text-sm font-semibold">Plans & courses</span>
                   </Link>
                 </>
               ) : (

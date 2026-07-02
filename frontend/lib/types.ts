@@ -427,6 +427,7 @@ export type CourseTemplate = {
 export type CourseTemplateEnrollmentPayload = {
   userId: string;
   templateId: string;
+  packageId?: string;
   preferredStartDate: string;
   preferredDays: number[];
   preferredTime: string;
@@ -436,6 +437,11 @@ export type CourseTemplateEnrollmentPayload = {
   practiceLanguage?: string;
   feedbackLanguage?: string;
   intakeAnswers?: IntakeAnswers;
+};
+
+export type CoursePackageAccess = {
+  isAdmin: boolean;
+  activePackageIds: string[];
 };
 
 export type NotificationItem = {

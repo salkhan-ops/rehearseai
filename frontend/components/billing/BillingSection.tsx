@@ -30,7 +30,7 @@ type BillingData = {
 };
 
 const PLAN_FEATURES: Record<string, string[]> = {
-  pro: ["20 sessions / month", "Advanced session reports", "Full session history", "Course templates"],
+  pro: ["20 sessions / month", "Advanced session reports", "Full session history"],
   coach: ["45 sessions / month", "Brutal & Nerve pressure modes", "Advanced personas", "Deep analytics & benchmarking"],
 };
 

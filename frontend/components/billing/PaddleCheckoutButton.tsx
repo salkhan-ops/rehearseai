@@ -35,10 +35,11 @@ interface Props {
   fallbackHref?: string;
   label?: string;
   className?: string;
+  onCompleted?: (data?: PaddleCompletionData) => void;
   children: React.ReactNode;
 }
 
-export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label, className, children }: Props) {
+export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label, className, onCompleted, children }: Props) {
   const { user, userId } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -55,9 +56,11 @@ export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label
     }
     const onComplete = (event: Event) => {
       if (!resolveEvent("completed")) return;
+      const data = (event as CustomEvent<PaddleCompletionData>).detail;
       track.checkoutCompleted(priceId ?? "");
-      const purchase = paddlePurchase((event as CustomEvent<PaddleCompletionData>).detail);
+      const purchase = paddlePurchase(data);
       if (purchase) trackPurchase(purchase.value, purchase.currency, purchase.transactionId);
+      onCompleted?.(data);
     };
     const onClosed = () => resolveEvent("abandoned");
     window.addEventListener("paddle:payment-complete", onComplete);
@@ -66,7 +69,7 @@ export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label
       window.removeEventListener("paddle:payment-complete", onComplete);
       window.removeEventListener("paddle:checkout-closed", onClosed);
     };
-  }, []);
+  }, [onCompleted, priceId]);
 
   if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "false") {
     return (

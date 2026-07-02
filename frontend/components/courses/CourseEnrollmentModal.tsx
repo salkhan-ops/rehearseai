@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { BookOpen, Check, Clock, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BookOpen, Check, Clock, CreditCard, X } from "lucide-react";
+import { PaddleCheckoutButton } from "@/components/billing/PaddleCheckoutButton";
+import type { CoursePackage } from "@/lib/admin";
 import { enrollCourseTemplate } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { categoryToPracticeType, getCourseConfig } from "@/lib/courseConfig";
@@ -13,7 +16,7 @@ import { CourseIntakeWizard } from "./CourseIntakeWizard";
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export function CourseEnrollmentModal({ template, onClose }: { template: CourseTemplate | null; onClose: () => void }) {
+export function CourseEnrollmentModal({ template, coursePackage, hasAccess, checkoutJustCompleted = false, onClose }: { template: CourseTemplate | null; coursePackage?: CoursePackage; hasAccess: boolean; checkoutJustCompleted?: boolean; onClose: () => void }) {
   const router = useRouter();
   const { getToken, profile, userId } = useAuth();
 
@@ -29,7 +32,15 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
   const [difficulty, setDifficulty] = useState<Difficulty>("Intermediate");
 
   const [loading, setLoading] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(checkoutJustCompleted);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setPhase("intake");
+    setIntakeAnswers({});
+    setPaymentCompleted(checkoutJustCompleted);
+    setError("");
+  }, [checkoutJustCompleted, template?.id]);
 
   if (!template) return null;
   const resolvedTemplate = template;
@@ -50,7 +61,7 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
     setDays((current) => current.includes(day) ? current.filter((item) => item !== day) : [...current, day].sort());
   }
 
-  async function enroll() {
+  async function enroll(attempt = 0) {
     setLoading(true);
     setError("");
     try {
@@ -61,6 +72,7 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
       const bundle = await enrollCourseTemplate({
         userId,
         templateId: resolvedTemplate.id,
+        packageId: coursePackage?.packageId,
         preferredStartDate: startDate,
         preferredDays: days,
         preferredTime: time,
@@ -73,7 +85,13 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
       }, token);
       router.push(courseHref(bundle.course.id));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not enroll in this course.");
+      const message = caught instanceof Error ? caught.message : "Could not enroll in this course.";
+      if (paymentCompleted && message.includes("403") && attempt < 8) {
+        setError("Payment received. Waiting for access to activate...");
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        return enroll(attempt + 1);
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -207,18 +225,48 @@ export function CourseEnrollmentModal({ template, onClose }: { template: CourseT
 
               {error && <div className="rounded-2xl bg-rose-50 p-4 font-semibold text-rose-700 dark:bg-rose-400/10 dark:text-rose-100">{error}</div>}
 
+              {!hasAccess && !paymentCompleted && (
+                <div className="rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200 dark:bg-amber-400/10 dark:ring-amber-300/20">
+                  <div className="flex items-center gap-2 font-bold text-amber-950 dark:text-amber-100"><CreditCard size={17} /> Payment required before enrollment</div>
+                  <p className="mt-1 text-sm font-medium text-amber-800 dark:text-amber-100/70">
+                    {coursePackage
+                      ? `${coursePackage.currency === "USD" ? "$" : `${coursePackage.currency} `}${coursePackage.price} one-time for ${coursePackage.sessionsIncluded} sessions. Course packages are separate from Pro and Coach subscriptions.`
+                      : "This course is not currently available for purchase."}
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => setPhase("intake")} className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white/60">
                   ← Edit intake
                 </button>
-                <button
-                  type="button"
-                  onClick={enroll}
-                  disabled={loading || days.length === 0}
-                  className="flex-1 rounded-2xl bg-[#6200a8] px-5 py-4 text-lg font-bold text-white shadow-[0_18px_44px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 disabled:opacity-60"
-                >
-                  {loading ? "Creating calendar..." : "Start this training program"}
-                </button>
+                {hasAccess || paymentCompleted ? (
+                  <button
+                    type="button"
+                    onClick={() => enroll()}
+                    disabled={loading || days.length === 0}
+                    className="flex-1 rounded-2xl bg-[#6200a8] px-5 py-4 text-lg font-bold text-white shadow-[0_18px_44px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 disabled:opacity-60"
+                  >
+                    {loading ? "Creating calendar..." : paymentCompleted ? "Activate purchased course" : "Set schedule and start"}
+                  </button>
+                ) : coursePackage?.paddlePriceId ? (
+                  <PaddleCheckoutButton
+                    priceId={coursePackage.paddlePriceId}
+                    fallbackHref="/contact"
+                    label={coursePackage.title}
+                    onCompleted={() => {
+                      setPaymentCompleted(true);
+                      setError("");
+                    }}
+                    className="flex-1 rounded-2xl bg-[#6200a8] px-5 py-4 text-lg font-bold text-white shadow-[0_18px_44px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 disabled:opacity-60"
+                  >
+                    Pay {coursePackage.currency === "USD" ? "$" : `${coursePackage.currency} `}{coursePackage.price} and continue
+                  </PaddleCheckoutButton>
+                ) : (
+                  <Link href="/contact" className="flex-1 rounded-2xl bg-[#6200a8] px-5 py-4 text-center text-lg font-bold text-white shadow-[0_18px_44px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5">
+                    Contact support
+                  </Link>
+                )}
               </div>
             </div>
           )}

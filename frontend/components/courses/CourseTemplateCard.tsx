@@ -1,9 +1,15 @@
 "use client";
 
 import { ArrowRight, Clock, Target } from "lucide-react";
+import type { CoursePackage } from "@/lib/admin";
 import type { CourseTemplate } from "@/lib/types";
 
-export function CourseTemplateCard({ template, onStart }: { template: CourseTemplate; onStart: (template: CourseTemplate) => void }) {
+function priceLabel(pkg: CoursePackage | undefined) {
+  if (!pkg) return "Unavailable";
+  return `${pkg.currency === "USD" ? "$" : `${pkg.currency} `}${pkg.price} one-time`;
+}
+
+export function CourseTemplateCard({ template, coursePackage, hasAccess, onStart }: { template: CourseTemplate; coursePackage?: CoursePackage; hasAccess: boolean; onStart: (template: CourseTemplate) => void }) {
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-[2rem] bg-white/75 p-5 ring-1 ring-slate-200/80 backdrop-blur-xl transition hover:-translate-y-1 hover:ring-violet-200 dark:bg-white/[0.07] dark:ring-white/10">
       <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-400/20 blur-3xl transition group-hover:bg-cyan-300/20" />
@@ -21,8 +27,12 @@ export function CourseTemplateCard({ template, onStart }: { template: CourseTemp
         <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm font-semibold leading-6 text-slate-700 ring-1 ring-slate-100 dark:bg-white/10 dark:text-white/70 dark:ring-white/10">
           {template.expectedTransformation}
         </div>
+        <div className="mt-4 flex items-center justify-between border-t border-slate-200/80 pt-4 dark:border-white/10">
+          <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-white/45">Access</span>
+          <span className="text-base font-bold text-slate-950 dark:text-white">{hasAccess ? "Purchased" : priceLabel(coursePackage)}</span>
+        </div>
         <button onClick={() => onStart(template)} className="mt-auto pt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-3 font-bold text-white shadow-[0_14px_34px_rgba(98,0,168,0.22)] transition hover:-translate-y-0.5">
-          Start training path <ArrowRight size={17} />
+          {hasAccess ? "Set schedule and start" : coursePackage ? "Buy this course" : "Unavailable"} <ArrowRight size={17} />
         </button>
       </div>
     </article>

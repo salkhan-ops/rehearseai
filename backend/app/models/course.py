@@ -44,6 +44,7 @@ class CourseTemplate(BaseModel):
 class CourseTemplateEnrollmentRequest(BaseModel):
     userId: str = "guest"
     templateId: str
+    packageId: Optional[str] = None
     preferredStartDate: str
     preferredDays: list[int] = Field(default_factory=lambda: [1, 2, 3, 4, 5])
     preferredTime: str = Field(default="20:00", pattern=r"^\d{2}:\d{2}$")

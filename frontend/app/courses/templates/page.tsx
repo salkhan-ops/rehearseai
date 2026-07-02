@@ -1,126 +1,160 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CreditCard, ShieldCheck } from "lucide-react";
 import { AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { CourseEnrollmentModal } from "@/components/courses/CourseEnrollmentModal";
 import { CourseTemplateCard } from "@/components/courses/CourseTemplateCard";
 import { Nav } from "@/components/Nav";
-import { getCourseTemplates } from "@/lib/api";
+import { getCoursePackages, type CoursePackage } from "@/lib/admin";
+import { getCoursePackageAccess } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import type { CourseTemplate } from "@/lib/types";
+import type { CourseTemplate, Difficulty } from "@/lib/types";
 
-type Filter = { label: string; value: string; matchFn?: (t: CourseTemplate) => boolean };
+const packageSkills: Record<string, string[]> = {
+  "Job Interview": ["Answer structure", "Evidence", "Follow-up recovery", "Composure"],
+  "Salary Negotiation": ["Anchoring", "Counter-offers", "Silence tolerance", "Closing"],
+  "Presentation / Public Speaking": ["Structure", "Audience control", "Q&A", "Recovery"],
+  "Sales Pitch": ["Value framing", "Objections", "Urgency", "Closing"],
+  "Difficult Conversation": ["Directness", "Empathy", "Boundaries", "Repair"],
+  "Panel Discussion": ["Brevity", "Interruptions", "Evidence", "Composure"],
+  "Thesis Defense": ["Methods", "Assumptions", "Limitations", "Defense"],
+  "Teaching Session": ["Clarity", "Examples", "Questions", "Adaptation"],
+};
 
-const filters: Filter[] = [
-  { label: "All", value: "All" },
-  { label: "Interview", value: "Interview" },
-  { label: "Public Speaking", value: "Public Speaking" },
-  { label: "Reasoning", value: "Reasoning" },
-  { label: "Negotiation", value: "Negotiation" },
-  { label: "Leadership", value: "Leadership" },
-  { label: "Conflict", value: "Conflict", matchFn: (t) => t.category === "Difficult Conversations" },
-  { label: "Short Sprint", value: "Short Sprint", matchFn: (t) => t.durationDays <= 14 },
-  { label: "Long Program", value: "Long Program", matchFn: (t) => t.durationDays >= 56 },
-  { label: "Brutal", value: "Brutal", matchFn: (t) => t.difficulty === "Brutal" },
-  { label: "Nerve", value: "Nerve", matchFn: (t) => t.difficulty === "Nerve" },
-];
+const packageCategories: Record<string, string> = {
+  "Job Interview": "Interview",
+  "Salary Negotiation": "Negotiation",
+  "Presentation / Public Speaking": "Public Speaking",
+  "Sales Pitch": "Sales",
+  "Difficult Conversation": "Difficult Conversations",
+  "Panel Discussion": "Panel Discussion",
+  "Thesis Defense": "Thesis Defense",
+  "Teaching Session": "Teaching",
+  "Casual Chat": "Casual Chat",
+  "Podcast / Interview Show": "Podcast",
+};
 
-const localNegotiationTemplates: CourseTemplate[] = [
-  {
-    id: "local-negotiation-sprint",
-    title: "7-Day Salary Negotiation Sprint",
-    category: "Negotiation",
-    durationDays: 7,
+function packageTemplate(pkg: CoursePackage): CourseTemplate {
+  return {
+    id: `package:${pkg.packageId}`,
+    title: pkg.title,
+    category: packageCategories[pkg.practiceType] ?? "Interview",
+    durationDays: pkg.durationDays,
     frequency: "daily",
-    difficulty: "Intermediate",
-    dailyMinutes: "15–20",
-    targetSkills: ["Anchoring", "Counter-offers", "Silence tolerance", "Value framing"],
-    description: "Rapid daily simulations to prepare you for salary, offer, or contract negotiation under pressure.",
-    whoFor: "Professionals with a salary or offer negotiation in the next one to two weeks.",
-    expectedTransformation: "Enter your negotiation anchored, calm, and ready to counter any pushback without caving.",
-    isActive: true,
-    sortOrder: 100,
-  },
-  {
-    id: "local-negotiation-mastery",
-    title: "21-Day Negotiation Mastery",
-    category: "Negotiation",
-    durationDays: 21,
-    frequency: "daily",
-    difficulty: "Brutal",
-    dailyMinutes: "20–25",
-    targetSkills: ["Anchoring", "BATNA framing", "Pressure resistance", "Concession strategy", "Closing tactics"],
-    description: "Build systematic negotiation tactics through progressive AI pressure — anchoring, framing, and closing under friction.",
-    whoFor: "Anyone who negotiates deals, clients, partnerships, or compensation as part of their role.",
-    expectedTransformation: "Negotiate confidently in any room without caving to silence, pressure, or lowball tactics.",
-    isActive: true,
-    sortOrder: 101,
-  },
-];
+    difficulty: (pkg.stakeLevel === "high" ? "Advanced" : "Intermediate") as Difficulty,
+    dailyMinutes: "20",
+    targetSkills: packageSkills[pkg.practiceType] ?? ["Clarity", "Composure", "Evidence", "Recovery"],
+    description: pkg.description,
+    whoFor: `People preparing for a focused ${pkg.practiceType.toLowerCase()} goal.`,
+    expectedTransformation: `${pkg.sessionsIncluded} structured sessions with escalating, relevant practice.`,
+    isActive: pkg.isActive,
+    sortOrder: pkg.sortOrder,
+  };
+}
 
 export default function CourseTemplatesPage() {
   const { getToken } = useAuth();
-  const [apiTemplates, setApiTemplates] = useState<CourseTemplate[]>([]);
-  const [selected, setSelected] = useState("All");
-  const [enrolling, setEnrolling] = useState<CourseTemplate | null>(null);
+  const [packages, setPackages] = useState<CoursePackage[]>([]);
+  const [activePackageIds, setActivePackageIds] = useState<string[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [duration, setDuration] = useState<number | "all">("all");
+  const [enrolling, setEnrolling] = useState<{ template: CourseTemplate; coursePackage: CoursePackage } | null>(null);
+  const [checkoutJustCompleted, setCheckoutJustCompleted] = useState(false);
+  const handledCheckoutReturn = useRef(false);
 
   useEffect(() => {
-    getToken().then((token) => getCourseTemplates(token)).then(setApiTemplates).catch(() => setApiTemplates([]));
+    getCoursePackages().then(setPackages).catch(() => setPackages([]));
+    getToken()
+      .then((token) => getCoursePackageAccess(token))
+      .then((access) => {
+        setActivePackageIds(access.activePackageIds);
+        setIsAdmin(access.isAdmin);
+      })
+      .catch(() => {
+        setActivePackageIds([]);
+        setIsAdmin(false);
+      });
   }, [getToken]);
 
-  const templates = useMemo(() => {
-    const apiIds = new Set(apiTemplates.map((t) => t.id));
-    const merged = [...apiTemplates, ...localNegotiationTemplates.filter((t) => !apiIds.has(t.id))];
-    return merged.sort((a, b) => a.sortOrder - b.sortOrder);
-  }, [apiTemplates]);
+  useEffect(() => {
+    if (!packages.length || handledCheckoutReturn.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const packageId = params.get("package");
+    if (!packageId) return;
+    const pkg = packages.find((item) => item.packageId === packageId);
+    if (!pkg) return;
+    handledCheckoutReturn.current = true;
+    setCheckoutJustCompleted(params.get("payment") === "complete");
+    setEnrolling({ template: packageTemplate(pkg), coursePackage: pkg });
+  }, [packages]);
 
-  const activeFilter = filters.find((f) => f.value === selected) ?? filters[0];
-
-  const visible = useMemo(() => {
-    if (activeFilter.value === "All") return templates;
-    if (activeFilter.matchFn) return templates.filter(activeFilter.matchFn);
-    return templates.filter((t) => t.category === activeFilter.value);
-  }, [activeFilter, templates]);
+  const visible = useMemo(
+    () => packages.filter((pkg) => pkg.isActive && (duration === "all" || pkg.durationDays === duration)),
+    [duration, packages],
+  );
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-white text-slate-950 dark:bg-[#07111f] dark:text-white">
-      <div className="pointer-events-none absolute left-1/2 top-36 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-cyan-300/12 blur-3xl" />
       <Nav />
       <ProtectedRoute>
         <AnimatedPage className="relative mx-auto max-w-7xl px-4 py-14">
-          <div className="max-w-4xl">
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/60">Choose a training path</p>
-            <h1 className="mt-4 text-5xl font-semibold leading-[0.94] tracking-[-0.06em] md:text-7xl">Start with a target course.</h1>
-            <p className="mt-5 text-lg font-medium leading-8 text-slate-600 dark:text-white/58">Pick a premium training path, set your schedule, and RehearseAI builds the calendar, reminders, milestones, and missions.</p>
+          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+            <div className="max-w-4xl">
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/60">One-time course packages</p>
+              <h1 className="mt-4 text-5xl font-semibold leading-[0.94] tracking-[-0.06em] md:text-7xl">Choose, pay, then train.</h1>
+              <p className="mt-5 text-lg font-medium leading-8 text-slate-600 dark:text-white/58">
+                Every 7, 14, or 21-day course is purchased separately. Pro and Coach subscriptions do not include these course packages.
+              </p>
+            </div>
+            <Link href="/pricing#subscriptions" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 font-bold text-slate-800 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white dark:ring-white/15">
+              <CreditCard size={17} /> Compare subscriptions
+            </Link>
           </div>
+
+          <div className="mt-7 flex items-center gap-2 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-200 dark:ring-emerald-400/20">
+            <ShieldCheck size={18} /> Payment is verified before a course calendar or session can be created.
+          </div>
+
           <div className="mt-8 flex flex-wrap gap-2">
-            {filters.map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                onClick={() => setSelected(filter.value)}
-                className={`rounded-full px-4 py-2 text-sm font-bold ${selected === filter.value ? "bg-[#6200a8] text-white" : "bg-white/75 text-slate-700 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}
-              >
-                {filter.label}
+            {(["all", 7, 14, 21] as const).map((item) => (
+              <button key={item} type="button" onClick={() => setDuration(item)} className={`rounded-full px-4 py-2 text-sm font-bold ${duration === item ? "bg-[#6200a8] text-white" : "bg-white text-slate-700 ring-1 ring-slate-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}>
+                {item === "all" ? "All courses" : `${item} days`}
               </button>
             ))}
           </div>
 
-          {visible.length === 0 && templates.length > 0 ? (
-            <div className="mt-8 rounded-[2rem] bg-white/60 px-8 py-16 text-center ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
-              <p className="text-xl font-semibold text-slate-900 dark:text-white">Coming soon</p>
-              <p className="mt-2 font-medium text-slate-500 dark:text-white/50">No {activeFilter.label} courses are available yet. Check back soon or browse all paths.</p>
-              <button type="button" onClick={() => setSelected("All")} className="mt-6 inline-flex rounded-2xl bg-[#6200a8] px-5 py-3 font-semibold text-white">Browse all paths</button>
-            </div>
-          ) : (
-            <StaggeredGrid className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {visible.map((template) => <CourseTemplateCard key={template.id} template={template} onStart={setEnrolling} />)}
-            </StaggeredGrid>
-          )}
+          <StaggeredGrid className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {visible.map((pkg) => {
+              const template = packageTemplate(pkg);
+              return (
+                <CourseTemplateCard
+                  key={pkg.packageId}
+                  template={template}
+                  coursePackage={pkg}
+                  hasAccess={isAdmin || activePackageIds.includes(pkg.packageId)}
+                  onStart={() => {
+                    setCheckoutJustCompleted(false);
+                    setEnrolling({ template, coursePackage: pkg });
+                  }}
+                />
+              );
+            })}
+          </StaggeredGrid>
         </AnimatedPage>
       </ProtectedRoute>
-      <CourseEnrollmentModal template={enrolling} onClose={() => setEnrolling(null)} />
+      <CourseEnrollmentModal
+        template={enrolling?.template ?? null}
+        coursePackage={enrolling?.coursePackage}
+        hasAccess={Boolean(enrolling && (isAdmin || activePackageIds.includes(enrolling.coursePackage.packageId)))}
+        checkoutJustCompleted={checkoutJustCompleted}
+        onClose={() => {
+          setEnrolling(null);
+          setCheckoutJustCompleted(false);
+        }}
+      />
     </main>
   );
 }

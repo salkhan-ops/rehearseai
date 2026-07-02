@@ -110,7 +110,7 @@ function DashboardContent() {
               <h1 className="text-5xl font-semibold tracking-[-0.045em] text-slate-900 dark:text-white md:text-6xl">Dashboard</h1>
               <p className="mt-4 text-lg font-medium text-secondary-token">Your training overview — routines, history, and active courses.</p>
             </div>
-            <Link href="/pricing" className="rounded-2xl bg-[#6200a8] px-5 py-3 text-center font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.24)]">Upgrade</Link>
+            <Link href="/pricing" className="rounded-2xl bg-[#6200a8] px-5 py-3 text-center font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.24)]">Plans & courses</Link>
           </div>
 
           {/* Stat cards — always visible */}
@@ -236,7 +236,7 @@ function DashboardContent() {
                 <h2 className="text-2xl font-semibold tracking-[-0.04em] text-primary-token">Active courses</h2>
                 <div className="flex gap-2">
                   <Link href="/courses/templates" className="rounded-2xl surface-low px-4 py-2 text-sm font-semibold text-secondary-token ring-1 ring-[var(--border-soft)] transition hover:-translate-y-0.5">
-                    Browse paths
+                    Buy a course
                   </Link>
                   <Link href="/courses/new" className="rounded-2xl bg-[#6200a8] px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5">
                     + New course
@@ -248,7 +248,7 @@ function DashboardContent() {
                   <p className="text-xl font-semibold text-primary-token">No active courses</p>
                   <p className="mt-2 font-medium text-secondary-token">Browse pre-built paths or create a custom program.</p>
                   <div className="mt-6 flex justify-center gap-3">
-                    <Link href="/courses/templates" className="rounded-2xl bg-[#6200a8] px-5 py-3 font-semibold text-white">Browse training paths</Link>
+                    <Link href="/courses/templates" className="rounded-2xl bg-[#6200a8] px-5 py-3 font-semibold text-white">Browse paid courses</Link>
                     <Link href="/courses/new" className="rounded-2xl surface-medium px-5 py-3 font-semibold text-primary-token ring-1 ring-[var(--border-soft)]">Create custom</Link>
                   </div>
                 </div>

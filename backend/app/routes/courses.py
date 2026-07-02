@@ -1,7 +1,8 @@
+from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.models.course import Course, CourseBundle, CourseGenerateRequest, CourseModule, CourseProgress, CourseTemplateEnrollmentRequest
+from app.models.course import Course, CourseBundle, CourseGenerateRequest, CourseModule, CourseProgress, CourseTemplate, CourseTemplateEnrollmentRequest
 from app.models.practice import PracticeHistoryCreate
 from app.models.session import SessionCreate
 from app.services.course_service import CourseService
@@ -11,9 +12,113 @@ from app.services.firestore_service import FirestoreService
 from app.services.gamification_service import GamificationService
 from app.services.notification_service import NotificationService
 from app.utils.timestamps import utc_now_iso
-from app.utils.security import get_current_user_id, get_current_user_id_or_guest
+from app.utils.security import get_current_user_id, get_current_user_id_or_guest, require_authenticated_user
 
 router = APIRouter()
+
+
+COURSE_CATEGORY_PRACTICE_TYPES = {
+    "Interview": "Job Interview",
+    "Public Speaking": "Presentation / Public Speaking",
+    "Negotiation": "Salary Negotiation",
+    "Difficult Conversations": "Difficult Conversation",
+    "Panel Discussion": "Panel Discussion",
+    "Thesis Defense": "Thesis Defense",
+    "Teaching": "Teaching Session",
+    "Sales": "Sales Pitch",
+}
+
+PRACTICE_TYPE_CATEGORIES = {value: key for key, value in COURSE_CATEGORY_PRACTICE_TYPES.items()}
+PRACTICE_TYPE_CATEGORIES.update({
+    "Casual Chat": "Casual Chat",
+    "Podcast / Interview Show": "Podcast",
+})
+
+PACKAGE_SKILLS = {
+    "Job Interview": ["answer structure", "evidence", "follow-up recovery", "composure"],
+    "Salary Negotiation": ["anchoring", "counter-offers", "silence tolerance", "closing"],
+    "Presentation / Public Speaking": ["structure", "audience control", "Q&A", "recovery"],
+    "Sales Pitch": ["value framing", "objections", "urgency", "closing"],
+    "Difficult Conversation": ["directness", "empathy", "boundaries", "repair"],
+    "Panel Discussion": ["brevity", "interruptions", "evidence", "composure"],
+    "Thesis Defense": ["methods", "assumptions", "limitations", "defense"],
+    "Teaching Session": ["clarity", "examples", "questions", "adaptation"],
+    "Casual Chat": ["fluency", "listening", "follow-ups", "confidence"],
+    "Podcast / Interview Show": ["storytelling", "conciseness", "follow-ups", "presence"],
+}
+
+
+async def _get_course_package(store: FirestoreService, package_id: str) -> Optional[dict]:
+    if not store.client or not package_id:
+        return None
+    snap = store.client.collection("coursePackages").document(package_id).get()
+    if not snap.exists:
+        return None
+    package = snap.to_dict() or {}
+    return package if package.get("isActive", True) else None
+
+
+def _template_from_package(package: dict) -> CourseTemplate:
+    practice_type = package.get("practiceType", "Job Interview")
+    duration = int(package.get("durationDays", 7))
+    return CourseTemplate(
+        id=f"package:{package.get('packageId', '')}",
+        title=package.get("title", "Training Course"),
+        category=PRACTICE_TYPE_CATEGORIES.get(practice_type, "Interview"),
+        durationDays=duration,
+        frequency="daily",
+        difficulty="Intermediate",
+        dailyMinutes="20",
+        targetSkills=PACKAGE_SKILLS.get(practice_type, ["clarity", "composure", "evidence", "recovery"]),
+        description=package.get("description", "A structured pressure-training course."),
+        whoFor="People preparing for a specific high-stakes conversation.",
+        expectedTransformation=f"Build repeatable {practice_type.lower()} performance through {duration} focused sessions.",
+    )
+
+
+async def _has_course_access(store: FirestoreService, uid: str, package_id: Optional[str]) -> bool:
+    profile = await store.get_user_profile(uid) or {}
+    if profile.get("role") == "admin":
+        return True
+
+    access = await store.get_user_entitlements(uid)
+    now = datetime.now(timezone.utc)
+    for purchase in access.get("purchases") or []:
+        if purchase.get("status") != "active":
+            continue
+        expires_at = purchase.get("expiresAt")
+        try:
+            if expires_at and datetime.fromisoformat(expires_at.replace("Z", "+00:00")) < now:
+                continue
+        except (TypeError, ValueError):
+            continue
+        if package_id and purchase.get("packageId") == package_id:
+            return True
+    return False
+
+
+async def _require_unused_purchase(store: FirestoreService, uid: str, package_id: str) -> None:
+    access = await store.get_user_entitlements(uid)
+    purchases = [
+        purchase for purchase in access.get("purchases") or []
+        if purchase.get("status") == "active" and purchase.get("packageId") == package_id
+    ]
+    if not purchases:
+        return
+    purchased_times = [purchase.get("purchasedAt", "") for purchase in purchases if purchase.get("purchasedAt")]
+    earliest = min(purchased_times) if purchased_times else ""
+    courses = await store.list_user_courses(uid)
+    used = sum(
+        1 for course in courses
+        if course.templateId == f"package:{package_id}" and (not earliest or course.createdAt >= earliest)
+    )
+    if used >= len(purchases):
+        raise HTTPException(status_code=409, detail="This course purchase has already been activated. Open My Courses to continue it.")
+
+
+async def _require_course_access(store: FirestoreService, uid: str, package_id: Optional[str]) -> None:
+    if not await _has_course_access(store, uid, package_id):
+        raise HTTPException(status_code=403, detail="Payment required. Structured courses are separate one-time purchases and are not included with Pro or Coach.")
 
 
 def get_store(request: Request) -> FirestoreService:
@@ -45,13 +150,38 @@ async def course_templates(request: Request):
     return get_templates(request).get_course_templates()
 
 
+@router.get("/api/courses/package-access")
+async def package_access(request: Request, current_user_id: str = Depends(require_authenticated_user)):
+    store = get_store(request)
+    profile = await store.get_user_profile(current_user_id) or {}
+    access = await store.get_user_entitlements(current_user_id)
+    active_ids = []
+    now = datetime.now(timezone.utc)
+    for purchase in access.get("purchases") or []:
+        if purchase.get("status") != "active":
+            continue
+        try:
+            expires_at = purchase.get("expiresAt")
+            if expires_at and datetime.fromisoformat(expires_at.replace("Z", "+00:00")) < now:
+                continue
+        except (TypeError, ValueError):
+            continue
+        if purchase.get("packageId"):
+            active_ids.append(purchase["packageId"])
+    return {"isAdmin": profile.get("role") == "admin", "activePackageIds": sorted(set(active_ids))}
+
+
 @router.post("/api/courses/enroll-template")
-async def enroll_template(payload: CourseTemplateEnrollmentRequest, request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
-    if current_user_id:
-        payload.userId = current_user_id
-    template = get_templates(request).get_template(payload.templateId)
+async def enroll_template(payload: CourseTemplateEnrollmentRequest, request: Request, current_user_id: str = Depends(require_authenticated_user)):
+    payload.userId = current_user_id
+    store = get_store(request)
+    package = await _get_course_package(store, payload.packageId or "") if payload.packageId else None
+    template = _template_from_package(package) if package else get_templates(request).get_template(payload.templateId)
     if not template:
-        raise HTTPException(status_code=404, detail="Course template not found")
+        raise HTTPException(status_code=404, detail="Course package not found")
+    if payload.packageId:
+        await _require_course_access(store, current_user_id, payload.packageId)
+        await _require_unused_purchase(store, current_user_id, payload.packageId)
     now = utc_now_iso()
     course_id = f"{payload.userId}_{template.id}_{now.replace(':', '').replace('-', '')[:15]}"
     course = Course(
@@ -84,7 +214,7 @@ async def enroll_template(payload: CourseTemplateEnrollmentRequest, request: Req
         for index, skill in enumerate(template.targetSkills[:4])
     ]
     progress = CourseProgress(id=f"{course_id}_progress", userId=payload.userId, courseId=course_id, totalSessions=len(sessions), updatedAt=now)
-    bundle = await get_store(request).save_course_bundle(CourseBundle(course=course, modules=modules, sessions=sessions, progress=progress))
+    bundle = await store.save_course_bundle(CourseBundle(course=course, modules=modules, sessions=sessions, progress=progress))
     for notification in get_notifications(request).create_course_reminders(payload.userId, course.id, course.title, len(sessions)):
         await get_store(request).create_notification(notification)
     return bundle
@@ -138,14 +268,19 @@ async def course_calendar(course_id: str, request: Request, current_user_id: Opt
 
 
 @router.post("/api/course-sessions/{course_session_id}/start")
-async def start_course_session(course_session_id: str, request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
+async def start_course_session(course_session_id: str, request: Request, current_user_id: str = Depends(require_authenticated_user)):
     store = get_store(request)
     course_session = await store.get_course_session(course_session_id)
     if not course_session:
         raise HTTPException(status_code=404, detail="Course session not found")
-    if current_user_id and course_session.userId != current_user_id:
+    if course_session.userId != current_user_id:
         raise HTTPException(status_code=403, detail="Course session does not belong to this user")
     course = await store.get_course(course_session.courseId)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    package_id = course.templateId.removeprefix("package:") if course.templateId and course.templateId.startswith("package:") else None
+    if package_id:
+        await _require_course_access(store, current_user_id, package_id)
     scenario = course_session.generatedScenario
     session = await store.create_session(SessionCreate(
         userId=course_session.userId,

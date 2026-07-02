@@ -1,4 +1,4 @@
-import type { Achievement, CalibrationStart, ConversationAnalyzePayload, ConversationControl, ConversationCoordinationState, Course, CourseBundle, CourseGeneratePayload, CourseSession, CourseTemplate, CourseTemplateEnrollmentPayload, CurrentSubscription, DailyChallenge, Difficulty, HintSummary, Message, NotificationItem, PerformanceAnalytics, PracticeHistory, PracticeScenario, PracticeSchedule, PracticeType, Report, Session, SessionAnalysis, SessionHint, SessionPayload, UserProgress, VoiceProfile } from "./types";
+import type { Achievement, CalibrationStart, ConversationAnalyzePayload, ConversationControl, ConversationCoordinationState, Course, CourseBundle, CourseGeneratePayload, CoursePackageAccess, CourseSession, CourseTemplate, CourseTemplateEnrollmentPayload, CurrentSubscription, DailyChallenge, Difficulty, HintSummary, Message, NotificationItem, PerformanceAnalytics, PracticeHistory, PracticeScenario, PracticeSchedule, PracticeType, Report, Session, SessionAnalysis, SessionHint, SessionPayload, UserProgress, VoiceProfile } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -158,6 +158,10 @@ export function generateCourse(payload: CourseGeneratePayload, token?: string | 
 
 export function getCourseTemplates(token?: string | null) {
   return request<CourseTemplate[]>("/api/courses/templates", { token });
+}
+
+export function getCoursePackageAccess(token?: string | null) {
+  return request<CoursePackageAccess>("/api/courses/package-access", { token });
 }
 
 export function enrollCourseTemplate(payload: CourseTemplateEnrollmentPayload, token?: string | null) {

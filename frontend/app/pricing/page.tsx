@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, CheckCircle2, ChevronDown, Clock, PartyPopper, Sparkles, Zap } from "lucide-react";
 import { Nav } from "@/components/Nav";
@@ -64,6 +65,7 @@ const faqs = [
 ];
 
 export default function PricingPage() {
+  const router = useRouter();
   const { profile } = useAuth();
   const currentPlanId = profile?.planId ?? null;
   const [plans, setPlans] = useState<Plan[]>(defaultPlans.filter((p) => p.isPublic && p.isActive));
@@ -114,7 +116,7 @@ export default function PricingPage() {
             <Link href="/settings#billing" className="ml-auto shrink-0 text-sm underline underline-offset-2">View in settings →</Link>
           </div>
         )}
-        <div className="mx-auto max-w-3xl text-center">
+        <div id="subscriptions" className="mx-auto max-w-3xl scroll-mt-8 text-center">
           <p className="mx-auto inline-flex items-center gap-2 rounded-full surface-low px-4 py-2 text-sm font-semibold text-secondary-token">
             <Sparkles size={16} /> Simple, transparent pricing
           </p>
@@ -149,7 +151,7 @@ export default function PricingPage() {
                   </p>
                 )}
                 <ul className="mt-7 flex-1 space-y-3 font-medium text-secondary-token">
-                  {(plan.features || []).map((feature) => (
+                  {(plan.features || []).filter((feature) => !feature.toLowerCase().includes("course template")).map((feature) => (
                     <li key={feature} className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 shrink-0 text-[var(--accent-secondary)]" size={18} />
                       {feature}
@@ -183,7 +185,7 @@ export default function PricingPage() {
         </StaggeredGrid>
 
         {/* Course packages */}
-        <div className="mt-20">
+        <div id="course-packages" className="mt-20 scroll-mt-8">
           <div className="mx-auto max-w-3xl text-center">
             <p className="inline-flex items-center gap-2 rounded-full surface-low px-4 py-2 text-sm font-semibold text-secondary-token">
               <Zap size={15} /> One-time course packages
@@ -191,6 +193,7 @@ export default function PricingPage() {
             <h2 className="mt-4 text-4xl font-semibold tracking-[-0.05em]">Preparing for one specific moment?</h2>
             <p className="mx-auto mt-4 max-w-2xl font-medium leading-7 text-secondary-token">
               Buy a focused course package outright — no subscription needed. Each session is included in the price.
+              Course packages are separate purchases and are not included with Pro or Coach.
               One human coaching session costs £100–200. These packages deliver 7–21 days of daily practice for a fraction of that.
             </p>
           </div>
@@ -218,6 +221,7 @@ export default function PricingPage() {
                     priceId={pkg.paddlePriceId}
                     fallbackHref="/contact"
                     label={pkg.title}
+                    onCompleted={() => router.push(`/courses/templates?package=${encodeURIComponent(pkg.packageId)}&payment=complete`)}
                     className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-[var(--accent-primary)] px-5 py-3 text-center font-semibold text-white transition hover:-translate-y-0.5 disabled:opacity-60"
                   >
                     {currentPlanId && currentPlanId !== "free"
