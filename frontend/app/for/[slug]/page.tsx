@@ -16,6 +16,9 @@ type LandingConfig = {
   benefits: string[];
   faqs: [string, string][];
   cta: string;
+  featureStrip?: string[];
+  differentiation?: { title: string; points: string[] };
+  testimonial?: { quote: string; role: string; detail: string };
 };
 
 const PAGES: Record<string, LandingConfig> = {
@@ -41,6 +44,20 @@ const PAGES: Record<string, LandingConfig> = {
       ["Is it free?", "Yes to start. Free plan gives you sessions every month. Pro and Coach plans unlock advanced modes, full history, and course programs."],
     ],
     cta: "Practice your interview now",
+    featureStrip: ["Realistic AI interviewer", "Follow-up questions", "Reasoning feedback", "Confidence score"],
+    differentiation: {
+      title: "Why not just use ChatGPT?",
+      points: [
+        "ChatGPT answers your questions. RehearseAI interviews you — it interrupts, pushes back, and reacts to weak answers like a real hiring manager would.",
+        "You get a scored report across 15 dimensions (confidence, clarity, composure, and more) — not a wall of generic text.",
+        "No scheduling, no awkwardness with a friend or coach. Practice at 2am, as many times as you need.",
+      ],
+    },
+    testimonial: {
+      quote: "It's the only thing I've found that actually puts you under pressure. Everything else is just prompts.",
+      role: "Early beta user",
+      detail: "Job interview prep",
+    },
   },
   "salary-negotiation-practice": {
     slug: "salary-negotiation-practice",
@@ -176,6 +193,16 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
           </div>
           <h1 className="text-4xl font-semibold leading-[1.08] tracking-[-0.06em] sm:text-6xl">{page.headline}</h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg font-medium leading-8 text-white/60">{page.subheadline}</p>
+          {page.featureStrip && (
+            <div className="mx-auto mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-x-2 gap-y-2 text-sm font-semibold text-white/50">
+              {page.featureStrip.map((f, i) => (
+                <span key={f} className="flex items-center gap-2">
+                  {i > 0 && <span className="text-white/20">·</span>}
+                  {f}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link href={`/practice/setup?type=${encodeURIComponent(page.practiceType)}`}
               className="inline-flex items-center gap-2 rounded-2xl bg-[#6200a8] px-7 py-4 text-base font-bold text-white shadow-[0_18px_44px_rgba(98,0,168,0.30)] transition hover:-translate-y-0.5 hover:bg-[#50008b]">
@@ -202,6 +229,42 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
             </ul>
           </div>
         </section>
+
+        {/* Differentiation */}
+        {page.differentiation && (
+          <section className="mx-auto max-w-2xl px-6 pb-20">
+            <h2 className="mb-5 text-xl font-semibold tracking-[-0.03em]">{page.differentiation.title}</h2>
+            <ul className="space-y-3.5">
+              {page.differentiation.points.map((p) => (
+                <li key={p} className="flex items-start gap-3 rounded-2xl bg-white/[0.04] p-5 ring-1 ring-white/10">
+                  <Zap size={16} className="mt-0.5 shrink-0 text-violet-300" />
+                  <span className="text-sm font-medium leading-6 text-white/70">{p}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Testimonial */}
+        {page.testimonial && (
+          <section className="mx-auto max-w-2xl px-6 pb-20">
+            <div className="rounded-2xl bg-white/[0.04] p-7 ring-1 ring-white/10">
+              <div className="flex gap-1 mb-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <svg key={i} className="h-4 w-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                ))}
+              </div>
+              <p className="text-base font-medium leading-7 text-white/80">&ldquo;{page.testimonial.quote}&rdquo;</p>
+              <div className="mt-5 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-violet-400 to-cyan-400" />
+                <div>
+                  <div className="text-sm font-semibold text-white">{page.testimonial.role}</div>
+                  <div className="text-xs font-medium text-white/40">{page.testimonial.detail}</div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* FAQ */}
         <section className="mx-auto max-w-2xl px-6 pb-24">

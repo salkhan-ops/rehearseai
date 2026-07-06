@@ -98,7 +98,7 @@ function CognitionHero() {
       </div>
       <div className="absolute left-5 top-5 rounded-2xl bg-white/80 dark:bg-white/[0.08] p-4 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-cyan-100/70"><Radio size={15} /> Live simulation</div>
-        <div className="mt-2 text-sm font-semibold text-slate-700 dark:text-white/82">“What assumption are you making?”</div>
+        <div className="mt-2 text-sm font-semibold text-slate-700 dark:text-white/82">“Tell me about a time you failed.”</div>
       </div>
       <div className="absolute bottom-5 right-5 rounded-2xl bg-white/80 dark:bg-white/[0.08] p-4 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-white/42">Recovery signal</div>
@@ -111,23 +111,13 @@ function CognitionHero() {
 function IntelligenceModule({ type }: { type: PracticeType }) {
   const meta = categoryMeta[type];
   return (
-    <AnimatedCard className="group relative min-h-64 overflow-hidden rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-5 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
-      <a href={`/practice/setup?type=${encodeURIComponent(type)}`} className="block h-full">
-        <div className={`absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gradient-to-br ${meta.accent} opacity-20 blur-2xl transition group-hover:opacity-35`} />
-        <div className="relative h-28">
-          <div className="absolute left-2 top-8 h-14 w-14 rounded-full bg-white/80 dark:bg-white/[0.08] ring-1 ring-slate-200/80 dark:ring-white/15" />
-          <motion.div
-            className={`absolute left-12 top-4 h-20 w-20 rounded-full bg-gradient-to-br ${meta.accent} opacity-75 blur-sm`}
-            animate={{ scale: [1, 1.12, 1], rotate: [0, 18, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <div className="absolute left-28 top-12 h-2 w-24 rounded-full bg-slate-300/70 dark:bg-white/20" />
-          <div className="absolute left-36 top-20 h-2 w-14 rounded-full bg-cyan-200/40" />
-        </div>
+    <AnimatedCard className="group relative overflow-hidden rounded-2xl bg-white/70 dark:bg-white/[0.05] p-4 ring-1 ring-slate-200/70 dark:ring-white/10 backdrop-blur-xl transition hover:bg-white/90 dark:hover:bg-white/[0.08]">
+      <a href={`/practice/setup?type=${encodeURIComponent(type)}`} className="block">
+        <div className={`absolute -right-6 -top-6 h-16 w-16 rounded-full bg-gradient-to-br ${meta.accent} opacity-15 blur-xl transition group-hover:opacity-25`} />
         <div className="relative">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-cyan-100/50">{meta.shape}</div>
-          <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{type}</div>
-          <p className="mt-3 text-sm font-medium leading-6 text-slate-700 dark:text-white/58">{meta.line}</p>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700 dark:text-cyan-100/45">{meta.shape}</div>
+          <div className="mt-1.5 text-base font-semibold tracking-[-0.02em] text-slate-950 dark:text-white">{type}</div>
+          <p className="mt-1.5 text-xs font-medium leading-5 text-slate-600 dark:text-white/50">{meta.line}</p>
         </div>
       </a>
     </AnimatedCard>
@@ -294,7 +284,7 @@ export default function Home() {
         <AnimatedPage className="mx-auto max-w-7xl text-center">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mx-auto mb-8 inline-flex items-center gap-2 rounded-full bg-white/80 dark:bg-white/[0.08] px-5 py-3 text-[15px] font-semibold text-violet-700 dark:text-cyan-100/82 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
             <Sparkles size={17} />
-            AI practice for high-stakes conversations
+            AI-powered job interview practice
             <ArrowRight size={17} />
           </motion.div>
 
@@ -306,7 +296,7 @@ export default function Home() {
           </motion.h1>
 
           <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="mx-auto mt-7 max-w-3xl text-balance text-xl font-medium leading-9 text-slate-700 dark:text-white/62">
-            Practice your job interview, salary negotiation, presentation, or pitch out loud. The AI challenges, interrupts, and scores how you think under pressure — so the real conversation feels like a warm-up.
+            Practice your next job interview out loud. The AI interviewer challenges, interrupts, and scores how you think under pressure — so the real interview feels like a warm-up.
           </motion.p>
 
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.24 }} className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -315,9 +305,9 @@ export default function Home() {
               onClick={() => startFree("hero_start_free")}
               className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
-              Start Rehearsing Free
+              Start Interview Practice Free
             </button>
-            <a href="/try" onClick={() => track.ctaClicked("hero_quick_practice")} className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/80 px-7 py-4 text-base font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-white dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">Try a quick session</a>
+            <a href="/try" onClick={() => track.ctaClicked("hero_quick_practice")} className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/80 px-7 py-4 text-base font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-white dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">Explore more scenarios</a>
           </motion.div>
 
           {/* Social proof strip */}
@@ -439,15 +429,15 @@ export default function Home() {
 
       <section className="relative z-10 px-4 py-20">
         <AnimatedSection className="mx-auto max-w-7xl">
-          <div className="max-w-4xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">Pressure simulation</p>
-            <h2 className="mt-4 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-slate-950 dark:text-white md:text-7xl">Practice 10 scenarios — job interviews, negotiations, pitches, and more.</h2>
-            <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-slate-700 dark:text-white/58">Each arena is an intelligence module. It changes the shape of the room, the questions, and the friction around your reasoning.</p>
+          <div className="max-w-2xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">More ways to use RehearseAI</p>
+            <h2 className="mt-3 text-3xl font-semibold leading-[1.05] tracking-[-0.04em] text-slate-950 dark:text-white md:text-4xl">Once you've mastered interviews, explore more conversations.</h2>
+            <p className="mt-4 text-base font-medium leading-7 text-slate-600 dark:text-white/50">RehearseAI covers 10 other high-stakes conversations — from salary negotiation to thesis defence. Same AI, same pressure, same scoring.</p>
           </div>
-          <StaggeredGrid className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StaggeredGrid className="mt-8 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {practiceTypes.map((type) => <IntelligenceModule key={type} type={type} />)}
           </StaggeredGrid>
-          <p className="mt-8 text-sm font-medium text-slate-400 dark:text-white/30">
+          <p className="mt-6 text-sm font-medium text-slate-400 dark:text-white/30">
             RehearseAI focuses on verbal communication under pressure — not coding challenges or technical problem-solving rounds. If that's your gap, you're in the wrong room. If your gap is how you talk about your work under pressure, you're in the right one.
           </p>
         </AnimatedSection>
@@ -560,9 +550,9 @@ export default function Home() {
         </div>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {[
+            { quote: "It's the only thing I've found that actually puts you under pressure. Everything else is just prompts.", role: "Early beta user", detail: "Job interview prep" },
             { quote: "I went into my panel interview actually feeling prepared for the first time. The brutal mode is brutal.", role: "PhD candidate", detail: "Thesis defence" },
             { quote: "Every time I practised my salary negotiation in here, the real conversation felt easier. Got 12% more than the first offer.", role: "Product Manager", detail: "Salary negotiation" },
-            { quote: "It's the only thing I've found that actually puts you under pressure. Everything else is just prompts.", role: "Early beta user", detail: "Job interview prep" },
           ].map(({ quote, role, detail }) => (
             <AnimatedCard key={role} className="flex flex-col justify-between rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-7 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
               <div>
@@ -681,7 +671,7 @@ export default function Home() {
               onClick={() => startFree("bottom_start_free")}
               className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
-              Start Rehearsing Free
+              Start Interview Practice Free
             </button>
           </div>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-medium text-white/50">

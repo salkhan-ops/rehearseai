@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, BrainCircuit, ChevronDown, CreditCard, Dumbbell, GraduationCap, LayoutDashboard, LogOut, Menu, Moon, Sparkles, Sun, X, Zap } from "lucide-react";
+import { Briefcase, BookOpen, BrainCircuit, ChevronDown, CreditCard, Dumbbell, GraduationCap, LayoutDashboard, LogOut, Menu, Moon, Sparkles, Sun, X, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { track } from "@/lib/analytics";
@@ -87,6 +87,9 @@ export function Nav() {
         <div className="hidden items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/72 md:flex">
           {user ? (
             <>
+              <Link href="/practice/setup?type=Job%20Interview" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
+                <Briefcase size={14} /> Job Interview
+              </Link>
               {/* Train dropdown — only for signed-in users */}
               <div ref={trainRef} className="relative">
                 <button
@@ -123,6 +126,9 @@ export function Nav() {
           ) : (
             <>
               {/* Public nav — for logged-out visitors */}
+              <Link href="/for/interview-practice" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
+                <Briefcase size={14} /> Job Interview
+              </Link>
               <Link href="/try" className="rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Try for free</Link>
               <Link href="/pricing" className="rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Pricing</Link>
               <Link href="/blog" className="rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Blog</Link>
@@ -220,6 +226,11 @@ export function Nav() {
             <div className="flex-1 overflow-y-auto px-4 py-5">
               {user ? (
                 <>
+                  <Link href="/practice/setup?type=Job%20Interview" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl bg-violet-50 px-3 py-3 text-violet-700 transition hover:bg-violet-100 dark:bg-violet-400/10 dark:text-violet-200">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-white text-violet-700 dark:bg-white/10 dark:text-violet-200"><Briefcase size={15} /></span>
+                    <span className="text-sm font-semibold">Job Interview</span>
+                  </Link>
+                  <div className="my-4 h-px bg-slate-100 dark:bg-white/10" />
                   {/* Train section — signed-in only */}
                   <p className="mb-2 px-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-white/30">Train</p>
                   {trainLinks.map(({ href, label, description, icon: Icon }) => (
@@ -244,6 +255,9 @@ export function Nav() {
               ) : (
                 <>
                   {/* Public links — logged-out visitors */}
+                  <Link href="/for/interview-practice" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">
+                    <Briefcase size={15} /> Job Interview
+                  </Link>
                   <Link href="/try" onClick={() => setMobileOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">Try for free</Link>
                   <Link href="/pricing" onClick={() => setMobileOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">Pricing</Link>
                   <Link href="/blog" onClick={() => setMobileOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">Blog</Link>
