@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlertTriangle, BarChart2, BookOpen, Box, Camera, CreditCard, DollarSign, FileText, LayoutDashboard, ListChecks, LogOut, Package, RefreshCw, Settings, ShieldCheck, TrendingDown, Users } from "lucide-react";
+import { AlertTriangle, BarChart2, BookOpen, Box, Camera, CreditCard, DollarSign, FileText, LayoutDashboard, ListChecks, LogOut, Package, RefreshCw, Settings, ShieldCheck, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { AdminRoute } from "./AdminRoute";
 import { useAuth } from "@/lib/auth";
 
@@ -16,6 +16,7 @@ const navGroups: NavGroup[] = [
     label: "Overview",
     items: [
       ["/admin", "Dashboard", LayoutDashboard],
+      ["/admin/growth", "Growth Dashboard", TrendingUp],
       ["/admin/finance", "Finance", BarChart2],
     ],
   },
