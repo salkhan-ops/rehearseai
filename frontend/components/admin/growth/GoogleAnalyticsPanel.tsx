@@ -34,8 +34,8 @@ export function GoogleAnalyticsPanel({ ga }: { ga: GaSnapshot }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-500">Built for the GA4 Data API — connect it to replace these placeholders with live traffic data.</p>
-        <PreviewBadge />
+        <p className="text-sm font-medium text-slate-500">{ga.isMock ? "Built for the GA4 Data API — connect it to replace these placeholders with live traffic data." : "Live data from the GA4 Data API."}</p>
+        {ga.isMock && <PreviewBadge />}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">

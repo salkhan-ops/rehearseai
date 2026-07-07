@@ -56,7 +56,7 @@ async function loadGrowthDashboard(): Promise<{ data: GrowthDashboardData; hasAn
     visitorsToday: Math.round(visitorsTrend[visitorsTrend.length - 1]?.value || 0),
     visitorsThisWeek: sum(visitorsTrend.slice(-7)),
     visitorsThisMonth: sum(visitorsTrend),
-    isVisitorsMock: true,
+    isVisitorsMock: ga.isMock,
     signupsToday: signupCounts.signupsToday,
     signupsThisWeek: signupCounts.signupsThisWeek,
     signupsThisMonth: signupCounts.signupsThisMonth,
@@ -110,6 +110,9 @@ export default function GrowthDashboardPage() {
     load();
   }, []);
 
+  const liveSources = ["Firestore", "Paddle", ...(data && !data.metaAds.isMock ? ["Meta Ads"] : []), ...(data && !data.ga.isMock ? ["Google Analytics"] : [])];
+  const previewSources = [...(!data || data.metaAds.isMock ? ["Meta Ads"] : []), ...(!data || data.ga.isMock ? ["Google Analytics"] : []), "Pixel Events"];
+
   return (
     <AdminLayout>
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -156,7 +159,8 @@ export default function GrowthDashboardPage() {
       )}
 
       <p className="mt-8 text-center text-xs font-medium text-slate-400">
-        {GROWTH_TABS.length} sections · Firestore &amp; Paddle data is live · Meta Ads, Google Analytics, and Pixel Events are preview data pending API connection.
+        {GROWTH_TABS.length} sections · {liveSources.join(", ")} data is live
+        {previewSources.length > 0 && ` · ${previewSources.join(", ")} preview data pending API connection.`}
       </p>
     </AdminLayout>
   );

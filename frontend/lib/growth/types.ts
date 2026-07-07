@@ -1,7 +1,8 @@
 // Shared types for the admin Growth Dashboard (frontend/app/admin/growth).
-// Each service returns one of these shapes — real services (Firestore/Paddle) populate
-// them from live data, mock services (Meta Ads/GA4/Pixel) populate them with realistic
-// placeholders and set `isMock: true` so the UI can badge them accordingly.
+// Each service returns one of these shapes — real services (Firestore/Paddle/Meta Ads once
+// configured) populate them from live data; services without API credentials configured yet
+// (GA4/Pixel, or Meta Ads without env vars set) populate them with realistic placeholders and
+// set `isMock: true` so the UI can badge them accordingly.
 
 export type TrendPoint = { date: string; value: number };
 
@@ -9,7 +10,7 @@ export type KpiSnapshot = {
   visitorsToday: number;
   visitorsThisWeek: number;
   visitorsThisMonth: number;
-  isVisitorsMock: true;
+  isVisitorsMock: boolean;
   signupsToday: number;
   signupsThisWeek: number;
   signupsThisMonth: number;
@@ -69,7 +70,8 @@ export type MetaAdSet = MetaCreativeMetrics & { id: string; name: string; campai
 export type MetaAd = MetaCreativeMetrics & { id: string; name: string; adSetId: string; status: "active" | "paused" };
 
 export type MetaAdsSnapshot = {
-  isMock: true;
+  isMock: boolean;
+  currency: string;
   campaigns: MetaCampaign[];
   adSets: MetaAdSet[];
   ads: MetaAd[];
@@ -83,7 +85,7 @@ export type MetaAdsSnapshot = {
 };
 
 export type GaSnapshot = {
-  isMock: true;
+  isMock: boolean;
   users: number;
   sessions: number;
   avgEngagementTimeSeconds: number;

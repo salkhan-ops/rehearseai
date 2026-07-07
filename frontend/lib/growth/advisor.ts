@@ -26,6 +26,18 @@ function usd(n: number) {
   return `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
 }
 
+// Meta Ads values are in the connected ad account's own currency (not necessarily USD),
+// so format those with the account's actual currency rather than the hardcoded $ formatter.
+function moneyFor(currency: string) {
+  return (n: number) => {
+    try {
+      return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(n);
+    } catch {
+      return `${currency} ${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    }
+  };
+}
+
 function trendDelta(points: { value: number }[]): number | null {
   if (points.length < 14) return null;
   const half = Math.floor(points.length / 2);
@@ -52,7 +64,9 @@ export function generateAlerts(data: AdvisorInput): GrowthAlert[] {
     });
   }
 
-  if (metaAds.totals.cpc > TARGETS.cpcUsd) {
+  // TARGETS.cpcUsd is a fixed USD benchmark, so this comparison only makes sense when the
+  // connected ad account is itself billed in USD — otherwise the units don't match.
+  if (metaAds.currency === "USD" && metaAds.totals.cpc > TARGETS.cpcUsd) {
     alerts.push({
       id: "cpc-above-target",
       severity: metaAds.totals.cpc > TARGETS.cpcUsd * 1.5 ? "critical" : "warning",
@@ -110,20 +124,21 @@ export function generateAlerts(data: AdvisorInput): GrowthAlert[] {
 export function generateRecommendations(data: AdvisorInput): AdvisorRecommendation[] {
   const recs: AdvisorRecommendation[] = [];
   const { metaAds, funnel, usage, revenue, kpis } = data;
+  const adsMoney = moneyFor(metaAds.currency);
 
   // Ads: winner / loser
   recs.push({
     id: "ads-winner",
     theme: "ads",
     headline: `"${metaAds.topCampaign.name}" is your best performer`,
-    body: `It's returning ${metaAds.topCampaign.roas.toFixed(1)}x ROAS at ${usd(metaAds.topCampaign.cpc)} CPC. Shift 15-20% of budget from weaker campaigns into this one before testing new creative — you're leaving efficient spend on the table.`,
+    body: `It's returning ${metaAds.topCampaign.roas.toFixed(1)}x ROAS at ${adsMoney(metaAds.topCampaign.cpc)} CPC. Shift 15-20% of budget from weaker campaigns into this one before testing new creative — you're leaving efficient spend on the table.`,
   });
   if (metaAds.worstAd.roas < 1) {
     recs.push({
       id: "ads-pause",
       theme: "ads",
       headline: `Consider pausing "${metaAds.worstAd.name}"`,
-      body: `It's returning ${metaAds.worstAd.roas.toFixed(1)}x ROAS at ${usd(metaAds.worstAd.costPerPurchase)} cost per purchase — below breakeven. Two weeks of underperformance is enough signal; redirect that spend to "${metaAds.topAd.name}" (${metaAds.topAd.roas.toFixed(1)}x ROAS).`,
+      body: `It's returning ${metaAds.worstAd.roas.toFixed(1)}x ROAS at ${adsMoney(metaAds.worstAd.costPerPurchase)} cost per purchase — below breakeven. Two weeks of underperformance is enough signal; redirect that spend to "${metaAds.topAd.name}" (${metaAds.topAd.roas.toFixed(1)}x ROAS).`,
     });
   }
 
@@ -198,7 +213,7 @@ export function generateRecommendations(data: AdvisorInput): AdvisorRecommendati
       id: "budget-increase",
       theme: "ads",
       headline: "Blended ROAS supports a budget increase",
-      body: `At ${metaAds.totals.roas.toFixed(1)}x blended ROAS and ${usd(metaAds.totals.costPerPurchase)} cost per purchase, there's room to increase daily budget 20-30% on "${metaAds.topCampaign.name}" before efficiency likely degrades.`,
+      body: `At ${metaAds.totals.roas.toFixed(1)}x blended ROAS and ${adsMoney(metaAds.totals.costPerPurchase)} cost per purchase, there's room to increase daily budget 20-30% on "${metaAds.topCampaign.name}" before efficiency likely degrades.`,
     });
   } else if (metaAds.totals.roas < 1) {
     recs.push({

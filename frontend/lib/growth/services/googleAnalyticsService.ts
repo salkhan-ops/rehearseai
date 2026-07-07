@@ -1,15 +1,45 @@
 "use client";
 
-// TODO: swap for the GA4 Data API (https://developers.google.com/analytics/devguides/reporting/data/v1).
-// Method names mirror the report types you'd request from that API (runReport for
-// overview metrics, dimension breakdowns for landing pages/countries/devices/sources)
-// so the real client can replace this class without touching the panel component.
+// Calls /api/growth/google-analytics (a server route that hits the GA4 Data API with
+// GA4_PROPERTY_ID / GA4_CLIENT_EMAIL / GA4_PRIVATE_KEY) and falls back to realistic mock
+// data when those env vars aren't set or the request fails, so the dashboard still renders
+// during local dev. The route response is cached per-instance since getSnapshot() and
+// getUsersTrend() are called together and both need the same underlying report data.
 
 import { buildWave } from "../mockWave";
-import type { GaSnapshot } from "../types";
+import type { GaSnapshot, TrendPoint } from "../types";
+
+type RealGaData = { snapshot: GaSnapshot; usersTrend: TrendPoint[] };
 
 export class GoogleAnalyticsService {
+  private realDataPromise: Promise<RealGaData | null> | null = null;
+
+  private loadReal(): Promise<RealGaData | null> {
+    if (!this.realDataPromise) {
+      this.realDataPromise = fetch("/api/growth/google-analytics", { cache: "no-store" })
+        .then(async (res) => {
+          const json = await res.json();
+          if (res.ok && json.configured && json.snapshot) return { snapshot: json.snapshot as GaSnapshot, usersTrend: json.usersTrend as TrendPoint[] };
+          return null;
+        })
+        .catch(() => null);
+    }
+    return this.realDataPromise;
+  }
+
   async getSnapshot(): Promise<GaSnapshot> {
+    const real = await this.loadReal();
+    if (real) return real.snapshot;
+    return this.getMockSnapshot();
+  }
+
+  async getUsersTrend(): Promise<TrendPoint[]> {
+    const real = await this.loadReal();
+    if (real) return real.usersTrend;
+    return buildWave(30, 480, 0.4, "ga-users");
+  }
+
+  private getMockSnapshot(): GaSnapshot {
     return {
       isMock: true,
       users: 14280,
@@ -44,9 +74,5 @@ export class GoogleAnalyticsService {
         { source: "Email", users: 320 },
       ],
     };
-  }
-
-  async getUsersTrend() {
-    return buildWave(30, 480, 0.4, "ga-users");
   }
 }

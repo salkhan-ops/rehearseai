@@ -22,9 +22,9 @@ export function buildFunnel(params: {
   const interviewCompleted = interviewSessions.filter((s) => s.status === "completed").length;
 
   const raw: { key: FunnelStep["key"]; label: string; count: number; isMock: boolean }[] = [
-    { key: "adImpressions", label: "Ad Impressions", count: Math.round(metaAds.totals.impressions), isMock: true },
-    { key: "linkClicks", label: "Link Clicks", count: Math.round(metaAds.totals.clicks), isMock: true },
-    { key: "landingPageViews", label: "Landing Page Views", count: Math.round(metaAds.totals.landingPageViews), isMock: true },
+    { key: "adImpressions", label: "Ad Impressions", count: Math.round(metaAds.totals.impressions), isMock: metaAds.isMock },
+    { key: "linkClicks", label: "Link Clicks", count: Math.round(metaAds.totals.clicks), isMock: metaAds.isMock },
+    { key: "landingPageViews", label: "Landing Page Views", count: Math.round(metaAds.totals.landingPageViews), isMock: metaAds.isMock },
     { key: "signups", label: "Signups", count: signupsLast30d, isMock: false },
     { key: "interviewStarted", label: "Interview Started", count: interviewStarted, isMock: false },
     { key: "interviewCompleted", label: "Interview Completed", count: interviewCompleted, isMock: false },

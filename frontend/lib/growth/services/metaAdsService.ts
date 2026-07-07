@@ -1,9 +1,9 @@
 "use client";
 
-// TODO: swap for the Meta Marketing API (https://developers.facebook.com/docs/marketing-apis).
-// Every method here returns data shaped exactly like the real API's Insights response
-// (spend, impressions, reach, clicks, actions) so wiring the real client later is a
-// drop-in replacement — the panel components only depend on the types in ../types.
+// Calls /api/growth/meta-ads (a server route that hits the Meta Marketing API Insights
+// endpoints with META_ACCESS_TOKEN / META_AD_ACCOUNT_ID) and falls back to realistic mock
+// data — shaped exactly like the real Insights response — when those env vars aren't set
+// or the request fails, so the dashboard still renders during local dev.
 
 import { buildWave } from "../mockWave";
 import type { MetaAd, MetaAdSet, MetaAdsSnapshot, MetaCampaign, MetaCreativeMetrics } from "../types";
@@ -101,6 +101,17 @@ function buildCampaigns(ads: MetaAd[]): MetaCampaign[] {
 
 export class MetaAdsService {
   async getSnapshot(): Promise<MetaAdsSnapshot> {
+    try {
+      const res = await fetch("/api/growth/meta-ads", { cache: "no-store" });
+      const json = await res.json();
+      if (res.ok && json.configured && json.snapshot) return json.snapshot as MetaAdsSnapshot;
+    } catch {
+      // fall through to mock data below
+    }
+    return this.getMockSnapshot();
+  }
+
+  private getMockSnapshot(): MetaAdsSnapshot {
     const ads = buildAds();
     const adSets = buildAdSets(ads);
     const campaigns = buildCampaigns(ads);
@@ -110,6 +121,7 @@ export class MetaAdsService {
 
     return {
       isMock: true,
+      currency: "USD",
       campaigns,
       adSets,
       ads,

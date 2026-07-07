@@ -14,9 +14,11 @@ export function KpiGrid({ kpis }: { kpis: KpiSnapshot }) {
   return (
     <div className="space-y-2">
       <AdminSection title="Visitors">
-        <div className="flex items-center gap-2 px-1">
-          <PreviewBadge label="Preview data — connect GA4 / Meta" />
-        </div>
+        {kpis.isVisitorsMock && (
+          <div className="flex items-center gap-2 px-1">
+            <PreviewBadge label="Preview data — connect GA4 / Meta" />
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-3">
           <AdminStatCard icon={Users} label="Visitors today" value={kpis.visitorsToday.toLocaleString()} />
           <AdminStatCard icon={Users} label="Visitors this week" value={kpis.visitorsThisWeek.toLocaleString()} />

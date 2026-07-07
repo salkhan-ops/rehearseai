@@ -28,7 +28,6 @@ gcloud run deploy rehearseai-backend \
   --project rehearseai-prod
 
 
-
 *****frontend
 cd /Users/salmankhan/StudioProjects/rehearseAI/frontend && \
 gcloud builds submit \
