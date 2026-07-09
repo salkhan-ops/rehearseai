@@ -11,8 +11,20 @@ export function ProtectedRoute({ children, adminOnly = false }: { children: Reac
 
   useEffect(() => {
     if (loading) return;
+    // Read the URL directly rather than useSearchParams() -- that hook requires a
+    // Suspense boundary, which most ProtectedRoute call sites don't already have.
+    const returnTo = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "";
     if (!user) {
-      router.replace("/signin");
+      // Route through signup, not signin: a logged-out visitor landing directly on a
+      // protected page (e.g. from a pricing-page CTA) is more often a first-time visitor
+      // than a returning one, and the signin form skips consent checkboxes entirely and
+      // never passes compliance data to Google sign-in -- so a genuinely new account
+      // would get created with ageConfirmed:false and get treated as a returning user by
+      // routeAfterLogin (sent to /dashboard instead of the new-signup quick-start flow).
+      // The signup form handles returning users fine too -- signInWithGoogleAction
+      // detects an existing account via getAdditionalUserInfo(result).isNewUser and skips
+      // re-creating/overwriting their profile either way.
+      router.replace(`/?auth=signup${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`);
       return;
     }
     // Wait for Firestore profile to load before making the age-check decision —
@@ -21,9 +33,6 @@ export function ProtectedRoute({ children, adminOnly = false }: { children: Reac
     if (!profile.ageConfirmed) {
       // Preserve where the user was actually headed (e.g. the new-signup quick-start
       // flow) so age-check sends them back there instead of defaulting to /dashboard.
-      // Read the URL directly rather than useSearchParams() -- that hook requires a
-      // Suspense boundary, which most ProtectedRoute call sites don't already have.
-      const returnTo = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "";
       router.replace(`/age-check${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`);
       return;
     }

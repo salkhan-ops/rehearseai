@@ -47,15 +47,21 @@ export function AuthForm({
       onAuthenticated();
       return;
     }
-    // If a returnTo param was passed (e.g. from pricing page upgrade), honour it.
     const params = new URLSearchParams(window.location.search);
     const returnTo = params.get("returnTo");
-    if (returnTo && returnTo.startsWith("/")) {
+    const isNewSignup = mode === "signup";
+    // ProtectedRoute now sends any logged-out visitor hitting a protected page (e.g. the
+    // pricing page's "Free" CTA, which links to /practice) through here with a returnTo
+    // set to wherever they were originally headed. For signup specifically, that must not
+    // override the quick-start destination -- otherwise a brand-new signup could land on
+    // /practice, /dashboard, or anywhere else instead of the intended first-run flow. The
+    // one deliberate exception is /try's own "sign up to save this" flow, which sets
+    // returnTo itself and genuinely wants new users back on that page.
+    if (returnTo && returnTo.startsWith("/") && (!isNewSignup || returnTo === "/try")) {
       router.push(returnTo);
       return;
     }
     // New users go straight to practice setup; returning users go to dashboard.
-    const isNewSignup = mode === "signup";
     router.push(isNewSignup ? "/practice/setup?first=true" : "/dashboard");
   }
 
