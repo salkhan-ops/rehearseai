@@ -238,14 +238,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await result.user.getIdToken(true);
       await sendEmailVerification(result.user);
       try {
-        await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance, true);
+        // Auto-login: stay signed in and adopt the new profile immediately, same as the
+        // Google signup path, instead of signing back out and forcing a manual sign-in.
+        // Verification email is still sent above; unverified users are allowed in (see
+        // the non-blocking comment on signInWithEmailAction) and can practice right away.
+        setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance, true));
       } catch (profileError) {
         // Don't leave an orphaned Auth account with no Firestore profile — it would block
         // retrying signup with the same email while the person has no usable account.
         await deleteUser(result.user).catch(() => {});
+        await firebaseSignOut(auth).catch(() => {});
         throw profileError;
       }
-      await firebaseSignOut(auth);
     }
 
     async function signInWithGoogleAction(practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) {

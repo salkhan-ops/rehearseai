@@ -93,7 +93,9 @@ export function AuthForm({
         });
         track.signupCompleted("email");
         trackCompleteRegistration();
-        setVerifyState({ email, password });
+        // Auto-login straight into the app instead of gating on email verification here —
+        // the verification email was already sent; unverified users can still practice.
+        await routeAfterLogin();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");

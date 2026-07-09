@@ -118,6 +118,10 @@ function SetupForm() {
   // Skip environment / briefing / ready steps for brand-new users — they just
   // want to start. Steps 3-5 are available on every subsequent session.
   const isFirstSession = params.get("first") === "true";
+  // First-time signups land on a minimal role + difficulty picker instead of the full
+  // setup form, so they reach their first interview in seconds. "Customize instead"
+  // drops through to the full form below without losing any of its functionality.
+  const [quickStartMode, setQuickStartMode] = useState(isFirstSession);
   const leadTrackedRef = useRef(false);
   const [step, setStep] = useState(1);
   const [practiceType, setPracticeType] = useState<PracticeType>((params.get("type") as PracticeType) || "Job Interview");
@@ -198,9 +202,15 @@ function SetupForm() {
     await updateTelemetryConsent(userId, { ...current, allowCameraAssistedTiming: enabled, allowRawVideoStorage: false }, token).catch(() => undefined);
   }
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  // Accepts overrides so the quick-start flow can supply topic/context/goal from a
+  // template and start immediately, without waiting a render cycle for setState to
+  // flush into `topic`/`context`/`goal` first.
+  async function startSession(overrides?: { topic?: string; context?: string; goal?: string; optionalNotes?: string }) {
     setError("");
+    const effectiveTopic = overrides?.topic ?? topic;
+    const effectiveContext = overrides?.context ?? context;
+    const effectiveGoal = overrides?.goal ?? goal;
+    const effectiveNotes = overrides?.optionalNotes ?? optionalNotes;
     if (practiceType === "U.S. Visa Interview") {
       const words = documentText.trim() ? documentText.trim().split(/\s+/).length : 0;
       if (!visaType) { setError("Select the U.S. visa interview type."); return; }
@@ -236,7 +246,7 @@ function SetupForm() {
         await Notification.requestPermission().catch(() => undefined);
       }
       const session = await createSession({
-        userId, practiceType, difficulty, topic, context, goal, optionalNotes,
+        userId, practiceType, difficulty, topic: effectiveTopic, context: effectiveContext, goal: effectiveGoal, optionalNotes: effectiveNotes,
         ...(practiceType === "U.S. Visa Interview" ? { visaType } : {}),
         practiceLanguage, feedbackLanguage, durationPreference, environmentMode, preferredConversationMode,
         ...(difficulty === "Nerve" ? { nerveEntryType, nervePersona, nerveMaterialName, nerveMaterialText } : {}),
@@ -258,6 +268,11 @@ function SetupForm() {
       setError(err instanceof Error ? err.message : "Failed to start session. Please try again.");
       setLoading(false);
     }
+  }
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await startSession();
   }
 
   function applyTemplate(t: { topic: string; context: string; goal: string; notes: string; visaType?: VisaType }) {
@@ -304,6 +319,88 @@ function SetupForm() {
     const numRemaining = usage.remaining as number;
     return { numLimit, numRemaining, used: usage.used, resetDate: usage.resetDate };
   })() : null;
+
+  if (quickStartMode) {
+    // U.S. Visa Interview always requires a pasted document — not a fit for a
+    // zero-friction quick start, so it's only offered from the full customize form.
+    const quickStartRoles = practiceTypes.filter((type) => type !== "U.S. Visa Interview");
+    const quickStartDifficulties: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
+    return (
+      <main className="min-h-screen overflow-hidden bg-[#f4f8fc] dark:bg-[#0e1020]">
+        <Nav />
+        <AnimatedPage className="relative mx-auto max-w-2xl px-4 py-10 md:py-14">
+          <div className="pointer-events-none absolute right-10 top-20 h-72 w-72 rounded-full bg-violet-300/20 blur-3xl" />
+          <div className="relative mb-6 text-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 ring-1 ring-violet-100 dark:bg-white/10 dark:text-violet-100 dark:ring-white/10">
+              <Sparkles size={14} /> Quick start
+            </div>
+            <h1 className="mt-3 text-3xl font-semibold leading-[0.98] tracking-[-0.04em] text-slate-950 dark:text-white md:text-4xl">
+              Let&apos;s get you talking
+            </h1>
+            <p className="mt-3 text-base font-medium leading-7 text-slate-600 dark:text-white/60">
+              Pick what you&apos;re practising and how hard it should push. You can fine-tune everything else later.
+            </p>
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-6 shadow-[0_24px_70px_rgba(35,45,75,0.08)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
+              <Target size={16} /> What are you practising?
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {quickStartRoles.map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setPracticeType(role)}
+                  className={`rounded-2xl px-4 py-3 text-left text-sm font-semibold ring-1 transition ${practiceType === role ? "bg-slate-950 text-white ring-slate-950 shadow-[0_16px_35px_rgba(15,23,42,0.16)] dark:bg-white dark:text-slate-950" : "bg-slate-50 text-slate-700 ring-slate-200 hover:bg-white dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
+              <Zap size={16} /> Difficulty
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {quickStartDifficulties.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setDifficulty(item)}
+                  className={`rounded-2xl px-4 py-3 text-sm font-semibold ring-1 transition ${difficulty === item ? "bg-slate-950 text-white ring-slate-950 shadow-[0_16px_35px_rgba(15,23,42,0.16)] dark:bg-white dark:text-slate-950" : "bg-slate-50 text-slate-700 ring-slate-200 hover:bg-white dark:bg-white/10 dark:text-white/70 dark:ring-white/10"}`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
+            {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
+
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                const template = quickStarts[practiceType][0];
+                applyTemplate(template);
+                startSession({ topic: template.topic, context: template.context, goal: template.goal, optionalNotes: template.notes }).catch(() => undefined);
+              }}
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-4 font-semibold text-white shadow-[0_18px_38px_rgba(98,0,168,0.22)] transition hover:-translate-y-0.5 hover:bg-[#50008b] disabled:opacity-60"
+            >
+              {loading ? "Building your room…" : <>Start My Interview <ArrowRight size={18} /></>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuickStartMode(false)}
+              className="mt-3 w-full text-center text-sm font-semibold text-slate-500 underline underline-offset-2 hover:text-slate-700 dark:text-white/50 dark:hover:text-white/80"
+            >
+              Customize instead (topic, duration, environment…)
+            </button>
+          </div>
+        </AnimatedPage>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#f4f8fc] dark:bg-[#0e1020]">
