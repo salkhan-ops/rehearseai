@@ -122,6 +122,10 @@ function SetupForm() {
   // setup form, so they reach their first interview in seconds. "Customize instead"
   // drops through to the full form below without losing any of its functionality.
   const [quickStartMode, setQuickStartMode] = useState(isFirstSession);
+  // Picking role + difficulty isn't the same as being ready to talk to an AI — this adds
+  // one explicit "ready?" beat before we ever create the session and enter the live room,
+  // instead of dropping people straight from a button click into the AI room.
+  const [quickStartConfirming, setQuickStartConfirming] = useState(false);
   const leadTrackedRef = useRef(false);
   const [step, setStep] = useState(1);
   const [practiceType, setPracticeType] = useState<PracticeType>((params.get("type") as PracticeType) || "Job Interview");
@@ -320,6 +324,55 @@ function SetupForm() {
     return { numLimit, numRemaining, used: usage.used, resetDate: usage.resetDate };
   })() : null;
 
+  if (quickStartMode && quickStartConfirming) {
+    return (
+      <main className="min-h-screen overflow-hidden bg-[#f4f8fc] dark:bg-[#0e1020]">
+        <Nav />
+        <AnimatedPage className="relative mx-auto max-w-xl px-4 py-10 md:py-14">
+          <div className="pointer-events-none absolute right-10 top-20 h-72 w-72 rounded-full bg-violet-300/20 blur-3xl" />
+          <div className="rounded-[2rem] bg-white p-6 shadow-[0_24px_70px_rgba(35,45,75,0.08)] ring-1 ring-slate-200/75 dark:bg-white/10 dark:ring-white/10">
+            <div className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 ring-1 ring-violet-100 dark:bg-white/10 dark:text-violet-100 dark:ring-white/10">
+              <Target size={14} /> Ready check
+            </div>
+            <h1 className="mt-3 text-2xl font-semibold leading-[1.05] tracking-[-0.03em] text-slate-950 dark:text-white sm:text-3xl">
+              {practiceType} · {difficulty}
+            </h1>
+            <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-white/60">
+              This is a live spoken conversation with an AI — it will ask you questions and react to your answers, out loud. Your first session is 3 minutes, then you will get a scored report.
+            </p>
+            <ul className="mt-4 space-y-2 text-sm font-medium text-slate-600 dark:text-white/60">
+              <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-emerald-500" /> Your browser will ask for microphone access — allow it to talk out loud, or type instead.</li>
+              <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-emerald-500" /> Find a quiet spot. You can end early at any time.</li>
+            </ul>
+
+            {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
+
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                const template = quickStarts[practiceType][0];
+                applyTemplate(template);
+                startSession({ topic: template.topic, context: template.context, goal: template.goal, optionalNotes: template.notes }).catch(() => undefined);
+              }}
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-4 font-semibold text-white shadow-[0_18px_38px_rgba(98,0,168,0.22)] transition hover:-translate-y-0.5 hover:bg-[#50008b] disabled:opacity-60"
+            >
+              {loading ? "Building your room…" : <>Begin interview <ArrowRight size={18} /></>}
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => setQuickStartConfirming(false)}
+              className="mt-3 w-full text-center text-sm font-semibold text-slate-500 underline underline-offset-2 hover:text-slate-700 dark:text-white/50 dark:hover:text-white/80 disabled:opacity-50"
+            >
+              ← Back
+            </button>
+          </div>
+        </AnimatedPage>
+      </main>
+    );
+  }
+
   if (quickStartMode) {
     // U.S. Visa Interview always requires a pasted document — not a fit for a
     // zero-friction quick start, so it's only offered from the full customize form.
@@ -375,19 +428,12 @@ function SetupForm() {
               ))}
             </div>
 
-            {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
-
             <button
               type="button"
-              disabled={loading}
-              onClick={() => {
-                const template = quickStarts[practiceType][0];
-                applyTemplate(template);
-                startSession({ topic: template.topic, context: template.context, goal: template.goal, optionalNotes: template.notes }).catch(() => undefined);
-              }}
-              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-4 font-semibold text-white shadow-[0_18px_38px_rgba(98,0,168,0.22)] transition hover:-translate-y-0.5 hover:bg-[#50008b] disabled:opacity-60"
+              onClick={() => setQuickStartConfirming(true)}
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-4 font-semibold text-white shadow-[0_18px_38px_rgba(98,0,168,0.22)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
-              {loading ? "Building your room…" : <>Start My Interview <ArrowRight size={18} /></>}
+              Continue <ArrowRight size={18} />
             </button>
             <button
               type="button"
