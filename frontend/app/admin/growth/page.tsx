@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw, TrendingUp } from "lucide-react";
+import { Download, RefreshCw, TrendingUp } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { AdvisorPanel } from "@/components/admin/growth/AdvisorPanel";
 import { AlertsPanel } from "@/components/admin/growth/AlertsPanel";
@@ -27,6 +27,49 @@ function sum(points: { value: number }[]) {
   return Math.round(points.reduce((s, p) => s + p.value, 0));
 }
 
+function downloadReport(data: GrowthDashboardData) {
+  const report = {
+    generatedAt: new Date().toISOString(),
+    summary: {
+      visitorsThisMonth: data.kpis.visitorsThisMonth,
+      isVisitorsMock: data.kpis.isVisitorsMock,
+      signupsThisMonth: data.kpis.signupsThisMonth,
+      interviewsStarted: data.kpis.interviewsStarted,
+      interviewsCompleted: data.kpis.interviewsCompleted,
+      completionRatePct: data.kpis.completionRate,
+      activeUsers7d: data.kpis.activeUsers7d,
+      activeUsers30d: data.kpis.activeUsers30d,
+      mrr: data.revenue.mrr,
+      paidSubscribers: data.kpis.paidSubscribers,
+      metaAdSpend30d: data.metaAds.totals.spend,
+      metaAdCurrency: data.metaAds.currency,
+      metaAdIsMock: data.metaAds.isMock,
+      metaCtrPct: data.metaAds.totals.ctr,
+      ga4Users30d: data.ga.users,
+      ga4Sessions30d: data.ga.sessions,
+      ga4BounceRatePct: data.ga.bounceRate,
+      ga4IsMock: data.ga.isMock,
+      alertCount: data.alerts.length,
+    },
+    kpis: data.kpis,
+    funnel: data.funnel,
+    metaAds: data.metaAds,
+    googleAnalytics: data.ga,
+    pixelEvents: data.pixel,
+    usage: data.usage,
+    revenue: data.revenue,
+    alerts: data.alerts,
+    recommendations: data.recommendations,
+  };
+  const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `growth-report-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function loadGrowthDashboard(): Promise<{ data: GrowthDashboardData; hasAnyData: boolean }> {
   const firestoreService = new FirestoreAnalyticsService();
   const paddleService = new PaddleAnalyticsService();
@@ -48,6 +91,15 @@ async function loadGrowthDashboard(): Promise<{ data: GrowthDashboardData; hasAn
   const activeUsers = firestoreService.getActiveUsers(sessions);
   const interviewCounts = firestoreService.getInterviewFunnelCounts(sessions);
   const usage = await firestoreService.getUsageStats(sessions);
+  // GA4 (once connected) actually captures device/country, unlike the session docs — prefer
+  // its real breakdown over the Firestore-derived placeholder.
+  if (!ga.isMock) {
+    const topDevice = ga.devices[0]?.device;
+    const topCountry = ga.countries[0]?.country;
+    usage.mostUsedDevice = topDevice ? topDevice.charAt(0).toUpperCase() + topDevice.slice(1) : usage.mostUsedDevice;
+    usage.mostCommonCountry = topCountry || usage.mostCommonCountry;
+    usage.isDeviceCountryMock = false;
+  }
 
   const signupsLast30d = sum(signupCounts.signupsTrend);
   const funnel = buildFunnel({ metaAds, sessions, signupsLast30d, subscriptionPurchasesLast30d: revenue.conversions });
@@ -122,9 +174,19 @@ export default function GrowthDashboardPage() {
           </h1>
           <p className="mt-1 font-medium text-slate-500">Acquisition, funnel, revenue, and usage in one place — real Firestore/Paddle data where it exists, clearly-marked previews elsewhere.</p>
         </div>
-        <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
-          <RefreshCw size={14} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => data && downloadReport(data)}
+            disabled={!data}
+            className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Download size={14} /> Download report
+          </button>
+          <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
+            <RefreshCw size={14} /> Refresh
+          </button>
+        </div>
       </div>
 
       {!loading && data && !hasAnyData && (

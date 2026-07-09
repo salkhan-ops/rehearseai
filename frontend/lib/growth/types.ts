@@ -129,7 +129,7 @@ export type UsageSnapshot = {
   avgInterviewsPerUser: number;
   mostUsedDevice: string;
   mostCommonCountry: string;
-  isDeviceCountryMock: true;
+  isDeviceCountryMock: boolean;
 };
 
 export type RevenueSnapshot = {
