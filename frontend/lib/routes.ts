@@ -1,3 +1,6 @@
+export const NEW_SIGNUP_DESTINATION = "/practice/setup?first=true";
+export const RETURNING_USER_DESTINATION = "/dashboard";
+
 export function courseHref(id: string) {
   return `/course?id=${encodeURIComponent(id)}`;
 }

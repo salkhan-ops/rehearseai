@@ -61,11 +61,15 @@ type AuthContextValue = {
   getToken: () => Promise<string | null>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<void>;
-  signInWithGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<void>;
+  // Returns whether this was a genuinely new Firebase account (per Google's own
+  // isNewUser signal), not whether the UI happened to be in "signup" mode -- the same
+  // Google button is used for both, and the caller can't reliably know in advance which
+  // one a given click will turn out to be.
+  signInWithGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<boolean>;
   signOut: () => Promise<void>;
   signInEmail: (email: string, password: string) => Promise<void>;
   signUpEmail: (email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<void>;
-  signInGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<void>;
+  signInGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<boolean>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   resendVerification: (email: string, password: string) => Promise<void>;
@@ -258,8 +262,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const auth = requireAuthClient();
       const result = await signInWithPopup(auth, new GoogleAuthProvider());
-      const isNewSignup = Boolean(compliance) && Boolean(getAdditionalUserInfo(result)?.isNewUser);
-      if (isNewSignup) {
+      // The real signal, straight from Firebase -- independent of which UI mode (signup
+      // vs signin) the person happened to click through, since it's the same button.
+      const isNewUser = Boolean(getAdditionalUserInfo(result)?.isNewUser);
+      const applyCompliance = isNewUser && Boolean(compliance);
+      if (applyCompliance) {
         try {
           setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance, true));
         } catch (profileError) {
@@ -272,6 +279,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance));
       }
+      // A new account that didn't get compliance here (e.g. came through the signin
+      // form, which collects none) simply has ageConfirmed:false in its profile --
+      // ProtectedRoute's existing /age-check gate catches that on the next protected
+      // page load and collects consent there instead.
+      return isNewUser;
     }
 
     async function signOutAction() {

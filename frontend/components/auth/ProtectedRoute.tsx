@@ -15,16 +15,15 @@ export function ProtectedRoute({ children, adminOnly = false }: { children: Reac
     // Suspense boundary, which most ProtectedRoute call sites don't already have.
     const returnTo = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "";
     if (!user) {
-      // Route through signup, not signin: a logged-out visitor landing directly on a
-      // protected page (e.g. from a pricing-page CTA) is more often a first-time visitor
-      // than a returning one, and the signin form skips consent checkboxes entirely and
-      // never passes compliance data to Google sign-in -- so a genuinely new account
-      // would get created with ageConfirmed:false and get treated as a returning user by
-      // routeAfterLogin (sent to /dashboard instead of the new-signup quick-start flow).
-      // The signup form handles returning users fine too -- signInWithGoogleAction
-      // detects an existing account via getAdditionalUserInfo(result).isNewUser and skips
-      // re-creating/overwriting their profile either way.
-      router.replace(`/?auth=signup${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`);
+      // Signin, not signup: the post-login destination no longer depends on which form
+      // was used (see routeAfterLogin/signInWithGoogleAction -- it's decided by whether
+      // the account is genuinely new, per Firebase's own signal), so there's no reason to
+      // force a logged-out visitor through the signup form and its consent checkboxes
+      // just because they landed on a protected page. A genuinely new account created
+      // here (no compliance collected, since this is the signin form) simply has
+      // ageConfirmed:false, which the /age-check branch just below catches on the very
+      // next render and collects consent there instead.
+      router.replace(`/?auth=signin${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`);
       return;
     }
     // Wait for Firestore profile to load before making the age-check decision —

@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { track } from "@/lib/analytics";
 import { trackCompleteRegistration } from "@/lib/metaPixel";
 import type { LanguageCode } from "@/lib/languages";
+import { NEW_SIGNUP_DESTINATION, RETURNING_USER_DESTINATION } from "@/lib/routes";
 import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 
@@ -42,27 +43,31 @@ export function AuthForm({
       ? "Enter your email and we will send a reset link."
       : "Continue to your practice dashboard.";
 
-  async function routeAfterLogin() {
+  // isNewSignup must reflect reality (a genuinely new account), not the UI mode this
+  // form happened to be in -- the Google button is shared between signup and signin, so
+  // mode alone can't tell new from returning. Callers pass the real signal: unambiguous
+  // for email (signUpWithEmail vs signInWithEmail are different functions), and for
+  // Google it comes back from signInWithGoogle itself (Firebase's own isNewUser).
+  async function routeAfterLogin(isNewSignup: boolean) {
     if (onAuthenticated) {
       onAuthenticated();
       return;
     }
     const params = new URLSearchParams(window.location.search);
     const returnTo = params.get("returnTo");
-    const isNewSignup = mode === "signup";
-    // ProtectedRoute now sends any logged-out visitor hitting a protected page (e.g. the
+    // ProtectedRoute sends a logged-out visitor hitting a protected page (e.g. the
     // pricing page's "Free" CTA, which links to /practice) through here with a returnTo
-    // set to wherever they were originally headed. For signup specifically, that must not
-    // override the quick-start destination -- otherwise a brand-new signup could land on
-    // /practice, /dashboard, or anywhere else instead of the intended first-run flow. The
-    // one deliberate exception is /try's own "sign up to save this" flow, which sets
+    // set to wherever they were originally headed. For a genuine new signup, that must
+    // not override the quick-start destination -- otherwise it could land on /practice,
+    // /dashboard, or anywhere else instead of the intended first-run flow. The one
+    // deliberate exception is /try's own "sign up to save this" flow, which sets
     // returnTo itself and genuinely wants new users back on that page.
     if (returnTo && returnTo.startsWith("/") && (!isNewSignup || returnTo === "/try")) {
       router.push(returnTo);
       return;
     }
-    // New users go straight to practice setup; returning users go to dashboard.
-    router.push(isNewSignup ? "/practice/setup?first=true" : "/dashboard");
+    // New users go straight to the first-interview quick start; returning users go to dashboard.
+    router.push(isNewSignup ? NEW_SIGNUP_DESTINATION : RETURNING_USER_DESTINATION);
   }
 
   async function handleEmail(event: FormEvent<HTMLFormElement>) {
@@ -81,7 +86,7 @@ export function AuthForm({
         try {
           await auth.signInWithEmail(email, password);
           track.signinCompleted();
-          await routeAfterLogin();
+          await routeAfterLogin(false);
         } catch (err) {
           if (err instanceof Error && err.message === "EMAIL_NOT_VERIFIED") {
             setVerifyState({ email, password });
@@ -101,7 +106,7 @@ export function AuthForm({
         trackCompleteRegistration();
         // Auto-login straight into the app instead of gating on email verification here —
         // the verification email was already sent; unverified users can still practice.
-        await routeAfterLogin();
+        await routeAfterLogin(true);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
@@ -115,17 +120,20 @@ export function AuthForm({
     setLoading(true);
     if (mode === "signup") track.signupStarted("google");
     try {
-      await auth.signInWithGoogle(
+      // Compliance can only be collected up front when the form is in signup mode
+      // (that's when the checkboxes render) -- but whether this call turns out to be a
+      // genuinely new account is a separate question, answered by the return value.
+      const isNewUser = await auth.signInWithGoogle(
         mode === "signup" ? practiceLanguage : undefined,
         mode === "signup" ? feedbackLanguage : undefined,
         mode === "signup" ? { ageConfirmed, minorConsentAcknowledged, termsAccepted, privacyAccepted } : undefined,
       );
-      if (mode === "signup") {
+      if (isNewUser) {
         track.signupCompleted("google");
         trackCompleteRegistration();
       }
       else track.signinCompleted();
-      await routeAfterLogin();
+      await routeAfterLogin(isNewUser);
     } catch (err) {
       // The user closing the Google popup (or a second popup superseding it) isn't a
       // failure worth a red error banner — it's an intentional cancel.
