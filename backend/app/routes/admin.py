@@ -242,20 +242,20 @@ async def admin_remove_admin(uid: str, request: Request):
 
 @router.delete("/api/admin/users/{uid}")
 async def admin_delete_user(uid: str, request: Request):
-    """Full wipe: deletes the Firebase Auth account and the Firestore profile doc
-    entirely, so the person can sign up again from scratch with the same email."""
+    """Full wipe: deletes the Firebase Auth account plus the Firestore profile doc and
+    every other collection's data tied to this uid (sessions, reports, courses, billing
+    records, etc.), so the person can sign up again from scratch with the same email and
+    nothing orphaned is left behind."""
     await require_admin_mvp(request)
     store = request.app.state.store
     before = await store.admin_get_user(uid) or {}
     _delete_firebase_auth_user(uid)
-    if store.client:
-        store.client.collection("users").document(uid).delete()
-    store.admin_users.pop(uid, None)
+    deleted_counts = await store.admin_delete_user_cascade(uid)
     await log_action(
         request, "delete user", "user", uid, before=before,
-        after={"deletedAt": datetime.now(timezone.utc).isoformat()},
+        after={"deletedAt": datetime.now(timezone.utc).isoformat(), "deletedCounts": deleted_counts},
     )
-    return {"deleted": uid}
+    return {"deleted": uid, "deletedCounts": deleted_counts}
 
 
 @router.get("/api/admin/users/ghosts")

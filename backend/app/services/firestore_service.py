@@ -1150,6 +1150,66 @@ class FirestoreService:
             return doc.to_dict() if doc.exists else None
         return self.admin_users.get(uid)
 
+    async def admin_delete_user_cascade(self, uid: str) -> dict[str, int]:
+        """Deletes every piece of Firestore data tied to a user, not just their profile
+        doc -- sessions (and message subcollections), reports, analytics, course data,
+        billing records, etc. Used by the admin Remove action for a genuine full wipe so
+        no orphaned data is left behind under the deleted uid."""
+        deleted: dict[str, int] = {}
+        if not self.client:
+            self.admin_users.pop(uid, None)
+            return deleted
+
+        def delete_by_query(collection: str, field: str) -> int:
+            docs = list(self.client.collection(collection).where(field, "==", uid).stream())
+            for item in docs:
+                item.reference.delete()
+            return len(docs)
+
+        def delete_keyed_doc(collection: str) -> int:
+            ref = self.client.collection(collection).document(uid)
+            if ref.get().exists:
+                ref.delete()
+                return 1
+            return 0
+
+        session_docs = list(self.client.collection("sessions").where("userId", "==", uid).stream())
+        for session_doc in session_docs:
+            for message_doc in session_doc.reference.collection("messages").stream():
+                message_doc.reference.delete()
+            session_doc.reference.delete()
+        deleted["sessions"] = len(session_docs)
+
+        course_docs = list(self.client.collection("courses").where("userId", "==", uid).stream())
+        module_count = 0
+        for course_doc in course_docs:
+            for module_doc in self.client.collection("courseModules").where("courseId", "==", course_doc.id).stream():
+                module_doc.reference.delete()
+                module_count += 1
+            course_doc.reference.delete()
+        deleted["courses"] = len(course_docs)
+        deleted["courseModules"] = module_count
+
+        deleted["reports"] = delete_by_query("reports", "userId")
+        deleted["analytics"] = delete_by_query("analytics", "userId")
+        deleted["reasoningTrees"] = delete_by_query("reasoningTrees", "userId")
+        deleted["featureUsage"] = delete_by_query("featureUsage", "userId")
+        deleted["practiceSchedules"] = delete_by_query("practiceSchedules", "userId")
+        deleted["practiceHistory"] = delete_by_query("practiceHistory", "userId")
+        deleted["courseSessions"] = delete_by_query("courseSessions", "userId")
+        deleted["courseProgress"] = delete_by_query("courseProgress", "userId")
+        deleted["billing_subscriptions"] = delete_by_query("billing_subscriptions", "uid")
+        deleted["billing_checkouts"] = delete_by_query("billing_checkouts", "uid")
+
+        deleted["historicalPerformance"] = delete_keyed_doc("historicalPerformance")
+        deleted["userSessionCounters"] = delete_keyed_doc("userSessionCounters")
+        deleted["userEntitlements"] = delete_keyed_doc("userEntitlements")
+        deleted["billing_customers"] = delete_keyed_doc("billing_customers")
+
+        self.client.collection("users").document(uid).delete()
+        self.admin_users.pop(uid, None)
+        return deleted
+
     async def admin_set_role(self, uid: str, role: str) -> dict:
         before = await self.admin_get_user(uid) or {}
         payload = {"uid": uid, "role": role, "updatedAt": utc_now_iso()}
