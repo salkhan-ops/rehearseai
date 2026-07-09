@@ -1,15 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { AnimatedPage } from "@/components/animations";
 import { Nav } from "@/components/Nav";
 import { useAuth } from "@/lib/auth";
 
-export default function AgeCheckPage() {
+function AgeCheckForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Where ProtectedRoute actually intended to send the user (e.g. the new-signup
+  // quick-start flow) -- falls back to /dashboard only when there's no such context,
+  // e.g. a legacy user landing here directly.
+  const returnTo = searchParams.get("returnTo");
+  const destination = returnTo && returnTo.startsWith("/") ? returnTo : "/dashboard";
   const { confirmAgeEligibility, loading, profile, user } = useAuth();
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [minorConsentAcknowledged, setMinorConsentAcknowledged] = useState(false);
@@ -20,8 +27,8 @@ export default function AgeCheckPage() {
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin");
-    if (!loading && profile?.ageConfirmed) router.replace("/dashboard");
-  }, [loading, profile?.ageConfirmed, router, user]);
+    if (!loading && profile?.ageConfirmed) router.replace(destination);
+  }, [loading, profile?.ageConfirmed, router, user, destination]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,7 +40,7 @@ export default function AgeCheckPage() {
     setSaving(true);
     try {
       await confirmAgeEligibility(minorConsentAcknowledged);
-      router.replace("/dashboard");
+      router.replace(destination);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save age confirmation.");
     } finally {
@@ -74,5 +81,13 @@ export default function AgeCheckPage() {
         </form>
       </AnimatedPage>
     </main>
+  );
+}
+
+export default function AgeCheckPage() {
+  return (
+    <Suspense fallback={<main><Nav /><div className="px-4 py-12 text-center font-semibold">Loading...</div></main>}>
+      <AgeCheckForm />
+    </Suspense>
   );
 }

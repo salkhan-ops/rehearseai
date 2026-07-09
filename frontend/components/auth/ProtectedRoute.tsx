@@ -19,7 +19,12 @@ export function ProtectedRoute({ children, adminOnly = false }: { children: Reac
     // profile===null while it's still being fetched, not a confirmed absence.
     if (!profile) return;
     if (!profile.ageConfirmed) {
-      router.replace("/age-check");
+      // Preserve where the user was actually headed (e.g. the new-signup quick-start
+      // flow) so age-check sends them back there instead of defaulting to /dashboard.
+      // Read the URL directly rather than useSearchParams() -- that hook requires a
+      // Suspense boundary, which most ProtectedRoute call sites don't already have.
+      const returnTo = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "";
+      router.replace(`/age-check${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`);
       return;
     }
     if (adminOnly && !isAdmin) {
