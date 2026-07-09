@@ -13,7 +13,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { getFirebaseDb } from "./firebase";
+import { getFirebaseAuth, getFirebaseDb } from "./firebase";
 
 export type Entitlements = {
   maxSessionsPerMonth: number | "unlimited";
@@ -573,10 +573,15 @@ const baseEntitlements: Entitlements = {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function adminRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  // The backend now requires a valid Firebase ID token for an account with role=="admin"
+  // on every /api/admin/* call (previously unauthenticated) -- attach the signed-in
+  // admin's token here so the whole panel keeps working.
+  const token = await getFirebaseAuth()?.currentUser?.getIdToken();
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
     cache: "no-store",

@@ -38,9 +38,24 @@ def public_only(items: list[dict]) -> list[dict]:
     ]
 
 
-async def require_admin_mvp() -> None:
-    # TODO: Verify Firebase Admin ID token and require role/custom claim == admin before production.
-    return None
+async def require_admin_mvp(request: Request) -> str:
+    """Verifies the caller's Firebase ID token and requires role == admin in Firestore.
+    Returns the verified admin's uid. Previously a no-op stub -- every /api/admin/* route
+    was reachable by anyone who knew the URL, no login required."""
+    authorization = request.headers.get("authorization") or ""
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+    try:
+        _ensure_firebase_app()
+        decoded = firebase_auth.verify_id_token(token)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Invalid or expired session.") from exc
+    uid = decoded.get("uid")
+    profile = await request.app.state.store.admin_get_user(uid) or {}
+    if profile.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    return uid
 
 
 async def log_action(
@@ -58,7 +73,7 @@ async def log_action(
 
 @router.get("/api/admin/stats")
 async def admin_stats(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_stats()
 
 
@@ -142,13 +157,13 @@ async def public_stats(request: Request):
 
 @router.get("/api/admin/plans")
 async def admin_plans(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_list_plans()
 
 
 @router.post("/api/admin/plans")
 async def create_admin_plan(payload: dict, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     saved = await request.app.state.store.admin_save_plan(payload)
     await log_action(request, "create plan", "plan", saved["planId"], after=saved)
     return saved
@@ -156,7 +171,7 @@ async def create_admin_plan(payload: dict, request: Request):
 
 @router.put("/api/admin/plans/{plan_id}")
 async def update_admin_plan(plan_id: str, payload: dict, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     payload["planId"] = plan_id
     saved = await request.app.state.store.admin_save_plan(payload)
     await log_action(request, "update plan", "plan", plan_id, after=saved)
@@ -170,7 +185,7 @@ async def patch_admin_plan(plan_id: str, payload: dict, request: Request):
 
 @router.delete("/api/admin/plans/{plan_id}")
 async def delete_admin_plan(plan_id: str, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     result = await request.app.state.store.admin_delete_plan(plan_id)
     await log_action(request, "delete plan", "plan", plan_id, after=result)
     return result
@@ -178,19 +193,19 @@ async def delete_admin_plan(plan_id: str, request: Request):
 
 @router.get("/api/admin/users")
 async def admin_users(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_list_users()
 
 
 @router.get("/api/admin/users/{uid}")
 async def admin_user(uid: str, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_get_user(uid)
 
 
 @router.patch("/api/admin/users/{uid}")
 async def admin_update_user(uid: str, payload: dict, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     before = await request.app.state.store.admin_get_user(uid) or {}
     current = {**before, **payload, "uid": uid}
     if request.app.state.store.client:
@@ -209,19 +224,19 @@ async def admin_update_user(uid: str, payload: dict, request: Request):
 
 @router.post("/api/admin/users/{uid}/assign-plan")
 async def admin_assign_plan(uid: str, payload: dict, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_assign_plan(uid, payload)
 
 
 @router.post("/api/admin/users/{uid}/make-admin")
 async def admin_make_admin(uid: str, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_set_role(uid, "admin")
 
 
 @router.post("/api/admin/users/{uid}/remove-admin")
 async def admin_remove_admin(uid: str, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_set_role(uid, "user")
 
 
@@ -229,7 +244,7 @@ async def admin_remove_admin(uid: str, request: Request):
 async def admin_delete_user(uid: str, request: Request):
     """Full wipe: deletes the Firebase Auth account and the Firestore profile doc
     entirely, so the person can sign up again from scratch with the same email."""
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     store = request.app.state.store
     before = await store.admin_get_user(uid) or {}
     _delete_firebase_auth_user(uid)
@@ -245,7 +260,7 @@ async def admin_delete_user(uid: str, request: Request):
 
 @router.get("/api/admin/users/ghosts")
 async def detect_ghost_users(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     store = request.app.state.store
     if store.client:
         docs = list(store.client.collection("users").stream())
@@ -257,7 +272,7 @@ async def detect_ghost_users(request: Request):
 
 @router.delete("/api/admin/users/ghosts")
 async def delete_ghost_users(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     store = request.app.state.store
     deleted = 0
     if store.client:
@@ -277,26 +292,26 @@ async def delete_ghost_users(request: Request):
 
 @router.get("/api/admin/billing")
 async def admin_billing(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_billing()
 
 
 @router.get("/api/admin/entitlements")
 async def admin_entitlements(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     plans = await request.app.state.store.admin_list_plans()
     return {"plans": plans}
 
 
 @router.get("/api/admin/products")
 async def admin_products(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_list_products()
 
 
 @router.post("/api/admin/products")
 async def create_admin_product(payload: dict, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     saved = await request.app.state.store.admin_save_product(payload)
     await log_action(
         request, "create product", "product", saved["productId"], after=saved
@@ -306,7 +321,7 @@ async def create_admin_product(payload: dict, request: Request):
 
 @router.patch("/api/admin/products/{product_id}")
 async def update_admin_product(product_id: str, payload: dict, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     payload["productId"] = product_id
     saved = await request.app.state.store.admin_save_product(payload)
     await log_action(request, "update product", "product", product_id, after=saved)
@@ -315,7 +330,7 @@ async def update_admin_product(product_id: str, payload: dict, request: Request)
 
 @router.delete("/api/admin/products/{product_id}")
 async def delete_admin_product(product_id: str, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     result = await request.app.state.store.admin_delete_product(product_id)
     await log_action(request, "delete product", "product", product_id, after=result)
     return result
@@ -323,13 +338,13 @@ async def delete_admin_product(product_id: str, request: Request):
 
 @router.get("/api/admin/practice-templates")
 async def admin_practice_templates(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_list_practice_templates()
 
 
 @router.post("/api/admin/practice-templates")
 async def create_admin_practice_template(payload: dict, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     saved = await request.app.state.store.admin_save_practice_template(payload)
     await log_action(
         request, "create template", "practiceTemplate", saved["templateId"], after=saved
@@ -341,7 +356,7 @@ async def create_admin_practice_template(payload: dict, request: Request):
 async def update_admin_practice_template(
     template_id: str, payload: dict, request: Request
 ):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     payload["templateId"] = template_id
     saved = await request.app.state.store.admin_save_practice_template(payload)
     await log_action(
@@ -352,7 +367,7 @@ async def update_admin_practice_template(
 
 @router.delete("/api/admin/practice-templates/{template_id}")
 async def delete_admin_practice_template(template_id: str, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     result = await request.app.state.store.admin_delete_practice_template(template_id)
     await log_action(
         request, "delete template", "practiceTemplate", template_id, after=result
@@ -362,13 +377,13 @@ async def delete_admin_practice_template(template_id: str, request: Request):
 
 @router.get("/api/admin/course-templates")
 async def admin_course_templates(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_list_course_templates()
 
 
 @router.post("/api/admin/course-templates")
 async def create_admin_course_template(payload: dict, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     saved = await request.app.state.store.admin_save_course_template(payload)
     await log_action(
         request, "create template", "courseTemplate", saved["templateId"], after=saved
@@ -380,7 +395,7 @@ async def create_admin_course_template(payload: dict, request: Request):
 async def update_admin_course_template(
     template_id: str, payload: dict, request: Request
 ):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     payload["templateId"] = template_id
     saved = await request.app.state.store.admin_save_course_template(payload)
     await log_action(
@@ -391,7 +406,7 @@ async def update_admin_course_template(
 
 @router.delete("/api/admin/course-templates/{template_id}")
 async def delete_admin_course_template(template_id: str, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     result = await request.app.state.store.admin_delete_course_template(template_id)
     await log_action(
         request, "delete template", "courseTemplate", template_id, after=result
@@ -401,7 +416,7 @@ async def delete_admin_course_template(template_id: str, request: Request):
 
 @router.get("/api/admin/logs")
 async def admin_logs(request: Request, limit: int = 100):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.admin_list_logs(limit_count=limit)
 
 
@@ -409,7 +424,7 @@ async def admin_logs(request: Request, limit: int = 100):
 async def admin_contact_messages(
     request: Request, category: Optional[str] = None, status: Optional[str] = None
 ):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.list_contact_messages(
         category=category, status=status
     )
@@ -419,7 +434,7 @@ async def admin_contact_messages(
 async def admin_update_contact_message_status(
     message_id: str, payload: dict, request: Request
 ):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     status = payload.get("status")
     if status not in {"new", "in_review", "resolved"}:
         raise HTTPException(status_code=400, detail="Invalid status")
@@ -438,7 +453,7 @@ async def admin_safety_events(
     risk_level: Optional[str] = None,
     limit: int = 100,
 ):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.list_safety_events(
         category=category, risk_level=risk_level, limit_count=limit
     )
@@ -446,5 +461,5 @@ async def admin_safety_events(
 
 @router.get("/api/admin/safety-events/stats")
 async def admin_safety_event_stats(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.safety_event_stats()

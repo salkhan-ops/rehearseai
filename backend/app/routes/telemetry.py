@@ -72,7 +72,7 @@ async def update_privacy_settings(payload: dict, request: Request, current_user_
 
 @router.post("/api/telemetry/export-training-data")
 async def export_training_data(payload: dict, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     export_format = str(payload.get("format") or "jsonl").lower()
     if export_format not in {"jsonl", "csv"}:
         raise HTTPException(status_code=400, detail="Export format must be jsonl or csv")
@@ -87,20 +87,20 @@ async def export_training_data(payload: dict, request: Request):
 
 @router.get("/api/admin/telemetry-samples")
 async def admin_telemetry_samples(request: Request, limit: int = 50):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     records = await request.app.state.store.list_conversation_telemetry(limit_count=limit)
     return [get_telemetry(request).anonymize_telemetry_record(record) | {"telemetryId": record.get("telemetryId"), "createdAt": record.get("createdAt")} for record in records]
 
 
 @router.get("/api/admin/local-signals")
 async def admin_local_signal_diagnostics(request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await get_telemetry(request).get_local_signal_diagnostics()
 
 
 @router.post("/api/admin/telemetry-labels")
 async def create_telemetry_label(payload: dict, request: Request):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     telemetry_id = payload.get("telemetryId")
     if not telemetry_id:
         raise HTTPException(status_code=400, detail="telemetryId is required")
@@ -118,5 +118,5 @@ async def create_telemetry_label(payload: dict, request: Request):
 
 @router.get("/api/admin/telemetry-labels")
 async def list_telemetry_labels(request: Request, telemetryId: Optional[str] = None):
-    await require_admin_mvp()
+    await require_admin_mvp(request)
     return await request.app.state.store.list_telemetry_labels(telemetry_id=telemetryId)
