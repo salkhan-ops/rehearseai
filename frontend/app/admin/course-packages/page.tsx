@@ -141,15 +141,15 @@ function PackageEditor({ pkg, onSave }: { pkg: CoursePackage; onSave: (p: Course
       <textarea value={draft.description ?? ""} onChange={(e) => setDraft({ ...draft, description: e.target.value })} className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3 font-medium outline-none" rows={2} placeholder="Description" />
       <div className="mt-3 grid gap-3 md:grid-cols-4">
         <input value={draft.practiceType ?? ""} onChange={(e) => setDraft({ ...draft, practiceType: e.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" placeholder="Practice type" />
-        <input value={draft.durationDays ?? 7} type="number" onChange={(e) => setDraft({ ...draft, durationDays: Number(e.target.value), sessionsIncluded: Number(e.target.value) })} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" placeholder="Days" />
-        <input value={draft.price ?? 0} type="number" onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" placeholder="Price ($)" />
+        <input value={draft.durationDays ?? 7} type="number" onChange={(e) => setDraft({ ...draft, durationDays: Number(e.target.value), sessionsIncluded: Number(e.target.value) })} onWheel={(e) => e.currentTarget.blur()} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" placeholder="Days" />
+        <input value={draft.price ?? 0} type="number" onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} onWheel={(e) => e.currentTarget.blur()} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" placeholder="Price ($)" />
         <input value={draft.paddlePriceId ?? ""} onChange={(e) => setDraft({ ...draft, paddlePriceId: e.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 font-mono text-sm outline-none" placeholder="pri_01... (auto-filled above)" />
       </div>
       <div className="mt-3 flex items-center gap-4">
         <label className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-700 ring-1 ring-slate-200">
           <input type="checkbox" checked={draft.isActive} onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} className="accent-[#6200a8]" /> Active
         </label>
-        <input value={draft.sortOrder ?? 0} type="number" onChange={(e) => setDraft({ ...draft, sortOrder: Number(e.target.value) })} className="w-24 rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" placeholder="Sort" />
+        <input value={draft.sortOrder ?? 0} type="number" onChange={(e) => setDraft({ ...draft, sortOrder: Number(e.target.value) })} onWheel={(e) => e.currentTarget.blur()} className="w-24 rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" placeholder="Sort" />
       </div>
       <div className="mt-4 flex items-center gap-3">
         <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-2xl bg-[#6200a8] px-5 py-3 font-semibold text-white disabled:opacity-60">

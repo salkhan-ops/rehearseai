@@ -13,7 +13,7 @@ export function CourseTemplateEditor({ template, onSave }: { template: CourseTem
       <div className="grid gap-3 md:grid-cols-4">
         <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" />
         <input value={draft.templateId} onChange={(e) => setDraft({ ...draft, templateId: e.target.value, slug: e.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" />
-        <input type="number" value={draft.durationDays} onChange={(e) => setDraft({ ...draft, durationDays: Number(e.target.value), durationLabel: `${Number(e.target.value)} days` })} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" />
+        <input type="number" value={draft.durationDays} onChange={(e) => setDraft({ ...draft, durationDays: Number(e.target.value), durationLabel: `${Number(e.target.value)} days` })} onWheel={(e) => e.currentTarget.blur()} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" />
         <input value={draft.difficulty} onChange={(e) => setDraft({ ...draft, difficulty: e.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" />
       </div>
       <textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3 font-medium outline-none" />
@@ -21,7 +21,7 @@ export function CourseTemplateEditor({ template, onSave }: { template: CourseTem
       <div className="mt-3 grid gap-3 md:grid-cols-4">
         <input value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" />
         <input value={draft.frequency} onChange={(e) => setDraft({ ...draft, frequency: e.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" />
-        <input type="number" value={draft.dailyMinutes} onChange={(e) => setDraft({ ...draft, dailyMinutes: Number(e.target.value) })} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" />
+        <input type="number" value={draft.dailyMinutes} onChange={(e) => setDraft({ ...draft, dailyMinutes: Number(e.target.value) })} onWheel={(e) => e.currentTarget.blur()} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" />
         <input value={draft.schedulePattern} onChange={(e) => setDraft({ ...draft, schedulePattern: e.target.value })} className="rounded-2xl border border-slate-200 px-4 py-3 font-semibold outline-none" />
       </div>
       <div className="mt-3 grid gap-3 md:grid-cols-3">

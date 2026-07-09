@@ -573,6 +573,7 @@ function SetupForm() {
                       title="Session length in minutes"
                       value={durationPreference}
                       onChange={(e) => setDurationPreference(Math.min(config.maxDuration, Math.max(config.minDuration, Number(e.target.value) || config.minDuration)))}
+                      onWheel={(e) => e.currentTarget.blur()}
                       className="w-28 rounded-xl bg-white px-3 py-2 text-lg font-bold text-violet-800 outline-none dark:bg-white/10 dark:text-violet-100"
                     />
                   ) : (
