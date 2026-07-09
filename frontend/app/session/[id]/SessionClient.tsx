@@ -1692,7 +1692,11 @@ export default function SessionPage() {
           summary: report.summary,
         });
       } else {
-        router.push(reportHref(report.id));
+        // Only the free plan's timer auto-end should trigger the upgrade prompt on the
+        // report page -- a paid plan's session simply running its full 45/90 min length,
+        // or the user ending early themselves, is a normal completion, not a paywall.
+        const hitFreeTimeCap = autoEndingRef.current && profile?.planId === "free";
+        router.push(reportHref(report.id, { timeUp: hitFreeTimeCap ? "true" : undefined }));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not generate report. Check that the backend is running.");

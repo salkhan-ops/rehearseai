@@ -15,7 +15,7 @@ from app.utils.timestamps import utc_now_iso
 DEFAULT_ENTITLEMENTS = {
     "maxSessionsPerMonth": 5,
     "maxMessagesPerSession": 16,
-    "maxSessionMinutes": 15,
+    "maxSessionMinutes": 3,
     "allowBrutalMode": False,
     "allowNerveMode": False,
     "allowChallengeMode": False,

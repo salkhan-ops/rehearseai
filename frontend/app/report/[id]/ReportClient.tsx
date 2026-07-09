@@ -2,7 +2,7 @@
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, CalendarClock, ChevronDown, Download, Flame, Lightbulb, Lock, TrendingUp } from "lucide-react";
+import { ArrowRight, CalendarClock, ChevronDown, Download, Flame, Lightbulb, Lock, TrendingUp, Zap } from "lucide-react";
 import { RadarPerformanceChart } from "@/components/analytics/RadarPerformanceChart";
 import { ImprovementTrendChart } from "@/components/analytics/ImprovementTrendChart";
 import { AnimatedCard, AnimatedPage, AnimatedSection, StaggeredGrid } from "@/components/animations";
@@ -49,6 +49,7 @@ export default function ReportPage() {
   const feedbackViewedRef = useRef(false);
   const { getToken, profile } = useAuth();
   const isPro = Boolean(profile?.planId && profile.planId !== "free");
+  const hitFreeTimeCap = searchParams.get("timeUp") === "true" && !isPro;
 
   useEffect(() => {
     if (!id) return;
@@ -86,6 +87,27 @@ export default function ReportPage() {
         <ReportAmbient />
         <Nav />
         <AnimatedPage className="relative z-10 mx-auto max-w-5xl px-4 py-12">
+
+          {hitFreeTimeCap && (
+            <div className="mb-8 flex flex-col items-start gap-4 rounded-[1.75rem] bg-gradient-to-r from-[#6200a8] via-[#7c00d8] to-[#3b82f6] p-6 text-white shadow-[0_22px_60px_rgba(98,0,168,0.32)] sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-2xl bg-white/15">
+                  <Zap size={20} />
+                </div>
+                <div>
+                  <p className="text-lg font-semibold tracking-[-0.02em]">That was your 3-minute free preview.</p>
+                  <p className="mt-1 text-sm font-medium text-white/80">Upgrade for longer sessions, deeper reports, and full history — your score below is real and yours to keep.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push("/pricing")}
+                className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl bg-white px-5 py-3 text-sm font-bold text-[#6200a8] shadow-[0_12px_30px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5"
+              >
+                See plans <ArrowRight size={16} />
+              </button>
+            </div>
+          )}
 
           {/* ─── 1. HEADER ────────────────────────────────────────────────── */}
           {/* ─── PRINT VIEW (hidden on screen, shown only when printing) ─── */}
