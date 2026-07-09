@@ -10,6 +10,7 @@ import { FunnelPanel } from "@/components/admin/growth/FunnelPanel";
 import { GoogleAnalyticsPanel } from "@/components/admin/growth/GoogleAnalyticsPanel";
 import { GROWTH_TABS, GrowthTabs, type GrowthTabKey } from "@/components/admin/growth/GrowthTabs";
 import { KpiGrid } from "@/components/admin/growth/KpiGrid";
+import { LiveEventsPanel } from "@/components/admin/growth/LiveEventsPanel";
 import { MetaAdsPanel } from "@/components/admin/growth/MetaAdsPanel";
 import { PixelEventsPanel } from "@/components/admin/growth/PixelEventsPanel";
 import { RevenuePanel } from "@/components/admin/growth/RevenuePanel";
@@ -18,9 +19,11 @@ import { generateAlerts, generateRecommendations } from "@/lib/growth/advisor";
 import { buildFunnel } from "@/lib/growth/funnel";
 import { FirestoreAnalyticsService } from "@/lib/growth/services/firestoreAnalyticsService";
 import { GoogleAnalyticsService } from "@/lib/growth/services/googleAnalyticsService";
+import { LiveEventsService, type LiveEventCounts } from "@/lib/growth/services/liveEventsService";
 import { MetaAdsService } from "@/lib/growth/services/metaAdsService";
 import { PaddleAnalyticsService } from "@/lib/growth/services/paddleAnalyticsService";
 import { PixelAnalyticsService } from "@/lib/growth/services/pixelAnalyticsService";
+import { getAdminStats } from "@/lib/admin";
 import type { GrowthDashboardData } from "@/lib/growth/types";
 
 function sum(points: { value: number }[]) {
@@ -70,14 +73,21 @@ function downloadReport(data: GrowthDashboardData) {
   URL.revokeObjectURL(url);
 }
 
-async function loadGrowthDashboard(): Promise<{ data: GrowthDashboardData; hasAnyData: boolean }> {
+async function loadGrowthDashboard(): Promise<{
+  data: GrowthDashboardData;
+  hasAnyData: boolean;
+  liveEvents: LiveEventCounts;
+  firestoreUserCount: number;
+  firebaseAuthUserCount: number | null;
+}> {
   const firestoreService = new FirestoreAnalyticsService();
   const paddleService = new PaddleAnalyticsService();
   const metaAdsService = new MetaAdsService();
   const gaService = new GoogleAnalyticsService();
   const pixelService = new PixelAnalyticsService();
+  const liveEventsService = new LiveEventsService();
 
-  const [users, sessions, revenue, metaAds, ga, visitorsTrend, pixel] = await Promise.all([
+  const [users, sessions, revenue, metaAds, ga, visitorsTrend, pixel, liveEvents, adminStats] = await Promise.all([
     firestoreService.loadUsers(),
     firestoreService.loadSessions(),
     paddleService.getSnapshot(),
@@ -85,6 +95,8 @@ async function loadGrowthDashboard(): Promise<{ data: GrowthDashboardData; hasAn
     gaService.getSnapshot(),
     gaService.getUsersTrend(),
     pixelService.getEventCounts(),
+    liveEventsService.getEventCounts(),
+    getAdminStats().catch(() => null),
   ]);
 
   const signupCounts = firestoreService.getSignupCounts(users);
@@ -135,6 +147,9 @@ async function loadGrowthDashboard(): Promise<{ data: GrowthDashboardData; hasAn
   return {
     data: { ...base, alerts, recommendations },
     hasAnyData: users.length > 0 || sessions.length > 0,
+    liveEvents,
+    firestoreUserCount: users.length,
+    firebaseAuthUserCount: adminStats?.firebaseAuthUserCount ?? null,
   };
 }
 
@@ -143,6 +158,9 @@ export default function GrowthDashboardPage() {
   const [hasAnyData, setHasAnyData] = useState(true);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<GrowthTabKey>("executive");
+  const [liveEvents, setLiveEvents] = useState<LiveEventCounts | null>(null);
+  const [firestoreUserCount, setFirestoreUserCount] = useState(0);
+  const [firebaseAuthUserCount, setFirebaseAuthUserCount] = useState<number | null>(null);
 
   async function load() {
     setLoading(true);
@@ -150,6 +168,9 @@ export default function GrowthDashboardPage() {
       const result = await loadGrowthDashboard();
       setData(result.data);
       setHasAnyData(result.hasAnyData);
+      setLiveEvents(result.liveEvents);
+      setFirestoreUserCount(result.firestoreUserCount);
+      setFirebaseAuthUserCount(result.firebaseAuthUserCount);
     } catch {
       // Services already fall back to empty/mock data internally on failure —
       // nothing to surface here beyond stopping the loading state.
@@ -208,7 +229,14 @@ export default function GrowthDashboardPage() {
       ) : (
         <>
           {tab === "executive" && <KpiGrid kpis={data.kpis} />}
-          {tab === "funnel" && <FunnelPanel funnel={data.funnel} />}
+          {tab === "funnel" && (
+            <div className="space-y-4">
+              <FunnelPanel funnel={data.funnel} />
+              {liveEvents && (
+                <LiveEventsPanel events={liveEvents} authUserCount={firebaseAuthUserCount} firestoreUserCount={firestoreUserCount} />
+              )}
+            </div>
+          )}
           {tab === "metaAds" && <MetaAdsPanel metaAds={data.metaAds} />}
           {tab === "googleAnalytics" && <GoogleAnalyticsPanel ga={data.ga} />}
           {tab === "pixel" && <PixelEventsPanel pixel={data.pixel} />}

@@ -85,7 +85,7 @@ export function AuthForm({
       } else if (mode === "signin") {
         try {
           await auth.signInWithEmail(email, password);
-          track.signinCompleted();
+          track.loginCompleted("email");
           await routeAfterLogin(false);
         } catch (err) {
           if (err instanceof Error && err.message === "EMAIL_NOT_VERIFIED") {
@@ -132,7 +132,7 @@ export function AuthForm({
         track.signupCompleted("google");
         trackCompleteRegistration();
       }
-      else track.signinCompleted();
+      else track.loginCompleted("google");
       await routeAfterLogin(isNewUser);
     } catch (err) {
       // The user closing the Google popup (or a second popup superseding it) isn't a

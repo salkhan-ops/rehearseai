@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Box, CreditCard, Database, FileText, Inbox, KeyRound, Layers, ListChecks, ScrollText, ShieldAlert, ShieldCheck, UserCog, Users } from "lucide-react";
+import { AlertTriangle, BookOpen, Box, CreditCard, Database, FileText, Inbox, KeyRound, Layers, ListChecks, ScrollText, ShieldAlert, ShieldCheck, UserCog, Users } from "lucide-react";
 import { AdminCard } from "@/components/admin/AdminCard";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { AdminSection } from "@/components/admin/AdminSection";
@@ -15,10 +15,23 @@ export default function AdminPage() {
     getAdminStats().then(setStats).catch(() => undefined);
   }, []);
 
+  const authCount = stats.firebaseAuthUserCount;
+  const authMismatch = typeof authCount === "number" && authCount !== stats.totalUsers;
+
   return (
     <AdminLayout>
+      {authMismatch && (
+        <div className="mb-4 flex items-start gap-2 rounded-2xl bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span>
+            Firebase Auth has {authCount!.toLocaleString()} accounts but Firestore has {stats.totalUsers.toLocaleString()} user profiles — a signup likely partially failed.
+            {" "}See <a href="/admin/growth" className="underline underline-offset-2">Growth Dashboard → Marketing Funnel</a> for details.
+          </span>
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <AdminStatCard icon={Users} label="Total Users" value={stats.totalUsers} />
+        <AdminStatCard icon={Users} label="Total Users (Firestore)" value={stats.totalUsers} />
+        <AdminStatCard icon={Users} label="Total Users (Firebase Auth)" value={authCount ?? "—"} />
         <AdminStatCard icon={Users} label="Active Users" value={stats.activeUsers} />
         <AdminStatCard icon={Layers} label="Active Plans" value={stats.activePlans} />
         <AdminStatCard icon={Box} label="Active Products" value={stats.activeProducts} />

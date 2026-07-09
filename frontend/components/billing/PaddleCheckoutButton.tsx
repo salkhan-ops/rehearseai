@@ -59,6 +59,7 @@ export function PaddleCheckoutButton({ priceId, fallbackHref = "/contact", label
       const data = (event as CustomEvent<PaddleCompletionData>).detail;
       track.checkoutCompleted(priceId ?? "");
       const purchase = paddlePurchase(data);
+      track.purchaseCompleted(priceId ?? "", purchase?.value);
       if (purchase) trackPurchase(purchase.value, purchase.currency, purchase.transactionId);
       onCompleted?.(data);
     };

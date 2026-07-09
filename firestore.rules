@@ -187,5 +187,20 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create, update, delete: if isAdmin();
     }
+
+    // Lightweight funnel-event log (landing_page_viewed, signup_completed,
+    // interview_started, checkout_initiated, etc.) written client-side, including by
+    // signed-out visitors, so the admin Growth Dashboard can show real counts. Writes
+    // are intentionally minimal and shape-checked; nobody but admins can read them back,
+    // and nothing here is ever used for pricing, entitlements, or scoring.
+    match /analyticsEvents/{eventId} {
+      allow read: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(["name", "uid", "params", "path", "createdAt"])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() < 64
+        && (request.resource.data.uid == null || request.resource.data.uid is string)
+        && (!("uid" in request.resource.data) || request.resource.data.uid == null || !signedIn() || request.resource.data.uid == request.auth.uid);
+      allow update, delete: if false;
+    }
   }
 }

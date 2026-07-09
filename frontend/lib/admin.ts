@@ -451,6 +451,10 @@ export type AdminStats = {
   totalPlans?: number;
   activeSubscribers?: number;
   pendingSubscriptions?: number;
+  // Independent Firebase Auth account count, so a Firestore-profile write that
+  // silently failed (or vice versa) shows up as a mismatch instead of hiding.
+  // `null`/undefined means it couldn't be computed (e.g. Firebase Admin unavailable).
+  firebaseAuthUserCount?: number | null;
 };
 
 export type AdminUser = {

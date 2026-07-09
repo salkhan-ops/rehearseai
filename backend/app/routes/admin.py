@@ -71,10 +71,28 @@ async def log_action(
     )
 
 
+def _count_firebase_auth_users() -> Optional[int]:
+    """Best-effort count of real Firebase Auth accounts, independent of Firestore.
+    Used to catch signups where Auth succeeded but the Firestore profile write
+    failed (or vice versa) -- the two counts should track each other closely."""
+    try:
+        _ensure_firebase_app()
+        count = 0
+        page = firebase_auth.list_users()
+        while page:
+            count += len(page.users)
+            page = page.get_next_page()
+        return count
+    except Exception:
+        return None
+
+
 @router.get("/api/admin/stats")
 async def admin_stats(request: Request):
     await require_admin_mvp(request)
-    return await request.app.state.store.admin_stats()
+    stats = await request.app.state.store.admin_stats()
+    stats["firebaseAuthUserCount"] = _count_firebase_auth_users()
+    return stats
 
 
 @router.get("/api/admin/bootstrap/status")

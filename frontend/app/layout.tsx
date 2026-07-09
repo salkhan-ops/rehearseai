@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Suspense } from "react";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { MetaPixel } from "@/components/analytics/MetaPixel";
 import { AuthProvider } from "@/context/AuthContext";
 import { CookieConsent } from "@/components/CookieConsent";
 import "reactflow/dist/style.css";
 import "./globals.css";
-
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export const metadata: Metadata = {
   title: "RehearseAI — The AI that interviews you back.",
@@ -34,17 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <Suspense fallback={null}><MetaPixel /></Suspense>
-        {GA_ID && (
-          <>
-            <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
-            <Script id="ga-init" strategy="afterInteractive">{`
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${GA_ID}', { page_path: window.location.pathname });
-            `}</Script>
-          </>
-        )}
+        <GoogleAnalytics />
         <AuthProvider>{children}<CookieConsent /></AuthProvider>
       </body>
     </html>

@@ -16,6 +16,7 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase";
+import { setUserStatus } from "@/lib/analytics";
 import type { LanguageCode } from "@/lib/languages";
 
 export type AppUserProfile = {
@@ -216,6 +217,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(nextUser);
       setProfile(nextUser ? await upsertUserProfile(nextUser) : null);
       setLoading(false);
+      // Default assumption for any auth-state resolution (page load with a persisted
+      // session, token refresh, etc.) -- the signup/signin actions below override this
+      // with the definitive answer ("new_user") once they actually know it.
+      setUserStatus(nextUser ? "returning_user" : "anonymous");
     });
   }, []);
 
@@ -227,6 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // A soft banner in the app prompts them to verify. PDF download and session
       // history require verification; first-time practice does not.
       setProfile(await upsertUserProfile(result.user));
+      setUserStatus("returning_user");
     }
 
     async function signUpWithEmailAction(email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) {
@@ -247,6 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Verification email is still sent above; unverified users are allowed in (see
         // the non-blocking comment on signInWithEmailAction) and can practice right away.
         setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance, true));
+        setUserStatus("new_user");
       } catch (profileError) {
         // Don't leave an orphaned Auth account with no Firestore profile — it would block
         // retrying signup with the same email while the person has no usable account.
@@ -279,6 +286,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance));
       }
+      setUserStatus(isNewUser ? "new_user" : "returning_user");
       // A new account that didn't get compliance here (e.g. came through the signin
       // form, which collects none) simply has ageConfirmed:false in its profile --
       // ProtectedRoute's existing /age-check gate catches that on the next protected
@@ -290,6 +298,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const auth = requireAuthClient();
       await firebaseSignOut(auth);
       setProfile(null);
+      setUserStatus("anonymous");
     }
 
     async function updateLanguagePreferences(practiceLanguage: LanguageCode, feedbackLanguage: LanguageCode) {

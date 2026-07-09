@@ -182,6 +182,9 @@ export default function SessionPage() {
   const [realtimeEngineState, setRealtimeEngineState] = useState<RealtimeConversationEngineState>("WAITING");
   const [conversationState, setConversationState] = useState<FusedConversationState | null>(null);
   const autoEndingRef = useRef(false);
+  const roomEnteredRef = useRef(false);
+  const firstAiQuestionRef = useRef(false);
+  const firstUserResponseRef = useRef(false);
   const heldVoiceTurnRef = useRef<{ content: string; speechDurationMs: number; silenceMs: number } | null>(null);
   const naturalTranscriptRef = useRef("");
   const naturalMetricsRef = useRef<{ speechDurationMs: number; silenceMs: number; speechEmotion?: SpeechEmotionResult }>({ speechDurationMs: 0, silenceMs: 0 });
@@ -706,6 +709,10 @@ export default function SessionPage() {
       }, abortController.signal);
       const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
+      if (!firstUserResponseRef.current) {
+        firstUserResponseRef.current = true;
+        track.firstUserResponseSubmitted(session?.practiceType ?? "unknown");
+      }
       if (capturedEmotion && capturedEmotion.label !== "unclear") {
         setMessageEmotions((prev) => ({ ...prev, [result.userMessage.id]: capturedEmotion }));
         dblogRef.current({ event: "STATE_CHANGE", reason: `emotion:${capturedEmotion.label}`, decision: `${Math.round(capturedEmotion.confidenceScore * 100)}% confidence`, words: capturedEmotion.signals.wpm, silenceMs: capturedEmotion.signals.fillerCount });
@@ -940,6 +947,14 @@ export default function SessionPage() {
         setConversationMode(data.session.preferredConversationMode || "natural");
         if (data.session.durationPreference) setDurationMinutes(data.session.durationPreference);
         setMessages(data.messages);
+        if (!roomEnteredRef.current) {
+          roomEnteredRef.current = true;
+          track.interviewRoomEntered(data.session.practiceType);
+        }
+        if (!firstAiQuestionRef.current && data.messages.some((message) => message.role === "ai")) {
+          firstAiQuestionRef.current = true;
+          track.firstAiQuestionShown(data.session.practiceType);
+        }
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load this session."));
   }, [id, getToken]);
@@ -1305,6 +1320,7 @@ export default function SessionPage() {
   function trackMetaSessionStart() {
     if (metaSessionStartedRef.current || !session) return;
     metaSessionStartedRef.current = true;
+    track.interviewStarted(session.practiceType, session.difficulty);
     const params = { practice_type: session.practiceType, difficulty: session.difficulty };
     const eventName = session.practiceType === "U.S. Visa Interview"
       ? "VisaInterviewStarted"
@@ -1470,6 +1486,10 @@ export default function SessionPage() {
       }, abortController.signal);
       const responseLatencyMs = Date.now() - requestStartedAt;
       setMessages((current) => [...current, result.userMessage, result.aiMessage]);
+      if (!firstUserResponseRef.current) {
+        firstUserResponseRef.current = true;
+        track.firstUserResponseSubmitted(session?.practiceType ?? "unknown");
+      }
       setSession((current) => current ? { ...current, turnCount: result.turnCount } : current);
       if (result.conversationControl) {
         setLatestControl(result.conversationControl);
@@ -1680,6 +1700,7 @@ export default function SessionPage() {
       if (session) {
         await sendSessionOutcome(outcomeFromReport({ ...session, status: "completed" }, report, seconds), token).catch(() => undefined);
         track.sessionCompleted(session.practiceType, session.turnCount || 0);
+        track.interviewCompleted(session.practiceType, session.turnCount || 0);
         trackCustom("SessionCompleted", { practice_type: session.practiceType, turn_count: session.turnCount || 0 });
       }
       if (isGuestMode) {

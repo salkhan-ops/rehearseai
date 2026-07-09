@@ -289,25 +289,27 @@ export default function Home() {
           </motion.div>
 
           <motion.h1 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.08 }} className="mx-auto max-w-6xl text-balance text-[3.6rem] font-semibold leading-[0.92] tracking-[-0.065em] text-slate-950 dark:text-white sm:text-7xl lg:text-[6.6rem]">
-            The AI that interviews
+            Ace Your Next Job Interview
             <span className="block bg-gradient-to-r from-cyan-200 via-violet-200 to-blue-300 bg-clip-text text-transparent">
-              you back.
+              With AI.
             </span>
           </motion.h1>
 
           <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="mx-auto mt-7 max-w-3xl text-balance text-xl font-medium leading-9 text-slate-700 dark:text-white/62">
-            Practice your next job interview out loud. The AI interviewer challenges, interrupts, and scores how you think under pressure — so the real interview feels like a warm-up.
+            Practice with an AI interviewer that asks realistic questions, pushes back, and gives feedback on every answer — so the real interview feels like a warm-up.
           </motion.p>
 
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.24 }} className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <button
               type="button"
-              onClick={() => startFree("hero_start_free")}
+              onClick={() => { track.heroCtaClicked("hero_start_free"); startFree("hero_start_free"); }}
               className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
-              Start Interview Practice Free
+              Start Free Interview
             </button>
-            <a href="/try" onClick={() => track.ctaClicked("hero_quick_practice")} className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/80 px-7 py-4 text-base font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-white dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">Explore more scenarios</a>
+            {/* Anchors to the in-page demo instead of linking away to other scenarios —
+                above the fold stays focused on Job Interview for cold ad traffic. */}
+            <a href="#how-it-works" onClick={() => track.heroCtaClicked("hero_see_how_it_works")} className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/80 px-7 py-4 text-base font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-white dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15">See How It Works</a>
           </motion.div>
 
           {/* Social proof strip */}
@@ -372,7 +374,7 @@ export default function Home() {
       </section>
 
       {/* Short product recording: real session UI, optimized for silent autoplay. */}
-      <section className="relative z-10 mx-auto max-w-5xl px-4 py-16">
+      <section id="how-it-works" className="relative z-10 mx-auto max-w-5xl scroll-mt-20 px-4 py-16">
         <div className="mb-8 text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">See it in action</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-slate-950 dark:text-white">This is what a session looks like.</h2>

@@ -17,6 +17,7 @@ import { isRtlLanguage } from "@/lib/languages";
 import type { PerformanceAnalytics, Report, SessionHint } from "@/lib/types";
 import { SessionReplayTimeline } from "@/components/report/SessionReplayTimeline";
 import { trackCustom } from "@/lib/metaPixel";
+import { track } from "@/lib/analytics";
 
 function ReportAmbient() {
   return (
@@ -64,6 +65,7 @@ export default function ReportPage() {
       setHints(h);
       if (!feedbackViewedRef.current) {
         feedbackViewedRef.current = true;
+        track.feedbackViewed();
         trackCustom("FeedbackViewed", { report_id: r.id, session_id: r.sessionId });
       }
     });
