@@ -4,6 +4,8 @@ import {
   GoogleAuthProvider,
   User,
   createUserWithEmailAndPassword,
+  deleteUser,
+  getAdditionalUserInfo,
   onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -119,10 +121,13 @@ function compliancePayload(compliance?: SignupCompliance) {
   } : {};
 }
 
-async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) {
+async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance, strict = false) {
   if (user.isAnonymous) return null;
   const db = getFirebaseDb();
-  if (!db) return fallbackProfile(user);
+  if (!db) {
+    if (strict) throw new Error("Account setup is temporarily unavailable. Please try again in a moment.");
+    return fallbackProfile(user);
+  }
   try {
     const userRef = doc(db, "users", user.uid);
     const existing = await getDoc(userRef);
@@ -184,6 +189,10 @@ async function upsertUserProfile(user: User, practiceLanguage?: LanguageCode, fe
     } as AppUserProfile;
   } catch (error) {
     console.warn("Firebase Auth succeeded, but Firestore profile sync failed. Deploy firestore.rules to enable profile writes.", error);
+    // During signup this must not be swallowed — silently returning a fallback profile here
+    // previously left the person with a real Firebase Auth account but no Firestore user
+    // document, so they never showed up as a user and the app broke for them post-signup.
+    if (strict) throw new Error("We couldn't finish creating your account. Please try again.");
     return fallbackProfile(user);
   }
 }
@@ -222,8 +231,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const auth = requireAuthClient();
       const result = await createUserWithEmailAndPassword(auth, email, password);
+      // Force a fresh ID token before the first Firestore write — immediately after
+      // createUserWithEmailAndPassword resolves, the SDK's cached token isn't always
+      // propagated yet, which makes the very next Firestore request look unauthenticated
+      // and get rejected even though the account was just created successfully.
+      await result.user.getIdToken(true);
       await sendEmailVerification(result.user);
-      await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance);
+      try {
+        await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance, true);
+      } catch (profileError) {
+        // Don't leave an orphaned Auth account with no Firestore profile — it would block
+        // retrying signup with the same email while the person has no usable account.
+        await deleteUser(result.user).catch(() => {});
+        throw profileError;
+      }
       await firebaseSignOut(auth);
     }
 
@@ -233,7 +254,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const auth = requireAuthClient();
       const result = await signInWithPopup(auth, new GoogleAuthProvider());
-      setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance));
+      const isNewSignup = Boolean(compliance) && Boolean(getAdditionalUserInfo(result)?.isNewUser);
+      if (isNewSignup) {
+        try {
+          setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance, true));
+        } catch (profileError) {
+          // Brand-new Google account with no Firestore profile — clean it up rather than
+          // leaving an orphaned Auth account, same as the email/password signup path.
+          await deleteUser(result.user).catch(() => {});
+          await firebaseSignOut(auth).catch(() => {});
+          throw profileError;
+        }
+      } else {
+        setProfile(await upsertUserProfile(result.user, practiceLanguage, feedbackLanguage, compliance));
+      }
     }
 
     async function signOutAction() {
