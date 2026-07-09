@@ -576,7 +576,12 @@ async function adminRequest<T>(path: string, options: RequestInit = {}): Promise
   // The backend now requires a valid Firebase ID token for an account with role=="admin"
   // on every /api/admin/* call (previously unauthenticated) -- attach the signed-in
   // admin's token here so the whole panel keeps working.
-  const token = await getFirebaseAuth()?.currentUser?.getIdToken();
+  const authClient = getFirebaseAuth();
+  // On first page load, Firebase Auth hasn't finished restoring the persisted session yet
+  // (currentUser is briefly null), which would send this request with no token and get a
+  // false 401. authStateReady() waits for that initial restore to finish first.
+  await authClient?.authStateReady();
+  const token = await authClient?.currentUser?.getIdToken();
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
@@ -862,8 +867,9 @@ export async function getAdminStats() {
     return await adminRequest<AdminStats>("/api/admin/stats");
   } catch {
     const [plans, users] = await Promise.all([getPlans(), getUsers()]);
+    const realUsers = users.filter((user) => user.status !== "removed");
     return {
-      totalUsers: users.length,
+      totalUsers: realUsers.length,
       activePlans: plans.filter((plan) => plan.isActive).length,
       activeProducts: 0,
       activeCourseTemplates: 0,
@@ -871,8 +877,8 @@ export async function getAdminStats() {
       pendingBillingEvents: 0,
       adminActionsThisWeek: 0,
     totalPlans: plans.length,
-    activeUsers: users.filter((user) => user.status !== "disabled").length,
-    activeSubscribers: users.filter((user) => user.planId && user.planId !== "free").length,
+    activeUsers: realUsers.filter((user) => user.status !== "disabled").length,
+    activeSubscribers: realUsers.filter((user) => user.planId && user.planId !== "free").length,
     pendingSubscriptions: 0,
     };
   }
