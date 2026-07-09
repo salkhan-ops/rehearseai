@@ -819,12 +819,9 @@ export async function pauseUser(uid: string, pause: boolean) {
 }
 
 export async function removeUser(uid: string) {
-  // Uses the existing PATCH endpoint (always live) rather than DELETE which
-  // requires a backend redeploy. Same soft-delete: sets status to "removed".
-  return adminRequest(`/api/admin/users/${uid}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: "removed" }),
-  });
+  // Full wipe: deletes the Firebase Auth account and the Firestore profile doc, so the
+  // person can sign up again from scratch with the same email. Irreversible.
+  return adminRequest(`/api/admin/users/${uid}`, { method: "DELETE" });
 }
 
 export async function assignPlan(uid: string, plan: Plan, status: string, overrides: Partial<Entitlements> = {}, trialEndsAt = "") {

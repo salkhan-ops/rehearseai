@@ -125,19 +125,19 @@ export default function AdminUsersPage() {
                   onClick={async (event) => { event.stopPropagation(); await pauseUser(user.uid, user.status !== "disabled"); refresh(); }}
                   className={`rounded-xl px-3 py-2 text-sm font-semibold ring-1 ${user.status === "disabled" ? "bg-amber-50 text-amber-700 ring-amber-200 hover:bg-amber-100" : "bg-slate-50 ring-slate-200 hover:bg-slate-100"}`}
                 >
-                  {user.status === "disabled" ? "Unpause" : "Pause"}
+                  {user.status === "disabled" ? "Reinstate" : "Suspend"}
                 </button>
                 {confirmRemove === user.uid ? (
                   <span className="flex gap-1">
                     <button type="button" onClick={async (event) => { event.stopPropagation(); try { await removeUser(user.uid); setConfirmRemove(null); refresh(); } catch (err) { setActionError(err instanceof Error ? err.message : "Remove failed"); setConfirmRemove(null); } }} className="rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700">
-                      Confirm remove
+                      Confirm delete
                     </button>
                     <button type="button" onClick={(event) => { event.stopPropagation(); setConfirmRemove(null); }} className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold ring-1 ring-slate-200">
                       Cancel
                     </button>
                   </span>
                 ) : (
-                  <button type="button" onClick={(event) => { event.stopPropagation(); setConfirmRemove(user.uid); }} className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-red-600 ring-1 ring-red-200 hover:bg-red-50">
+                  <button type="button" onClick={(event) => { event.stopPropagation(); setConfirmRemove(user.uid); }} className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-red-600 ring-1 ring-red-200 hover:bg-red-50" title="Permanently deletes the account — they can sign up again fresh with the same email">
                     Remove
                   </button>
                 )}

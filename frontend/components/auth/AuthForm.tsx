@@ -119,7 +119,12 @@ export function AuthForm({
       else track.signinCompleted();
       await routeAfterLogin();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed");
+      // The user closing the Google popup (or a second popup superseding it) isn't a
+      // failure worth a red error banner — it's an intentional cancel.
+      const code = (err as { code?: string })?.code;
+      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
+        setError(err instanceof Error ? err.message : "Google sign-in failed");
+      }
     } finally {
       setLoading(false);
     }

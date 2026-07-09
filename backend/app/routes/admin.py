@@ -1,8 +1,33 @@
+from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
+from firebase_admin import auth as firebase_auth
 from app.config import get_settings
+from app.utils.security import _ensure_firebase_app
 
 router = APIRouter()
+
+
+def _set_firebase_auth_disabled(uid: str, disabled: bool) -> None:
+    """Best-effort: mirrors Firestore status onto the actual Firebase Auth account so a
+    suspended user is genuinely blocked from signing in again, not just labeled in the
+    admin panel. Revokes refresh tokens on disable so an already-open session is cut
+    off at its next token refresh instead of staying valid for up to an hour."""
+    try:
+        _ensure_firebase_app()
+        firebase_auth.update_user(uid, disabled=disabled)
+        if disabled:
+            firebase_auth.revoke_refresh_tokens(uid)
+    except firebase_auth.UserNotFoundError:
+        pass
+
+
+def _delete_firebase_auth_user(uid: str) -> None:
+    try:
+        _ensure_firebase_app()
+        firebase_auth.delete_user(uid)
+    except firebase_auth.UserNotFoundError:
+        pass
 
 
 def public_only(items: list[dict]) -> list[dict]:
@@ -173,6 +198,11 @@ async def admin_update_user(uid: str, payload: dict, request: Request):
             current, merge=True
         )
     request.app.state.store.admin_users.setdefault(uid, {"uid": uid}).update(current)
+    new_status = payload.get("status")
+    if new_status == "disabled" and before.get("status") != "disabled":
+        _set_firebase_auth_disabled(uid, True)
+    elif before.get("status") == "disabled" and new_status not in (None, "disabled"):
+        _set_firebase_auth_disabled(uid, False)
     await log_action(request, "update user", "user", uid, before=before, after=current)
     return current
 
@@ -197,17 +227,19 @@ async def admin_remove_admin(uid: str, request: Request):
 
 @router.delete("/api/admin/users/{uid}")
 async def admin_delete_user(uid: str, request: Request):
-    """Soft-delete: marks status=removed in Firestore and purges in-memory entry."""
+    """Full wipe: deletes the Firebase Auth account and the Firestore profile doc
+    entirely, so the person can sign up again from scratch with the same email."""
     await require_admin_mvp()
     store = request.app.state.store
     before = await store.admin_get_user(uid) or {}
+    _delete_firebase_auth_user(uid)
     if store.client:
-        store.client.collection("users").document(uid).set(
-            {"status": "removed", "removedAt": __import__("datetime").datetime.utcnow().isoformat()},
-            merge=True,
-        )
+        store.client.collection("users").document(uid).delete()
     store.admin_users.pop(uid, None)
-    await log_action(request, "delete user", "user", uid, before=before, after={"status": "removed"})
+    await log_action(
+        request, "delete user", "user", uid, before=before,
+        after={"deletedAt": datetime.now(timezone.utc).isoformat()},
+    )
     return {"deleted": uid}
 
 

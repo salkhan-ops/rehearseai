@@ -1029,11 +1029,14 @@ class FirestoreService:
         course_templates = await self.admin_list_course_templates()
         practice_templates = await self.admin_list_practice_templates()
         logs = await self.admin_list_logs(limit_count=500)
+        # Removed users are hard-deleted going forward, but legacy soft-removed docs may
+        # still be present until cleaned up — exclude them from both counts either way.
+        real_users = [user for user in users if user.get("status", "active") != "removed"]
         return {
-            "totalUsers": len(users),
+            "totalUsers": len(real_users),
             "totalPlans": len(plans),
-            "activeUsers": len([user for user in users if user.get("status", "active") != "disabled"]),
-            "activeSubscribers": len([user for user in users if user.get("planId", "free") != "free"]),
+            "activeUsers": len([user for user in real_users if user.get("status", "active") != "disabled"]),
+            "activeSubscribers": len([user for user in real_users if user.get("planId", "free") != "free"]),
             "activePlans": len([plan for plan in plans if plan.get("isActive", True)]),
             "activeProducts": len([item for item in products if item.get("isPublic") and item.get("isActive", True)]),
             "activeCourseTemplates": len([item for item in course_templates if item.get("isActive", True)]),
