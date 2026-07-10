@@ -7,11 +7,9 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Footer } from "@/components/content/Footer";
 import { CameraSignalControls } from "@/components/local-signals/CameraSignalControls";
 import { Nav } from "@/components/Nav";
-import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection";
 import { BillingSection } from "@/components/billing/BillingSection";
 import { useAuth } from "@/lib/auth";
-import type { LanguageCode } from "@/lib/languages";
 import { getPersonalSpeechProfile, getTelemetryConsent, type PrivacySettings, updateTelemetryConsent } from "@/lib/telemetry";
 import type { VoiceProfile } from "@/lib/types";
 import { useEffect, useState } from "react";
@@ -26,9 +24,7 @@ const defaultPrivacySettings: PrivacySettings = {
 };
 
 export default function SettingsPage() {
-  const { logout, profile, updateLanguagePreferences, user } = useAuth();
-  const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>("en");
-  const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>("en");
+  const { logout, profile, user } = useAuth();
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(profile?.privacySettings || defaultPrivacySettings);
   const [speechProfile, setSpeechProfile] = useState<VoiceProfile | null>(null);
   const [privacySaving, setPrivacySaving] = useState(false);
@@ -74,19 +70,6 @@ export default function SettingsPage() {
             <h1 className="mt-3 text-5xl font-semibold tracking-[-0.055em]">Account controls</h1>
             <p className="mt-3 font-medium text-secondary-token">{user?.email || "Guest account"} · {profile?.planName || "Free"}</p>
           </section>
-
-          <LanguageSelector
-            practiceLanguage={practiceLanguage}
-            feedbackLanguage={feedbackLanguage}
-            onPracticeLanguageChange={(language) => {
-              setPracticeLanguage(language);
-              updateLanguagePreferences(language, feedbackLanguage).catch(() => undefined);
-            }}
-            onFeedbackLanguageChange={(language) => {
-              setFeedbackLanguage(language);
-              updateLanguagePreferences(practiceLanguage, language).catch(() => undefined);
-            }}
-          />
 
           <section className="rounded-[2rem] surface-high p-6">
             <h2 className="text-3xl font-semibold tracking-[-0.045em]">Voice and notifications</h2>

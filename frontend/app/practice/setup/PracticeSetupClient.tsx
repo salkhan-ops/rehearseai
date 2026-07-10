@@ -10,7 +10,6 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { CameraSignalControls } from "@/components/local-signals/CameraSignalControls";
 import { Nav } from "@/components/Nav";
 import { ConversationModeToggle } from "@/components/session/ConversationModeToggle";
-import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { createPracticeSchedule, createSession, generateRandomScenario } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { getCourseConfig } from "@/lib/courseConfig";
@@ -155,7 +154,7 @@ function SetupForm() {
   const [frequencyType, setFrequencyType] = useState<"daily" | "twice_weekly" | "three_times_weekly" | "weekdays" | "custom">("daily");
   const [preferredTime, setPreferredTime] = useState("20:00");
   const [reminderMinutesBefore, setReminderMinutesBefore] = useState(15);
-  const { getToken, profile, updateLanguagePreferences, userId } = useAuth();
+  const { getToken, profile, userId } = useAuth();
   const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>("en");
   const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>("en");
   const [cameraAssistedTiming, setCameraAssistedTiming] = useState(Boolean(profile?.privacySettings?.allowCameraAssistedTiming));
@@ -642,15 +641,6 @@ function SetupForm() {
                     {customDuration ? "Presets" : "Custom"}
                   </button>
                 </div>
-              </div>
-
-              <div className="mt-5">
-                <LanguageSelector
-                  practiceLanguage={practiceLanguage}
-                  feedbackLanguage={feedbackLanguage}
-                  onPracticeLanguageChange={(language) => { setPracticeLanguage(language); updateLanguagePreferences(language, feedbackLanguage).catch(() => undefined); }}
-                  onFeedbackLanguageChange={(language) => { setFeedbackLanguage(language); updateLanguagePreferences(practiceLanguage, language).catch(() => undefined); }}
-                />
               </div>
 
               <section className="mt-5 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">

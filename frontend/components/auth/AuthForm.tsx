@@ -8,10 +8,11 @@ import { Check, Mail, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { track } from "@/lib/analytics";
 import { trackCompleteRegistration } from "@/lib/metaPixel";
-import type { LanguageCode } from "@/lib/languages";
 import { NEW_SIGNUP_DESTINATION, RETURNING_USER_DESTINATION } from "@/lib/routes";
-import { LanguageSelector } from "@/components/settings/LanguageSelector";
 import { GoogleSignInButton } from "./GoogleSignInButton";
+
+const practiceLanguage = "en";
+const feedbackLanguage = "en";
 
 export type AuthMode = "signin" | "signup" | "forgot";
 
@@ -30,12 +31,14 @@ export function AuthForm({
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [verifyState, setVerifyState] = useState<{ email: string; password: string } | null>(null);
-  const [practiceLanguage, setPracticeLanguage] = useState<LanguageCode>("en");
-  const [feedbackLanguage, setFeedbackLanguage] = useState<LanguageCode>("en");
-  const [ageConfirmed, setAgeConfirmed] = useState(false);
-  const [minorConsentAcknowledged, setMinorConsentAcknowledged] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  // A single checkbox stands in for all four compliance facts (age, minor consent,
+  // terms, privacy) -- they're collected together because they're accepted together;
+  // splitting them into four rows just made signup look like a wall of legal fine print.
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const ageConfirmed = consentAccepted;
+  const minorConsentAcknowledged = consentAccepted;
+  const termsAccepted = consentAccepted;
+  const privacyAccepted = consentAccepted;
   const title = mode === "signin" ? "Sign in" : mode === "signup" ? "Sign up" : "Reset password";
   const subtitle = mode === "signup"
     ? "Save your practice history, reports, and language preferences."
@@ -242,18 +245,12 @@ export function AuthForm({
 
       {mode === "signup" && (
         <div className="relative mt-5 space-y-3">
-          <LanguageSelector
-            compact
-            practiceLanguage={practiceLanguage}
-            feedbackLanguage={feedbackLanguage}
-            onPracticeLanguageChange={setPracticeLanguage}
-            onFeedbackLanguageChange={setFeedbackLanguage}
-          />
-          <div className="space-y-2 rounded-[1.25rem] bg-slate-50/70 p-3 font-semibold ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
-            <ConsentRow checked={ageConfirmed} onChange={setAgeConfirmed}>I confirm I am at least 16 years old.</ConsentRow>
-            <ConsentRow checked={termsAccepted} onChange={setTermsAccepted}>I agree to the <Link href="/terms" className="text-[#6200a8] dark:text-violet-200">Terms</Link>.</ConsentRow>
-            <ConsentRow checked={privacyAccepted} onChange={setPrivacyAccepted}>I agree to the <Link href="/privacy" className="text-[#6200a8] dark:text-violet-200">Privacy Policy</Link>.</ConsentRow>
-            <ConsentRow checked={minorConsentAcknowledged} onChange={setMinorConsentAcknowledged}>If I am under 18, I have parent or guardian permission.</ConsentRow>
+          <div className="rounded-[1.25rem] bg-slate-50/70 p-3 font-semibold ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
+            <ConsentRow checked={consentAccepted} onChange={setConsentAccepted}>
+              I confirm I am at least 16 (with parent or guardian permission if under 18), and I agree to the{" "}
+              <Link href="/terms" className="text-[#6200a8] dark:text-violet-200">Terms</Link> and{" "}
+              <Link href="/privacy" className="text-[#6200a8] dark:text-violet-200">Privacy Policy</Link>.
+            </ConsentRow>
           </div>
         </div>
       )}
