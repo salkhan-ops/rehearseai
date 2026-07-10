@@ -41,6 +41,7 @@ export function useLocalCameraSignals({ enabled, fps = 12, transcriptStableMs = 
   error: string;
   previewVisible: boolean;
   setPreviewVisible: (visible: boolean) => void;
+  start: () => Promise<void>;
   stop: () => void;
   mediaPipeLoaded: boolean;
   cameraPermission: "unknown" | "prompt" | "granted" | "denied" | "error";
@@ -89,6 +90,7 @@ export function useLocalCameraSignals({ enabled, fps = 12, transcriptStableMs = 
     error: mediaPipe.error,
     previewVisible,
     setPreviewVisible,
+    start: mediaPipe.start,
     stop: mediaPipe.stop,
     mediaPipeLoaded: mediaPipe.mediaPipeLoaded,
     cameraPermission: mediaPipe.cameraPermission,

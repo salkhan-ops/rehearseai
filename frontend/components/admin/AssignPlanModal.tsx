@@ -9,8 +9,8 @@ export function AssignPlanModal({ user, plans, onClose, onAssigned }: { user: Ad
   const [status, setStatus] = useState("active");
   if (!user) return null;
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-[1.5rem] bg-white p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm">
+      <div className="mx-auto my-8 w-full max-w-lg rounded-[1.5rem] bg-white p-6 shadow-2xl">
         <h2 className="text-2xl font-semibold tracking-[-0.04em]">Assign plan</h2>
         <p className="mt-2 font-medium text-slate-500">{user.email || user.uid}</p>
         <div className="mt-5 grid gap-3">

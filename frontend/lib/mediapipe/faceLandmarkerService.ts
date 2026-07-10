@@ -142,7 +142,7 @@ class FaceLandmarkerService {
     await this.initFaceLandmarker();
     this.setSnapshot({ status: "requesting_permission", cameraPermission: "prompt", error: "" });
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" } } });
       this.stream = stream;
       this.attachedVideos.add(videoElement);
       videoElement.srcObject = stream;

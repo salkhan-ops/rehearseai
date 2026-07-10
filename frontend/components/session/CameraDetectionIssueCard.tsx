@@ -39,9 +39,9 @@ export function CameraDetectionIssueCard({ enabled, cameraState, lightingScore, 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleDismiss} />
-      <div className="relative w-full max-w-sm rounded-[2rem] bg-[#0d0020] p-6 ring-1 ring-white/10 shadow-[0_40px_120px_rgba(0,0,0,0.7)]">
+    <div className="fixed inset-0 z-50 overflow-y-auto p-4">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={handleDismiss} />
+      <div className="relative mx-auto my-8 w-full max-w-sm rounded-[2rem] bg-[#0d0020] p-6 ring-1 ring-white/10 shadow-[0_40px_120px_rgba(0,0,0,0.7)]">
 
         <button
           type="button"

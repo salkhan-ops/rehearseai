@@ -46,9 +46,9 @@ export function CameraSetupGuide({ trigger }: { trigger: boolean }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleDone} />
-      <div className="relative w-full max-w-lg rounded-[2rem] bg-[#0d0020] p-7 ring-1 ring-white/10 shadow-[0_40px_120px_rgba(0,0,0,0.7)]">
+    <div className="fixed inset-0 z-50 overflow-y-auto p-4">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={handleDone} />
+      <div className="relative mx-auto my-8 w-full max-w-lg rounded-[2rem] bg-[#0d0020] p-7 ring-1 ring-white/10 shadow-[0_40px_120px_rgba(0,0,0,0.7)]">
 
         <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-600/25 ring-1 ring-violet-400/20">
           <Camera size={20} className="text-violet-300" />
