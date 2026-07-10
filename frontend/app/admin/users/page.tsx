@@ -7,7 +7,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { AdminSearchBar } from "@/components/admin/AdminSearchBar";
 import { AssignPlanModal } from "@/components/admin/AssignPlanModal";
 import { UserDetailPanel } from "@/components/admin/UserDetailPanel";
-import { AdminUser, deleteGhostSessions, detectGhostSessions, getPlans, getUsers, pauseUser, Plan, removeUser, setUserAdmin } from "@/lib/admin";
+import { AdminUser, deleteGhostSessions, detectGhostSessions, getPlans, getUsers, pauseUser, Plan, removeUser, setUserAdmin, syncPaddleUser } from "@/lib/admin";
 
 type GhostState = { phase: "idle" } | { phase: "detecting" } | { phase: "confirm"; count: number; uids: string[] } | { phase: "deleting" } | { phase: "done"; deleted: number };
 
@@ -23,8 +23,13 @@ export default function AdminUsersPage() {
   const [ghost, setGhost] = useState<GhostState>({ phase: "idle" });
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
+  const [syncingUid, setSyncingUid] = useState<string | null>(null);
 
-  const refresh = () => getUsers().then(setUsers);
+  const refresh = () => getUsers().then((nextUsers) => {
+    setUsers(nextUsers);
+    setSelected((current) => current ? nextUsers.find((user) => user.uid === current.uid) || current : current);
+    return nextUsers;
+  });
   useEffect(() => { refresh(); getPlans().then(setPlans); }, []);
 
   const filtered = users.filter((user) => {
@@ -126,6 +131,27 @@ export default function AdminUsersPage() {
                   className={`rounded-xl px-3 py-2 text-sm font-semibold ring-1 ${user.status === "disabled" ? "bg-amber-50 text-amber-700 ring-amber-200 hover:bg-amber-100" : "bg-slate-50 ring-slate-200 hover:bg-slate-100"}`}
                 >
                   {user.status === "disabled" ? "Reinstate" : "Suspend"}
+                </button>
+                <button
+                  type="button"
+                  onClick={async (event) => {
+                    event.stopPropagation();
+                    setActionError("");
+                    setSyncingUid(user.uid);
+                    try {
+                      const result = await syncPaddleUser(user.uid);
+                      if (!result.synced) setActionError(result.reason || "No active Paddle subscription was found for this user.");
+                      await refresh();
+                    } catch (err) {
+                      setActionError(err instanceof Error ? err.message : "Paddle sync failed");
+                    } finally {
+                      setSyncingUid(null);
+                    }
+                  }}
+                  disabled={syncingUid === user.uid}
+                  className="rounded-xl bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 ring-1 ring-violet-200 hover:bg-violet-100 disabled:opacity-60"
+                >
+                  {syncingUid === user.uid ? "Syncing…" : "Sync Paddle"}
                 </button>
                 {confirmRemove === user.uid ? (
                   <span className="flex gap-1">

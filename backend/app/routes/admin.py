@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from firebase_admin import auth as firebase_auth
 from app.config import get_settings
+from app.services.paddle_service import PaddleService
 from app.utils.security import _ensure_firebase_app
 
 router = APIRouter()
@@ -244,6 +245,14 @@ async def admin_update_user(uid: str, payload: dict, request: Request):
 async def admin_assign_plan(uid: str, payload: dict, request: Request):
     await require_admin_mvp(request)
     return await request.app.state.store.admin_assign_plan(uid, payload)
+
+
+@router.post("/api/admin/users/{uid}/sync-paddle")
+async def admin_sync_paddle_user(uid: str, request: Request):
+    await require_admin_mvp(request)
+    result = await PaddleService().sync_active_subscription_for_user(request.app.state.store, uid)
+    await log_action(request, "sync paddle", "user", uid, after=result)
+    return result
 
 
 @router.post("/api/admin/users/{uid}/make-admin")

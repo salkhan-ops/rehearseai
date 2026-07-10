@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CreditCard, ShieldCheck } from "lucide-react";
 import { AnimatedPage, StaggeredGrid } from "@/components/animations";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -65,19 +65,33 @@ export default function CourseTemplatesPage() {
   const [checkoutJustCompleted, setCheckoutJustCompleted] = useState(false);
   const handledCheckoutReturn = useRef(false);
 
+  const refreshPackageAccess = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const access = await getCoursePackageAccess(token);
+      setActivePackageIds(access.activePackageIds);
+      setIsAdmin(access.isAdmin);
+      return access.activePackageIds;
+    } catch {
+      setActivePackageIds([]);
+      setIsAdmin(false);
+      return [];
+    }
+  }, [getToken]);
+
   useEffect(() => {
     getCoursePackages().then(setPackages).catch(() => setPackages([]));
-    getToken()
-      .then((token) => getCoursePackageAccess(token))
-      .then((access) => {
-        setActivePackageIds(access.activePackageIds);
-        setIsAdmin(access.isAdmin);
-      })
-      .catch(() => {
-        setActivePackageIds([]);
-        setIsAdmin(false);
-      });
-  }, [getToken]);
+    refreshPackageAccess();
+  }, [refreshPackageAccess]);
+
+  useEffect(() => {
+    function onPaymentComplete() {
+      window.setTimeout(() => refreshPackageAccess(), 2500);
+      window.setTimeout(() => refreshPackageAccess(), 8000);
+    }
+    window.addEventListener("paddle:payment-complete", onPaymentComplete);
+    return () => window.removeEventListener("paddle:payment-complete", onPaymentComplete);
+  }, [refreshPackageAccess]);
 
   useEffect(() => {
     if (!packages.length || handledCheckoutReturn.current) return;
@@ -87,9 +101,19 @@ export default function CourseTemplatesPage() {
     const pkg = packages.find((item) => item.packageId === packageId);
     if (!pkg) return;
     handledCheckoutReturn.current = true;
-    setCheckoutJustCompleted(params.get("payment") === "complete");
+    const paymentComplete = params.get("payment") === "complete";
+    setCheckoutJustCompleted(paymentComplete);
     setEnrolling({ template: packageTemplate(pkg), coursePackage: pkg });
-  }, [packages]);
+    if (paymentComplete) {
+      (async () => {
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, attempt === 0 ? 1200 : 2500));
+          const activeIds = await refreshPackageAccess();
+          if (activeIds.includes(packageId)) return;
+        }
+      })();
+    }
+  }, [packages, refreshPackageAccess]);
 
   const visible = useMemo(
     () => packages.filter((pkg) => pkg.isActive && (duration === "all" || pkg.durationDays === duration)),

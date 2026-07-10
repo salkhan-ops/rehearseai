@@ -77,28 +77,28 @@ export function Nav() {
         </span>
       </div>
 
-      <nav className="mx-auto mt-6 flex w-[min(94vw,76rem)] items-center justify-between gap-4 rounded-[1.5rem] bg-white/82 px-4 py-3 shadow-[0_18px_50px_rgba(35,45,75,0.06)] ring-1 ring-slate-200/70 backdrop-blur-xl dark:bg-white/10 dark:ring-white/10">
+      <nav className="mx-auto mt-6 flex w-[min(94vw,84rem)] items-center justify-between gap-3 rounded-[1.5rem] bg-white/82 px-4 py-3 shadow-[0_18px_50px_rgba(35,45,75,0.06)] ring-1 ring-slate-200/70 backdrop-blur-xl dark:bg-white/10 dark:ring-white/10">
         <Link href="/" className="flex min-w-0 items-center gap-3 text-base font-semibold tracking-[0.24em] text-slate-900 dark:text-white">
           <span className="relative grid size-9 place-items-center rounded-xl border-2 border-[#8b00ff] text-lg font-bold tracking-normal text-[#8b00ff]">R</span>
           <span className="hidden truncate sm:inline">REHEARSEAI</span>
         </Link>
 
         {/* Desktop nav links */}
-        <div className="hidden items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/72 md:flex">
+        <div className="hidden items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-white/72 lg:flex">
           {user ? (
             <>
-              <Link href="/practice/setup?type=Job%20Interview" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
+              <Link href="/practice/setup?type=Job%20Interview" className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
                 <Briefcase size={14} /> Job Interview
               </Link>
               {/* Train dropdown — only for signed-in users */}
-              <div ref={trainRef} className="relative">
+              <div ref={trainRef} className="relative shrink-0">
                 <button
                   type="button"
                   id="train-menu-button"
                   aria-label="Open training menu"
                   aria-controls="train-menu"
                   onClick={() => { setTrainOpen((open) => !open); setMoreOpen(false); }}
-                  className="inline-flex items-center gap-1 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10"
+                  className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10"
                 >
                   Train <ChevronDown size={14} className={`transition-transform ${trainOpen ? "rotate-180" : ""}`} />
                 </button>
@@ -116,30 +116,30 @@ export function Nav() {
                   </div>
                 )}
               </div>
-              <Link href="/dashboard" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
+              <Link href="/dashboard" className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
                 <LayoutDashboard size={14} /> Dashboard
               </Link>
-              <Link href="/pricing" className="inline-flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-2 text-violet-700 transition hover:bg-violet-100 dark:bg-violet-400/10 dark:text-violet-200 dark:hover:bg-violet-400/15">
+              <Link href="/pricing" className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-violet-50 px-2.5 py-2 text-violet-700 transition hover:bg-violet-100 dark:bg-violet-400/10 dark:text-violet-200 dark:hover:bg-violet-400/15">
                 <CreditCard size={14} /> Plans & courses
               </Link>
             </>
           ) : (
             <>
               {/* Public nav — for logged-out visitors */}
-              <Link href="/for/interview-practice" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
+              <Link href="/for/interview-practice" className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
                 <Briefcase size={14} /> Job Interview
               </Link>
-              <Link href="/try" className="rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Try for free</Link>
-              <Link href="/pricing" className="rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Pricing</Link>
-              <Link href="/blog" className="rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Blog</Link>
+              <Link href="/try" className="shrink-0 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Try for free</Link>
+              <Link href="/pricing" className="shrink-0 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Pricing</Link>
+              <Link href="/blog" className="shrink-0 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Blog</Link>
             </>
           )}
 
-          <div ref={moreRef} className="relative">
+          <div ref={moreRef} className="relative shrink-0">
             <button
               type="button"
               onClick={() => { setMoreOpen((open) => !open); setTrainOpen(false); }}
-              className="inline-flex items-center gap-1 rounded-xl px-3 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10"
             >
               More <ChevronDown size={14} />
             </button>
@@ -162,11 +162,11 @@ export function Nav() {
           </button>
           {user && <NotificationBell />}
           {/* Desktop auth */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden items-center gap-1.5 lg:flex">
             {user ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 {/* User identity pill */}
-                <div className="flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/15">
+                <div className="flex shrink-0 items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/15">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white">
                     {(profile?.displayName || user.displayName || user.email || "U").charAt(0).toUpperCase()}
                   </span>
@@ -174,12 +174,12 @@ export function Nav() {
                     {profile?.displayName || user.displayName || user.email?.split("@")[0] || "Account"}
                   </span>
                 </div>
-                <button type="button" onClick={logout} className="inline-flex items-center gap-2 rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
+                <button type="button" onClick={logout} className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl bg-white/80 px-3.5 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
                   <LogOut size={16} /> Sign out
                 </button>
               </div>
             ) : (
-              <Link href="/?auth=signin" onClick={() => openAuth("signin")} className="rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
+              <Link href="/?auth=signin" onClick={() => openAuth("signin")} className="shrink-0 whitespace-nowrap rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
                 {loading ? "..." : "Sign in"}
               </Link>
             )}
@@ -192,7 +192,7 @@ export function Nav() {
                   openAuth("signup");
                 }
               }}
-              className="rounded-2xl bg-[#6200a8] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
+              className="shrink-0 whitespace-nowrap rounded-2xl bg-[#6200a8] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
               {user ? "Practice now" : "Start free"}
             </Link>
@@ -202,7 +202,7 @@ export function Nav() {
             type="button"
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
             onClick={() => setMobileOpen((open) => !open)}
-            className="grid size-11 place-items-center rounded-2xl bg-white/80 text-slate-700 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15 md:hidden"
+            className="grid size-11 place-items-center rounded-2xl bg-white/80 text-slate-700 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15 lg:hidden"
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
           </button>

@@ -150,6 +150,17 @@ docker compose up --build
 - **Churn Register** (`/admin/churn`) — all cancellations with Paddle reason + comment; breakdowns by plan and reason
 - **Webhook Errors** (`/admin/webhook-errors`) — failed webhook events with payload snapshot and open/resolved status
 - Finance page (estimates), contact message review
+- `/admin` shows the Firebase Auth account count alongside the Firestore `users` count, with a warning banner if they diverge (usually a partially-failed signup)
+- **Growth Dashboard** (`/admin/growth`) — executive KPIs, ad-to-purchase funnel, Meta Ads, Google Analytics, Paddle revenue, usage, AI-generated recommendations/alerts, and a **Live funnel events** panel backed by real `analyticsEvents` counts (CTA clicks, signup/login completions, interview starts/completions, checkout-initiated) rather than only mock preview data
+
+### Marketing funnel analytics
+
+- `frontend/lib/analytics.ts` fires a consistent event set across the whole conversion funnel: `landing_page_viewed`, `hero_cta_clicked`, `signup_started`, `signup_completed`, `login_completed`, `interview_room_entered`, `interview_started`, `first_ai_question_shown`, `first_user_response_submitted`, `interview_completed`, `feedback_viewed`, `checkout_initiated`, `purchase_completed`
+- Signup and login are tracked as distinct events (`signup_completed` vs. `login_completed`) so repeat logins are never counted as new signups
+- Every event auto-attaches a per-tab session id, first-touch UTM parameters, and user status (`anonymous` / `new_user` / `returning_user`)
+- Events go to GA4, Meta Pixel, and — for the events that matter to the admin panel — a lightweight `analyticsEvents` Firestore log
+- Events fired before GA4/Meta Pixel finish loading are queued and flushed once the provider is ready, so nothing fires-and-drops silently on page mount
+- Dedup guards (sessionStorage, refs, or module-level flags depending on the call site) prevent duplicate firing on refresh, route changes, or re-renders
 
 ### First-session onboarding
 
@@ -195,6 +206,7 @@ Before production, enforce `/api/admin/*` routes with Firebase Admin token verif
 | Revenue ops | `revenueTransactions`, `churnEvents`, `webhookErrors` |
 | Operations | `adminLogs`, `contactMessages`, `safetyEvents` |
 | Telemetry | `conversationTelemetry`, `sessionOutcomes`, `voiceProfiles`, `privacySettings`, `telemetryLabels` |
+| Marketing analytics | `analyticsEvents` |
 
 Deploy rules and indexes:
 

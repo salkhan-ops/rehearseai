@@ -37,6 +37,7 @@ Backend services that use Firebase Admin SDK or Google service-account credentia
 - `notifications/{notificationId}`
 - `achievements/{achievementId}`
 - `userProgress/{uid}`
+- `analyticsEvents/{eventId}`
 
 ## users/{uid}
 
@@ -607,6 +608,24 @@ Store gamification state, streaks, completion counts, skill progress, and unlock
 Rules:
 - Users can read their own progress and achievements.
 - Backend/admin writes progress and achievement updates.
+
+## Analytics Collections
+
+### `analyticsEvents/{eventId}`
+
+Lightweight marketing-funnel event log written client-side by `frontend/lib/analytics.ts` (`trackFunnelEvent`) so the admin Growth Dashboard can show real counts — landing page views, CTA clicks, signup/login completion, interview start/completion, checkout — instead of only mock/preview data. This is separate from `analytics/{analyticsId}` (per-session 15-metric `MetricScores` used for reports and `/progress`) and from GA4/Meta Pixel, which receive the same events independently.
+
+Fields:
+- `name: string` — one of a curated set (`landing_page_viewed`, `hero_cta_clicked`, `signup_started`, `signup_completed`, `login_completed`, `interview_room_entered`, `interview_started`, `interview_completed`, `feedback_viewed`, `checkout_initiated`, `purchase_completed`)
+- `uid: string | null` — the authenticated user, or `null` for a signed-out visitor
+- `params: object` — small key/value payload (scenario, method, session id, first-touch UTM fields, etc.), capped to a handful of keys
+- `path: string` — page path the event fired from
+- `createdAt: timestamp`
+
+Rules:
+- Anyone, including signed-out visitors, can create an event document — this must stay writable pre-signup to capture `landing_page_viewed` and `hero_cta_clicked`. Writes are shape-checked (fixed field set, `name` is a short string, `uid` must be `null` or match the caller's own auth uid).
+- Only admins can read the collection back.
+- No update or delete is ever allowed — the log is append-only.
 
 ## Standard Entitlement Map
 

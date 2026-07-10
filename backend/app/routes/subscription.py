@@ -22,7 +22,15 @@ def resolve_user(current_user_id: Optional[str]) -> str:
 
 @router.get("/api/subscription/current")
 async def current_subscription(request: Request, current_user_id: Optional[str] = Depends(get_current_user_id)):
-    return await PaddleService().current_subscription(request.app.state.store, resolve_user(current_user_id))
+    uid = resolve_user(current_user_id)
+    service = PaddleService()
+    subscription = await service.current_subscription(request.app.state.store, uid)
+    if uid != "guest" and subscription.get("planId") == "free":
+        sync_result = await service.sync_active_subscription_for_user(request.app.state.store, uid)
+        if sync_result.get("synced"):
+            subscription = await service.current_subscription(request.app.state.store, uid)
+            subscription["syncResult"] = sync_result
+    return subscription
 
 
 @router.post("/api/subscription/cancel")

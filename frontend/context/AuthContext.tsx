@@ -68,6 +68,7 @@ type AuthContextValue = {
   // one a given click will turn out to be.
   signInWithGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<boolean>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<AppUserProfile | null>;
   signInEmail: (email: string, password: string) => Promise<void>;
   signUpEmail: (email: string, password: string, practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<void>;
   signInGoogle: (practiceLanguage?: LanguageCode, feedbackLanguage?: LanguageCode, compliance?: SignupCompliance) => Promise<boolean>;
@@ -301,6 +302,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserStatus("anonymous");
     }
 
+    async function refreshProfileAction() {
+      if (!user) {
+        setProfile(null);
+        return null;
+      }
+      const nextProfile = await upsertUserProfile(user);
+      setProfile(nextProfile);
+      return nextProfile;
+    }
+
     async function updateLanguagePreferences(practiceLanguage: LanguageCode, feedbackLanguage: LanguageCode) {
       if (!user || user.isAnonymous) return;
       const db = getFirebaseDb();
@@ -355,6 +366,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUpWithEmail: signUpWithEmailAction,
     signInWithGoogle: signInWithGoogleAction,
     signOut: signOutAction,
+    refreshProfile: refreshProfileAction,
     signInEmail: signInWithEmailAction,
     signUpEmail: signUpWithEmailAction,
     signInGoogle: signInWithGoogleAction,

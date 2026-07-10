@@ -126,6 +126,19 @@ service cloud.firestore {
       allow read: if isOwner(uid) || isAdmin();
       allow create, update, delete: if isAdmin();
     }
+
+    // Marketing-funnel event log -- must stay writable by signed-out visitors
+    // (landing_page_viewed fires before signup), so it's shape-checked instead
+    // of gated on auth. Read-only for everyone except admins; append-only.
+    match /analyticsEvents/{eventId} {
+      allow read: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(["name", "uid", "params", "path", "createdAt"])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() < 64
+        && (request.resource.data.uid == null || request.resource.data.uid is string)
+        && (!("uid" in request.resource.data) || request.resource.data.uid == null || !signedIn() || request.resource.data.uid == request.auth.uid);
+      allow update, delete: if false;
+    }
   }
 }
 ```

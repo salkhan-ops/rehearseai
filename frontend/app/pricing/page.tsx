@@ -10,6 +10,7 @@ import { AuthDialog } from "@/components/auth/AuthDialog";
 import type { AuthMode } from "@/components/auth/AuthForm";
 import { PaddleCheckoutButton } from "@/components/billing/PaddleCheckoutButton";
 import { defaultCoursePackages, defaultPlans, getCoursePackages, getPublicPlans, type CoursePackage, type Plan } from "@/lib/admin";
+import { getCurrentSubscription } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 const stakeLabel: Record<CoursePackage["stakeLevel"], string> = {
@@ -66,8 +67,10 @@ const faqs = [
 
 export default function PricingPage() {
   const router = useRouter();
-  const { profile } = useAuth();
+  const { getToken, profile, refreshProfile } = useAuth();
   const currentPlanId = profile?.planId ?? null;
+  const [optimisticPlanId, setOptimisticPlanId] = useState<string | null>(null);
+  const effectivePlanId = optimisticPlanId || currentPlanId;
   const [plans, setPlans] = useState<Plan[]>(defaultPlans.filter((p) => p.isPublic && p.isActive));
   const [packages, setPackages] = useState<CoursePackage[]>(defaultCoursePackages.filter((p) => p.isActive));
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -80,6 +83,12 @@ export default function PricingPage() {
   }, []);
 
   useEffect(() => {
+    if (currentPlanId && currentPlanId === optimisticPlanId) {
+      setOptimisticPlanId(null);
+    }
+  }, [currentPlanId, optimisticPlanId]);
+
+  useEffect(() => {
     function onAuthRequest(event: Event) {
       const requestedMode = (event as CustomEvent<AuthMode>).detail;
       setAuthMode(requestedMode === "signin" || requestedMode === "forgot" ? requestedMode : "signup");
@@ -88,6 +97,20 @@ export default function PricingPage() {
     window.addEventListener("rehearseai:auth", onAuthRequest);
     return () => window.removeEventListener("rehearseai:auth", onAuthRequest);
   }, []);
+
+  async function refreshPlanAfterCheckout(expectedPlan: Plan) {
+    setOptimisticPlanId(expectedPlan.planId);
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, attempt === 0 ? 1200 : 2500));
+      const token = await getToken();
+      const [nextProfile, subscription] = await Promise.all([
+        refreshProfile().catch(() => null),
+        getCurrentSubscription(token).catch(() => null),
+      ]);
+      const syncedPlanId = nextProfile?.planId || subscription?.planId;
+      if (syncedPlanId === expectedPlan.planId) return;
+    }
+  }
 
   useEffect(() => {
     function onPayment(e: Event) {
@@ -158,7 +181,7 @@ export default function PricingPage() {
                     </li>
                   ))}
                 </ul>
-                {currentPlanId === plan.planId ? (
+                {effectivePlanId === plan.planId ? (
                   <div className="mt-8 flex items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-5 py-3.5 text-center font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/20">
                     <CheckCircle2 size={16} className="shrink-0" /> Your current plan
                   </div>
@@ -167,16 +190,17 @@ export default function PricingPage() {
                     href="/practice"
                     className="mt-8 block w-full rounded-2xl px-5 py-3.5 text-center font-semibold transition hover:-translate-y-0.5 surface-medium text-primary-token ring-1 ring-[var(--border-soft)]"
                   >
-                    {currentPlanId && currentPlanId !== "free" ? "Switch to Free" : ctaLabel(plan)}
+                    {effectivePlanId && effectivePlanId !== "free" ? "Switch to Free" : ctaLabel(plan)}
                   </Link>
                 ) : (
                   <PaddleCheckoutButton
                     priceId={paddleMonthlyPriceId(plan)}
                     fallbackHref="/contact"
                     label={plan.name}
+                    onCompleted={() => refreshPlanAfterCheckout(plan)}
                     className={`mt-8 block w-full rounded-2xl px-5 py-3.5 text-center font-semibold transition hover:-translate-y-0.5 disabled:opacity-60 ${plan.isFeatured ? "bg-[var(--accent-primary)] text-white shadow-[0_18px_42px_rgba(109,40,217,0.24)]" : "surface-medium text-primary-token ring-1 ring-[var(--border-soft)]"}`}
                   >
-                    {currentPlanId && currentPlanId !== "free" ? `Switch to ${plan.name}` : ctaLabel(plan)}
+                    {effectivePlanId && effectivePlanId !== "free" ? `Switch to ${plan.name}` : ctaLabel(plan)}
                   </PaddleCheckoutButton>
                 )}
               </div>
@@ -224,12 +248,12 @@ export default function PricingPage() {
                     onCompleted={() => router.push(`/courses/templates?package=${encodeURIComponent(pkg.packageId)}&payment=complete`)}
                     className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-[var(--accent-primary)] px-5 py-3 text-center font-semibold text-white transition hover:-translate-y-0.5 disabled:opacity-60"
                   >
-                    {currentPlanId && currentPlanId !== "free"
+                    {effectivePlanId && effectivePlanId !== "free"
                       ? <>Buy separately <ArrowRight size={16} /></>
                       : <>{pkg.paddlePriceId ? "Buy now" : "Get access"} <ArrowRight size={16} /></>
                     }
                   </PaddleCheckoutButton>
-                  {currentPlanId && currentPlanId !== "free" && (
+                  {effectivePlanId && effectivePlanId !== "free" && (
                     <p className="mt-2 text-center text-xs font-medium text-secondary-token">
                       One-time purchase — sessions are in addition to your subscription.
                     </p>

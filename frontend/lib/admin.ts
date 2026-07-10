@@ -832,6 +832,12 @@ export async function pauseUser(uid: string, pause: boolean) {
   });
 }
 
+export async function syncPaddleUser(uid: string) {
+  return adminRequest<{ synced: boolean; reason?: string; planId?: string; subscriptionId?: string; paddleCustomerId?: string }>(`/api/admin/users/${uid}/sync-paddle`, {
+    method: "POST",
+  });
+}
+
 export async function removeUser(uid: string) {
   // Full wipe: deletes the Firebase Auth account and the Firestore profile doc, so the
   // person can sign up again from scratch with the same email. Irreversible.

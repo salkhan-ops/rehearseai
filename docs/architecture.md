@@ -73,6 +73,7 @@ flowchart LR
 | Local ML signals | `frontend/lib/local-signals`, `frontend/lib/local-ml` | Pause fusion engine combining voice timing and camera signals into a single pause-intent decision. Rule-based now; designed for future ONNX/TFLite model swap. |
 | Paddle billing | `backend/app/services/paddle_service.py`, `frontend/lib/paddle.ts` | Subscription and one-time checkout integration, webhook processing, purchase sync, and revenue/churn event logging. |
 | Course commerce | `frontend/app/pricing`, `frontend/app/courses/templates`, `backend/app/routes/courses.py` | Displays canonical prices, routes signed-in users to checkout, verifies exact package purchases, prevents duplicate activation, and protects course-session start. |
+| Marketing funnel analytics | `frontend/lib/analytics.ts`, `frontend/lib/growth`, `frontend/components/analytics` | Fires funnel events (landing view, CTA clicks, signup/login, interview start/completion, checkout) to GA4, Meta Pixel, and the `analyticsEvents` Firestore log; attaches session id, first-touch UTM, and user status automatically; the admin Growth Dashboard reads real counts back from Firestore/Paddle/GA4 rather than only mock data. |
 | Database | Firestore | Full application state including identity, practice, courses, billing, revenue ops, telemetry, and admin logs. |
 | Security rules | `firestore.rules` | Client-side data access restrictions for user-owned and admin-only collections. |
 | ML scaffold | `backend/ml` | Offline classifier training placeholders for future consented telemetry learning. |
@@ -214,6 +215,15 @@ flowchart TD
 2. Admin APIs manage plans, products, users, entitlements, contact messages, practice templates, course templates, telemetry labels, and safety events.
 3. `adminLogs/{logId}` records sensitive administrative changes.
 4. The revenue, churn, and webhook error registers give operational visibility into the billing pipeline.
+5. `GET /api/admin/stats` also returns a live Firebase Auth account count (`firebase_admin.auth.list_users()`) alongside the Firestore `users` count; `/admin` and the Growth Dashboard surface a warning when the two diverge, which usually means a signup partially failed (an Auth account created with no matching Firestore profile, or vice versa).
+
+### Marketing Funnel Analytics
+
+1. `frontend/components/analytics/GoogleAnalytics.tsx` and `frontend/components/analytics/MetaPixel.tsx` load GA4 and Meta Pixel in the root layout. Both providers load asynchronously, so `frontend/lib/analytics.ts` queues any event fired before the provider is ready and flushes the queue on the script's `onReady` callback — otherwise an event fired at mount time (e.g. `landing_page_viewed`) can lose the race against the script load and be silently dropped.
+2. Every call to `track.*` (`trackFunnelEvent`) auto-attaches a per-tab session id, first-touch UTM parameters (captured once per browser tab and preserved across internal navigation), and a user status (`anonymous` / `new_user` / `returning_user`) maintained by `AuthContext`.
+3. Events are sent to GA4 (`gtag`), Meta Pixel (`fbq`/`trackCustom`), and — for a curated subset relevant to the conversion funnel — written to `analyticsEvents` in Firestore via a best-effort, fire-and-forget client write.
+4. `once()`-style dedup guards (module-level flags, sessionStorage, or component refs depending on the call site) prevent duplicate firing on refresh, route changes, or React re-renders — for example, `landing_page_viewed` fires at most once per browser tab, and `interview_started`/`interview_room_entered` fire at most once per session using the same ref-guard pattern already used for the Meta `InterviewStarted` custom event.
+5. The admin Growth Dashboard (`/admin/growth`) reads `analyticsEvents` back (admin-only, per `firestore.rules`) to show real today/7-day/30-day counts for CTA clicks, signup/login completions, interview starts/completions, and checkout-initiated — filling in the same event names the previously mock-only Pixel Events tab already displayed as preview data.
 
 ## Data Architecture
 
@@ -229,6 +239,7 @@ Firestore is the source of truth for all application state.
 | Revenue ops | `revenueTransactions`, `churnEvents`, `webhookErrors` |
 | Operations | `adminLogs`, `contactMessages`, `safetyEvents` |
 | Telemetry | `conversationTelemetry`, `sessionOutcomes`, `voiceProfiles`, `privacySettings`, `telemetryLabels` |
+| Marketing analytics | `analyticsEvents` |
 
 Backend writes using Firebase Admin SDK bypass Firestore security rules by design. Client reads and writes must satisfy `firestore.rules`. Revenue ops collections (`revenueTransactions`, `churnEvents`, `webhookErrors`) are admin-read-only from the frontend.
 
@@ -243,6 +254,7 @@ The target security model follows least privilege and defense in depth:
 - **Data ownership** — users read their own sessions, reports, entitlements, courses, schedules, and history.
 - **Admin isolation** — admin-only collections and APIs manage billing metadata, entitlements, plans, logs, contact messages, templates, safety events, revenue, and churn.
 - **Network boundary** — browsers call FastAPI and Firebase; browsers never call Gemini, Deepgram, Cartesia, or Paddle with private credentials.
+- **Marketing analytics writes** — `analyticsEvents` is the one collection writable by signed-out visitors (needed to capture pre-signup funnel events); writes are shape-checked by `firestore.rules` (fixed field set, string-typed name, uid must match the caller or be null) and the collection is admin-read-only and append-only.
 - **Paddle webhooks** — webhook secret should be verified before billing goes live in production.
 - **Auditability** — admin operations write `adminLogs`; billing events write `revenueTransactions`; churn events write `churnEvents`; webhook failures write `webhookErrors`.
 
