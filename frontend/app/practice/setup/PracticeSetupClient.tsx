@@ -88,6 +88,26 @@ const quickStarts: Record<PracticeType, Array<{ label: string; topic: string; co
   ],
 };
 
+// Job Interview and Salary Negotiation are grounded in real background material — the AI
+// needs a CV and the role it's being weighed against to ask questions that trace to actual
+// specifics instead of generic ones, so both boxes are required for these two types.
+const DOCUMENT_REQUIRED_TYPES: PracticeType[] = ["Job Interview", "Salary Negotiation"];
+
+const DOCUMENT_TEMPLATES: Partial<Record<PracticeType, { resume: string; job: string }>> = {
+  "Job Interview": {
+    resume: "Product Marketing Manager with 5 years of experience leading go-to-market launches for B2B SaaS products. Grew qualified pipeline 40% YoY by rebuilding positioning and messaging for our flagship product. Managed a team of 2 and partnered closely with sales, product, and design. Previously worked in growth marketing at an early-stage startup.",
+    job: "Hiring a Senior Product Marketing Manager to own positioning, launches, and sales enablement for our core platform. You'll work cross-functionally with product, sales, and design, reporting to the VP of Marketing. Looking for 4+ years of B2B SaaS marketing experience and a track record of driving measurable pipeline growth.",
+  },
+  "Salary Negotiation": {
+    resume: "Senior Software Engineer with 6 years of experience, currently earning $125,000 base. Led the migration of our core service to a new architecture, cutting infra costs by 30%. Consistently rated a top performer and mentors two junior engineers.",
+    job: "Received a competing offer from another company: $140,000 base plus equity for a similar senior engineering role. Bringing this to my current manager to negotiate a raise and see if they can match or beat it before I decide.",
+  },
+};
+
+function buildDocumentText(resume: string, job: string) {
+  return `=== CANDIDATE CV / RESUME ===\n${resume.trim()}\n\n=== JOB OPPORTUNITY / ROLE DETAILS ===\n${job.trim()}`;
+}
+
 const STEP_LABELS = ["Scenario", "How"];
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
@@ -148,6 +168,8 @@ function SetupForm() {
   const [useDocument, setUseDocument] = useState(false);
   const [documentText, setDocumentText] = useState("");
   const [documentMode, setDocumentMode] = useState<DocumentMode>("neutral");
+  const [resumeText, setResumeText] = useState("");
+  const [jobText, setJobText] = useState("");
   const [docUsage, setDocUsage] = useState<{ used: number; limit: number | "unlimited"; remaining: number | "unlimited" } | null>(null);
   const [customDuration, setCustomDuration] = useState(false);
   const [createRoutine, setCreateRoutine] = useState(false);
@@ -183,13 +205,20 @@ function SetupForm() {
   useEffect(() => {
     setDurationPreference(getCourseConfig(practiceType).defaultDuration);
     setCustomDuration(false);
-    if (practiceType === "Job Interview" || practiceType === "U.S. Visa Interview" || practiceType === "Thesis Defense" || practiceType === "Sales Pitch" || practiceType === "Podcast / Interview Show") {
+    if (practiceType === "Job Interview" || practiceType === "Salary Negotiation" || practiceType === "U.S. Visa Interview" || practiceType === "Thesis Defense" || practiceType === "Sales Pitch" || practiceType === "Podcast / Interview Show") {
       setDocumentMode("profile");
     } else {
       setDocumentMode("neutral");
     }
-    if (practiceType === "U.S. Visa Interview") setUseDocument(true);
+    if (practiceType === "U.S. Visa Interview" || DOCUMENT_REQUIRED_TYPES.includes(practiceType)) setUseDocument(true);
   }, [practiceType]);
+
+  // CV + job opportunity are collected as two separate boxes for these types, then merged
+  // into the single documentText field the rest of the form/backend already expects.
+  useEffect(() => {
+    if (!DOCUMENT_REQUIRED_TYPES.includes(practiceType)) return;
+    setDocumentText(resumeText.trim() || jobText.trim() ? buildDocumentText(resumeText, jobText) : "");
+  }, [resumeText, jobText, practiceType]);
 
   async function updateCameraAssistedTiming(enabled: boolean) {
     setCameraAssistedTiming(enabled);
@@ -219,6 +248,14 @@ function SetupForm() {
       if (!visaType) { setError("Select the U.S. visa interview type."); return; }
       if (!useDocument || words < 50) {
         setError("Paste a redacted application and background brief of at least 50 words so the officer can keep questions relevant and consistent.");
+        return;
+      }
+    }
+    if (DOCUMENT_REQUIRED_TYPES.includes(practiceType)) {
+      const resumeWords = resumeText.trim() ? resumeText.trim().split(/\s+/).length : 0;
+      const jobWords = jobText.trim() ? jobText.trim().split(/\s+/).length : 0;
+      if (resumeWords < 25 || jobWords < 25) {
+        setError("Add your CV/résumé and the job opportunity (or use the example) — both are required, at least a few sentences each, so the AI can ask targeted questions instead of generic ones.");
         return;
       }
     }
@@ -253,7 +290,7 @@ function SetupForm() {
         ...(practiceType === "U.S. Visa Interview" ? { visaType } : {}),
         practiceLanguage, feedbackLanguage, durationPreference, environmentMode, preferredConversationMode,
         ...(difficulty === "Nerve" ? { nerveEntryType, nervePersona, nerveMaterialName, nerveMaterialText } : {}),
-        ...(useDocument && documentText.trim() ? { documentText: documentText.trim(), documentName: "pasted document", documentMode } : {}),
+        ...(useDocument && documentText.trim() ? { documentText: documentText.trim(), documentName: DOCUMENT_REQUIRED_TYPES.includes(practiceType) ? "CV + job opportunity" : "pasted document", documentMode } : {}),
       }, token);
       if (useDocument && documentText.trim()) {
         incrementDailyDocCount(userId).catch(() => undefined);
@@ -344,11 +381,53 @@ function SetupForm() {
               <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-emerald-500" /> Find a quiet spot. You can end early at any time.</li>
             </ul>
 
+            {DOCUMENT_REQUIRED_TYPES.includes(practiceType) && (
+              <div className="mt-5 rounded-2xl bg-slate-50 p-4 dark:bg-white/10">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold text-slate-600 dark:text-white/60">
+                    Add your CV and the role — required so the AI asks targeted questions. 30 seconds, or use an example.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const template = DOCUMENT_TEMPLATES[practiceType];
+                      if (!template) return;
+                      setResumeText(template.resume);
+                      setJobText(template.job);
+                    }}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-violet-100 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-200 dark:bg-white/10 dark:text-violet-200"
+                  >
+                    <Sparkles size={13} /> Use example
+                  </button>
+                </div>
+                <label className="mt-3 block text-xs font-semibold text-slate-600 dark:text-white/60">
+                  Your CV / résumé
+                  <textarea
+                    value={resumeText}
+                    onChange={(e) => setResumeText(e.target.value.slice(0, 4000))}
+                    rows={3}
+                    placeholder="Paste your CV, LinkedIn summary, or a few lines about your background…"
+                    className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
+                  />
+                </label>
+                <label className="mt-3 block text-xs font-semibold text-slate-600 dark:text-white/60">
+                  Job opportunity / description
+                  <textarea
+                    value={jobText}
+                    onChange={(e) => setJobText(e.target.value.slice(0, 4000))}
+                    rows={3}
+                    placeholder="Paste the job posting, offer details, or a few lines about the role…"
+                    className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
+                  />
+                </label>
+              </div>
+            )}
+
             {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
 
             <button
               type="button"
-              disabled={loading}
+              disabled={loading || (DOCUMENT_REQUIRED_TYPES.includes(practiceType) && (!resumeText.trim() || !jobText.trim()))}
               onClick={() => {
                 const template = quickStarts[practiceType][0];
                 applyTemplate(template);
@@ -651,12 +730,12 @@ function SetupForm() {
               <section className="mt-5 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
-                    <BookOpen size={16} /> {practiceType === "U.S. Visa Interview" ? "Application and background brief (required)" : "Ground in a document"}
+                    <BookOpen size={16} /> {practiceType === "U.S. Visa Interview" ? "Application and background brief (required)" : DOCUMENT_REQUIRED_TYPES.includes(practiceType) ? "CV and job opportunity (required)" : "Ground in a document"}
                   </div>
                   <button
                     type="button"
-                    onClick={() => { if (practiceType !== "U.S. Visa Interview") { setUseDocument((v) => !v); if (useDocument) setDocumentText(""); } }}
-                    disabled={practiceType === "U.S. Visa Interview"}
+                    onClick={() => { if (practiceType !== "U.S. Visa Interview" && !DOCUMENT_REQUIRED_TYPES.includes(practiceType)) { setUseDocument((v) => !v); if (useDocument) setDocumentText(""); } }}
+                    disabled={practiceType === "U.S. Visa Interview" || DOCUMENT_REQUIRED_TYPES.includes(practiceType)}
                     className={`rounded-xl px-3 py-1.5 text-xs font-bold ring-1 transition ${useDocument ? "bg-slate-950 text-white ring-slate-950 dark:bg-white dark:text-slate-950" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white/60 dark:ring-white/10"}`}
                   >
                     {useDocument ? "On" : "Off"}
@@ -665,10 +744,61 @@ function SetupForm() {
                 <p className="mt-1 text-xs font-medium text-slate-500 dark:text-white/45">
                   {practiceType === "U.S. Visa Interview"
                     ? "Paste a redacted summary of your real application, travel or study/work purpose, funding, background, and relevant CV details. Never paste passport, case, bank-account, or other sensitive identification numbers."
+                    : DOCUMENT_REQUIRED_TYPES.includes(practiceType)
+                    ? "The AI needs your CV and the role to ask questions that trace to real specifics instead of generic ones."
                     : "Paste your CV, research, pitch deck, or any text — the AI reads it before the session and asks targeted questions from it."}
                 </p>
 
-                {useDocument && (
+                {useDocument && DOCUMENT_REQUIRED_TYPES.includes(practiceType) && (
+                  <div className="mt-4 space-y-3">
+                    {docUsage && docUsage.limit !== "unlimited" && (
+                      <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
+                        <span className="text-xs font-semibold text-slate-600 dark:text-white/60">
+                          {docUsage.remaining} of {docUsage.limit as number} documents remaining today
+                        </span>
+                        {docUsage.remaining === 0 && (
+                          <span className="text-xs font-bold text-rose-600">Limit reached — resets midnight UTC</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const template = DOCUMENT_TEMPLATES[practiceType];
+                          if (!template) return;
+                          setResumeText(template.resume);
+                          setJobText(template.job);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-violet-100 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-200 dark:bg-white/10 dark:text-violet-200"
+                      >
+                        <Sparkles size={13} /> Use example
+                      </button>
+                    </div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-white/60">
+                      Your CV / résumé
+                      <textarea
+                        value={resumeText}
+                        onChange={(e) => setResumeText(e.target.value.slice(0, 4000))}
+                        rows={5}
+                        className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
+                        placeholder="Paste your CV, LinkedIn summary, or a few lines about your background…"
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-white/60">
+                      Job opportunity / description
+                      <textarea
+                        value={jobText}
+                        onChange={(e) => setJobText(e.target.value.slice(0, 4000))}
+                        rows={5}
+                        className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
+                        placeholder="Paste the job posting, offer details, or a few lines about the role…"
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {useDocument && !DOCUMENT_REQUIRED_TYPES.includes(practiceType) && (
                   <div className="mt-4 space-y-4">
                     {docUsage && docUsage.limit !== "unlimited" && (
                       <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">

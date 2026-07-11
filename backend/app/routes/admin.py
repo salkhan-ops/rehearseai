@@ -167,11 +167,14 @@ async def public_course_templates(request: Request):
 async def public_stats(request: Request):
     store = request.app.state.store
     if store.client:
-        docs = store.client.collection("users").where("email", "!=", "").stream()
-        count = sum(1 for _ in docs)
+        user_docs = store.client.collection("users").where("email", "!=", "").stream()
+        practitioner_count = sum(1 for _ in user_docs)
+        session_docs = store.client.collection("sessions").where("status", "==", "completed").stream()
+        completed_sessions = sum(1 for _ in session_docs)
     else:
-        count = len([u for u in store.admin_users.values() if u.get("email")])
-    return {"practitionerCount": count}
+        practitioner_count = len([u for u in store.admin_users.values() if u.get("email")])
+        completed_sessions = len([s for s in store.sessions.values() if s.status == "completed"])
+    return {"practitionerCount": practitioner_count, "completedSessions": completed_sessions}
 
 
 @router.get("/api/admin/plans")

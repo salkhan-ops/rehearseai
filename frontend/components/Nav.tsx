@@ -129,7 +129,6 @@ export function Nav() {
               <Link href="/for/interview-practice" className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
                 <Briefcase size={14} /> Job Interview
               </Link>
-              <Link href="/try" className="shrink-0 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Try for free</Link>
               <Link href="/pricing" className="shrink-0 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Pricing</Link>
               <Link href="/blog" className="shrink-0 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">Blog</Link>
             </>
@@ -184,14 +183,8 @@ export function Nav() {
               </Link>
             )}
             <Link
-              href={user ? "/practice" : "/?auth=signup"}
-              onClick={(event) => {
-                track.ctaClicked(user ? "nav_practice_now" : "nav_start_free");
-                if (!user) {
-                  event.preventDefault();
-                  openAuth("signup");
-                }
-              }}
+              href={user ? "/practice" : "/try"}
+              onClick={() => track.ctaClicked(user ? "nav_practice_now" : "nav_start_free")}
               className="shrink-0 whitespace-nowrap rounded-2xl bg-[#6200a8] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
               {user ? "Practice now" : "Start free"}
@@ -258,7 +251,6 @@ export function Nav() {
                   <Link href="/for/interview-practice" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">
                     <Briefcase size={15} /> Job Interview
                   </Link>
-                  <Link href="/try" onClick={() => setMobileOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">Try for free</Link>
                   <Link href="/pricing" onClick={() => setMobileOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">Pricing</Link>
                   <Link href="/blog" onClick={() => setMobileOpen(false)} className="block rounded-2xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/10">Blog</Link>
                 </>
@@ -293,7 +285,7 @@ export function Nav() {
                 </div>
               ) : (
                 <div className="grid gap-2">
-                  <Link href="/?auth=signup" onClick={() => openAuth("signup")} className="block rounded-2xl bg-[#6200a8] px-5 py-3 text-center text-sm font-semibold text-white">
+                  <Link href="/try" onClick={() => setMobileOpen(false)} className="block rounded-2xl bg-[#6200a8] px-5 py-3 text-center text-sm font-semibold text-white">
                     Start free
                   </Link>
                   <Link href="/?auth=signin" onClick={() => openAuth("signin")} className="block rounded-2xl bg-slate-100 px-5 py-3 text-center text-sm font-semibold text-slate-700 dark:bg-white/10 dark:text-white">

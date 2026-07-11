@@ -1,11 +1,11 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, BrainCircuit, CalendarDays, GitBranch, Radio, Sparkles, Trophy, Waves, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
-import { AnimatedCard, AnimatedPage, AnimatedSection, StaggeredGrid } from "@/components/animations";
+import { AnimatedCard, AnimatedNumber, AnimatedPage, AnimatedSection, StaggeredGrid, TypingIndicator } from "@/components/animations";
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import type { AuthMode } from "@/components/auth/AuthForm";
 import { ButtonLink } from "@/components/ButtonLink";
@@ -26,6 +26,7 @@ const faqs = [
   ["Is this therapy?", "No. RehearseAI is practice and feedback software. It is not therapy, legal, medical, or financial advice."],
   ["Does it guarantee success?", "No. It helps you rehearse, improve confidence, and prepare better for the real moment."],
   ["Is brutal mode mean?", "No. Brutal mode is direct and high-pressure, but it is designed to stay constructive and never abusive. Intensity is fully adjustable — Beginner Mode includes step-by-step guidance and coaching hints; Brutal Mode raises the friction but keeps all feedback professional. RehearseAI is designed for users aged 16 and above."],
+  ["Is my practice session private?", "Yes, in the ways that matter. Your answers are processed — including by trusted AI providers — only to generate your feedback and score. We never publish or sell your sessions. Only anonymised, de-identified patterns are ever used to improve the product."],
 ];
 
 const authModes: AuthMode[] = ["signin", "signup", "forgot"];
@@ -100,9 +101,63 @@ function CognitionHero() {
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-cyan-100/70"><Radio size={15} /> Live simulation</div>
         <div className="mt-2 text-sm font-semibold text-slate-700 dark:text-white/82">“Tell me about a time you failed.”</div>
       </div>
-      <div className="absolute bottom-5 right-5 rounded-2xl bg-white/80 dark:bg-white/[0.08] p-4 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
-        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-white/42">Recovery signal</div>
+      <LiveExchangeChip />
+    </div>
+  );
+}
+
+// Cycles the bottom-right hero chip through a weak answer, an AI interruption, and the
+// recovery score — so the hero itself demonstrates the product instead of describing it.
+function LiveExchangeChip() {
+  const reduce = useReducedMotion();
+  const labelClass = "text-xs font-semibold uppercase tracking-[0.18em]";
+
+  if (reduce) {
+    return (
+      <div className="absolute bottom-5 right-5 w-52 rounded-2xl bg-white/80 dark:bg-white/[0.08] p-4 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
+        <div className={`${labelClass} text-slate-700 dark:text-white/42`}>Recovery signal</div>
         <div className="mt-2 text-2xl font-semibold text-violet-700 dark:text-cyan-100">+14%</div>
+      </div>
+    );
+  }
+
+  const loop = { duration: 12, repeat: Infinity, ease: "easeInOut" as const };
+
+  return (
+    <div className="absolute bottom-5 right-5 w-52 rounded-2xl bg-white/80 dark:bg-white/[0.08] p-4 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
+      <div className="relative h-[4.75rem]">
+        <motion.div
+          className="absolute inset-0"
+          animate={{ opacity: [0, 1, 1, 0, 0], y: [4, 0, 0, -3, -3] }}
+          transition={{ ...loop, times: [0, 0.02, 0.1, 0.14, 1] }}
+        >
+          <div className={`${labelClass} text-slate-700 dark:text-white/42`}>Candidate answer</div>
+          <TypingIndicator />
+        </motion.div>
+        <motion.div
+          className="absolute inset-0"
+          animate={{ opacity: [0, 0, 1, 1, 0, 0], y: [4, 4, 0, 0, -3, -3] }}
+          transition={{ ...loop, times: [0, 0.16, 0.2, 0.3, 0.34, 1] }}
+        >
+          <div className={`${labelClass} text-slate-700 dark:text-white/42`}>Candidate answer</div>
+          <div className="mt-2 text-sm font-semibold leading-5 text-slate-700 dark:text-white/82">“I guess I just… worked hard and it worked out.”</div>
+        </motion.div>
+        <motion.div
+          className="absolute inset-0"
+          animate={{ opacity: [0, 0, 1, 1, 0, 0], y: [4, 4, 0, 0, -3, -3] }}
+          transition={{ ...loop, times: [0, 0.38, 0.42, 0.62, 0.66, 1] }}
+        >
+          <div className={`${labelClass} text-rose-600 dark:text-rose-300`}>AI interrupts</div>
+          <div className="mt-2 text-sm font-semibold leading-5 text-slate-700 dark:text-white/82">“What specifically did you do?”</div>
+        </motion.div>
+        <motion.div
+          className="absolute inset-0"
+          animate={{ opacity: [0, 0, 1, 1, 0], y: [4, 4, 0, 0, -3] }}
+          transition={{ ...loop, times: [0, 0.7, 0.74, 0.94, 1] }}
+        >
+          <div className={`${labelClass} text-slate-700 dark:text-white/42`}>Recovery signal</div>
+          <div className="mt-2 text-2xl font-semibold text-violet-700 dark:text-cyan-100">+<AnimatedNumber value={14} />%</div>
+        </motion.div>
       </div>
     </div>
   );
@@ -213,25 +268,39 @@ function LiveSystemDemo() {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-async function fetchPractitionerCount(): Promise<number | null> {
+type PublicStats = { practitionerCount: number | null; completedSessions: number | null };
+
+async function fetchPublicStats(): Promise<PublicStats> {
   try {
     const res = await fetch(`${API_URL}/api/public/stats`, { cache: "no-store" });
-    if (!res.ok) return null;
+    if (!res.ok) return { practitionerCount: null, completedSessions: null };
     const data = await res.json();
-    return typeof data.practitionerCount === "number" ? data.practitionerCount : null;
+    return {
+      practitionerCount: typeof data.practitionerCount === "number" ? data.practitionerCount : null,
+      completedSessions: typeof data.completedSessions === "number" ? data.completedSessions : null,
+    };
   } catch {
-    return null;
+    return { practitionerCount: null, completedSessions: null };
   }
+}
+
+// Only shows a live count once it's meaningful — otherwise falls back to the qualitative
+// line so a fresh or low-traffic deploy never displays an unconvincingly small number.
+function StatOrFallback({ count, threshold, label, fallback }: { count: number | null; threshold: number; label: string; fallback: React.ReactNode }) {
+  if (count !== null && count > threshold) {
+    return <><strong className="text-slate-800 dark:text-white">{count.toLocaleString()}</strong> {label}</>;
+  }
+  return <>{fallback}</>;
 }
 
 export default function Home() {
   const router = useRouter();
   const { user } = useAuth();
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
-  const [practitionerCount, setPractitionerCount] = useState<number | null>(null);
+  const [stats, setStats] = useState<PublicStats>({ practitionerCount: null, completedSessions: null });
 
   useEffect(() => {
-    fetchPractitionerCount().then(setPractitionerCount);
+    fetchPublicStats().then(setStats);
   }, []);
 
   useEffect(() => {
@@ -272,7 +341,7 @@ export default function Home() {
       router.push("/practice");
       return;
     }
-    openAuth("signup");
+    router.push("/try");
   }
 
   return (
@@ -305,7 +374,7 @@ export default function Home() {
               onClick={() => { track.heroCtaClicked("hero_start_free"); startFree("hero_start_free"); }}
               className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
-              Start Free Interview
+              Start My Free Interview
             </button>
             {/* Anchors to the in-page demo instead of linking away to other scenarios —
                 above the fold stays focused on Job Interview for cold ad traffic. */}
@@ -321,11 +390,20 @@ export default function Home() {
                 ))}
               </span>
               <span>
-                {practitionerCount !== null && practitionerCount > 10
-                  ? <><strong className="text-slate-800 dark:text-white">{practitionerCount.toLocaleString()}</strong> people already practising</>
-                  : <><strong className="text-slate-800 dark:text-white">Used by professionals</strong> preparing for their next big conversation</>}
+                <StatOrFallback
+                  count={stats.practitionerCount}
+                  threshold={10}
+                  label="people already practising"
+                  fallback={<><strong className="text-slate-800 dark:text-white">Used by professionals</strong> preparing for their next big conversation</>}
+                />
               </span>
             </span>
+            {stats.completedSessions !== null && stats.completedSessions > 25 && (
+              <>
+                <span className="hidden h-4 w-px bg-slate-200 dark:bg-white/10 sm:block" />
+                <span><strong className="text-slate-800 dark:text-white">{stats.completedSessions.toLocaleString()}</strong> interviews completed</span>
+              </>
+            )}
             <span className="hidden h-4 w-px bg-slate-200 dark:bg-white/10 sm:block" />
             <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Free to start</span>
             <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>No credit card</span>
@@ -617,7 +695,7 @@ export default function Home() {
               note: "Forever free",
               features: ["5 sessions per month", "Beginner & Intermediate modes", "Basic session report"],
               cta: "Start free",
-              href: user ? "/practice" : "/?auth=signup",
+              href: user ? "/practice" : "/try",
               featured: false,
             },
             {
@@ -673,7 +751,7 @@ export default function Home() {
               onClick={() => startFree("bottom_start_free")}
               className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
-              Start Interview Practice Free
+              Start My Free Interview
             </button>
           </div>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-medium text-white/50">
