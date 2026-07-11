@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ArrowRight, ChevronDown, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowRight, ChevronDown, Mic, Sparkles } from "lucide-react";
 import { Nav } from "@/components/Nav";
 import { createSession } from "@/lib/api";
 import { track } from "@/lib/analytics";
@@ -48,6 +49,81 @@ const DOCUMENT_TEMPLATES: Partial<Record<(typeof QUICK_STARTS)[number]["type"], 
 
 function buildDocumentText(resume: string, job: string) {
   return `=== CANDIDATE CV / RESUME ===\n${resume.trim()}\n\n=== JOB OPPORTUNITY / ROLE DETAILS ===\n${job.trim()}`;
+}
+
+const CONVERSATION_BEATS = [
+  { speaker: "ai", state: "speaking", line: "Tell me — why are you the right candidate for this role?" },
+  { speaker: "user", state: "listening", line: "I have three years of experience in product and led two product launches…" },
+  { speaker: "ai", state: "thinking", line: "That's broad. Give me one specific decision a weaker candidate wouldn't have made." },
+] as const;
+
+// A voice orb + rotating captions, not chat bubbles — the product is a spoken
+// conversation, and a text thread here would misrepresent what "start free" gets you.
+function ConversationPreview() {
+  const reduce = useReducedMotion();
+  const [beatIndex, setBeatIndex] = useState(0);
+
+  useEffect(() => {
+    if (reduce) return;
+    const id = setInterval(() => setBeatIndex((i) => (i + 1) % CONVERSATION_BEATS.length), 3200);
+    return () => clearInterval(id);
+  }, [reduce]);
+
+  const beat = CONVERSATION_BEATS[beatIndex];
+  const active = beat.state !== "thinking";
+
+  return (
+    <div className="relative flex flex-col items-center overflow-hidden rounded-[1.75rem] surface-low px-6 py-10 ring-1 ring-[var(--border-soft)]">
+      <div className="relative grid h-40 w-40 place-items-center">
+        <motion.div
+          className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-300/40 via-violet-400/40 to-blue-500/25 blur-2xl"
+          animate={reduce ? undefined : { scale: [0.94, 1.08, 0.96], opacity: [0.55, 0.9, 0.6] }}
+          transition={{ duration: beat.state === "speaking" ? 2 : 3.4, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute h-28 w-28 rounded-full border border-[var(--accent-primary)]/25"
+          animate={reduce ? undefined : { rotate: 360 }}
+          transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
+        />
+        <motion.div
+          className="relative h-20 w-20 overflow-hidden rounded-full bg-gradient-to-br from-violet-200 via-cyan-200 to-blue-300 shadow-[0_0_60px_rgba(129,140,248,0.5)]"
+          animate={reduce ? undefined : { scale: active ? [1, 1.06, 1] : [0.97, 1, 0.97] }}
+          transition={{ duration: beat.state === "speaking" ? 1.4 : 2.6, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_25%,rgba(255,255,255,0.9),transparent_25%)]" />
+        </motion.div>
+        {/* Waveform bars — reads as "listening/speaking," not "typing" */}
+        <div className="absolute -bottom-2 flex items-end gap-[3px]">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <motion.span
+              key={i}
+              className="w-[3px] rounded-full bg-[var(--accent-primary)]"
+              animate={reduce ? undefined : { height: active ? [4, 6 + (i % 5) * 5, 4] : [4, 5, 4] }}
+              transition={{ duration: 0.7 + (i % 4) * 0.12, repeat: Infinity, ease: "easeInOut", delay: i * 0.05 }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-6 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-secondary-token">
+        <Mic size={11} />
+        {beat.speaker === "ai" ? (beat.state === "thinking" ? "AI thinking" : "AI speaking") : "You — speaking"}
+      </div>
+
+      <div className="relative mt-3 h-14 w-full max-w-sm">
+        <motion.p
+          key={beatIndex}
+          initial={reduce ? undefined : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.35 }}
+          className="text-center text-sm font-semibold leading-6 text-primary-token"
+        >
+          “{beat.line}”
+        </motion.p>
+      </div>
+    </div>
+  );
 }
 
 export default function TryPage() {
@@ -234,25 +310,8 @@ export default function TryPage() {
         {/* What to expect — reduces cold-start anxiety before the first session */}
         <div className="mt-14 rounded-[1.75rem] surface-low p-6 text-left ring-1 ring-[var(--border-soft)]">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-secondary-token">What to expect</p>
-          <div className="mt-4 space-y-3">
-            {[
-              { role: "ai", text: "Tell me — why are you the right candidate for this role?" },
-              { role: "user", text: "I have three years of experience in product and led two product launches…" },
-              { role: "ai", text: "That's broad. Give me one specific decision you made that a weaker candidate wouldn't have made." },
-            ].map((turn, i) => (
-              <div key={i} className={`flex ${turn.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm font-medium leading-6 ${
-                  turn.role === "ai"
-                    ? "rounded-tl-sm bg-white/60 text-primary-token ring-1 ring-[var(--border-soft)] dark:bg-white/10"
-                    : "rounded-tr-sm bg-[#6200a8]/80 text-white"
-                }`}>
-                  <span className={`mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] ${turn.role === "ai" ? "text-[var(--accent-primary)]/60" : "text-violet-200/60"}`}>
-                    {turn.role === "ai" ? "AI" : "You"}
-                  </span>
-                  {turn.text}
-                </div>
-              </div>
-            ))}
+          <div className="mt-4">
+            <ConversationPreview />
           </div>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-secondary-token">
             <span>~10 minutes</span>

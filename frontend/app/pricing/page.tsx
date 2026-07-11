@@ -67,7 +67,7 @@ const faqs = [
 
 export default function PricingPage() {
   const router = useRouter();
-  const { getToken, profile, refreshProfile } = useAuth();
+  const { user, getToken, profile, refreshProfile } = useAuth();
   const currentPlanId = profile?.planId ?? null;
   const [optimisticPlanId, setOptimisticPlanId] = useState<string | null>(null);
   const effectivePlanId = optimisticPlanId || currentPlanId;
@@ -187,7 +187,7 @@ export default function PricingPage() {
                   </div>
                 ) : plan.priceMonthly === 0 ? (
                   <Link
-                    href="/practice"
+                    href={user ? "/practice" : "/try"}
                     className="mt-8 block w-full rounded-2xl px-5 py-3.5 text-center font-semibold transition hover:-translate-y-0.5 surface-medium text-primary-token ring-1 ring-[var(--border-soft)]"
                   >
                     {effectivePlanId && effectivePlanId !== "free" ? "Switch to Free" : ctaLabel(plan)}
@@ -286,7 +286,7 @@ export default function PricingPage() {
         <div className="mt-12 rounded-[2rem] surface-medium p-8 text-center">
           <h3 className="text-2xl font-semibold tracking-[-0.04em]">Still not sure?</h3>
           <p className="mx-auto mt-3 max-w-xl font-medium leading-7 text-secondary-token">Start on the Free plan — no card required. Upgrade any time from your account settings.</p>
-          <Link href="/practice" className="mt-6 inline-flex rounded-2xl bg-[var(--accent-primary)] px-7 py-4 font-semibold text-white shadow-[0_18px_42px_rgba(109,40,217,0.24)] transition hover:-translate-y-0.5">
+          <Link href={user ? "/practice" : "/try"} className="mt-6 inline-flex rounded-2xl bg-[var(--accent-primary)] px-7 py-4 font-semibold text-white shadow-[0_18px_42px_rgba(109,40,217,0.24)] transition hover:-translate-y-0.5">
             Try your first session free
           </Link>
         </div>
