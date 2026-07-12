@@ -7,7 +7,7 @@ from app.services.gemini_service import GeminiService
 from app.services.firestore_service import FirestoreService
 from app.services.conversation_coordination_service import ConversationCoordinationService, CoordinationAnalyzeRequest
 from app.services.cross_examination_service import CrossExaminationService
-from app.utils.security import get_current_user_id, require_authenticated_user
+from app.utils.security import get_current_user_id, require_authenticated_user, require_authenticated_user_claims
 from app.utils.timestamps import utc_now_iso
 
 router = APIRouter()
@@ -38,7 +38,11 @@ async def require_age_confirmed(store: FirestoreService, user_id: Optional[str])
 
 
 @router.post("/api/sessions")
-async def create_session(payload: SessionCreate, request: Request, current_user_id: str = Depends(require_authenticated_user)):
+async def create_session(payload: SessionCreate, request: Request, claims: dict = Depends(require_authenticated_user_claims)):
+    current_user_id: str = claims["uid"]
+    # Firebase's own verified claim, not anything client-supplied -- can't be spoofed
+    # by a request body flag the way a plain "isGuest" field could.
+    is_anonymous = claims.get("firebase", {}).get("sign_in_provider") == "anonymous"
     await require_age_confirmed(get_store(request), current_user_id)
     payload.userId = current_user_id
     # Single entitlement lookup covers all plan checks
@@ -54,8 +58,10 @@ async def create_session(payload: SessionCreate, request: Request, current_user_
             if daily_count >= int(daily_limit):
                 raise HTTPException(status_code=429, detail=f"Daily document limit reached ({daily_limit}/day). Resets at midnight UTC.")
             await get_store(request).increment_daily_doc_count(current_user_id)
-    # Enforce plan-based session duration cap — users cannot exceed their tier limit
-    max_minutes: int = int(ents.get("maxSessionMinutes", 15))
+    # Anonymous guest trials (see /try) get their own admin-configurable cap, independent
+    # of the free plan's maxSessionMinutes that applies to real signed-up free users.
+    duration_key = "guestTrialMinutes" if is_anonymous else "maxSessionMinutes"
+    max_minutes: int = int(ents.get(duration_key, ents.get("maxSessionMinutes", 15)))
     payload.durationPreference = min(payload.durationPreference, max_minutes)
     session = await get_store(request).create_session(payload)
     if session.difficulty == "Nerve":

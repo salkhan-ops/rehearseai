@@ -16,6 +16,9 @@ DEFAULT_ENTITLEMENTS = {
     "maxSessionsPerMonth": 5,
     "maxMessagesPerSession": 16,
     "maxSessionMinutes": 3,
+    # Anonymous guest trials (see /try) read this instead of maxSessionMinutes, so the
+    # trial length can be tuned independently of real signed-up free users' session cap.
+    "guestTrialMinutes": 3,
     "allowBrutalMode": False,
     "allowNerveMode": False,
     "allowChallengeMode": False,
@@ -1049,7 +1052,16 @@ class FirestoreService:
     async def admin_list_plans(self) -> list[dict]:
         if self.client:
             docs = self.client.collection("plans").stream()
-            plans = [doc.to_dict() for doc in docs]
+            plans = []
+            for doc in docs:
+                plan = doc.to_dict()
+                # Backfill any entitlement keys added to DEFAULT_ENTITLEMENTS after this
+                # plan was last saved -- otherwise a newly added toggle (e.g.
+                # guestTrialMinutes) silently resolves via a code-level .get() fallback
+                # instead of actually showing up as an editable admin field until someone
+                # happens to re-save the plan.
+                plan["entitlements"] = {**DEFAULT_ENTITLEMENTS, **(plan.get("entitlements") or {})}
+                plans.append(plan)
             return sorted(plans or DEFAULT_PLANS, key=lambda plan: plan.get("sortOrder", 0))
         return sorted(self.admin_plans.values(), key=lambda plan: plan.get("sortOrder", 0))
 

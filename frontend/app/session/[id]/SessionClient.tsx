@@ -7,6 +7,8 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AICharacterEnvironment } from "@/components/AICharacterEnvironment";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
 import { AnimatedMessage, AnimatedPage, TypingIndicator } from "@/components/animations";
+import { AuthDialog } from "@/components/auth/AuthDialog";
+import type { AuthMode } from "@/components/auth/AuthForm";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { BeginnerBriefing } from "@/components/learning/BeginnerBriefing";
 import { FirstSessionGuide } from "@/components/session/FirstSessionGuide";
@@ -153,8 +155,11 @@ export default function SessionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = params?.id || searchParams.get("id") || "";
-  const isGuestMode = searchParams.get("guest") === "true";
-  const { getToken, profile, userId } = useAuth();
+  const { getToken, profile, userId, user, markGuestTrialUsed } = useAuth();
+  // The query param is the primary signal (set by /try when it starts the trial); the
+  // isAnonymous fallback keeps guest mode working across a refresh, where the param can
+  // be lost but the anonymous Firebase session persists.
+  const isGuestMode = searchParams.get("guest") === "true" || Boolean(user?.isAnonymous);
   const [session, setSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -227,7 +232,7 @@ export default function SessionPage() {
   const [connectionQuality, setConnectionQuality] = useState<"good" | "slow" | "unknown">("unknown");
   const [voiceFallbackNotice, setVoiceFallbackNotice] = useState("");
   const [voiceEscapeHatchDismissed, setVoiceEscapeHatchDismissed] = useState(false);
-  const [guestReport, setGuestReport] = useState<{ confidenceScore: number; clarityScore: number; calmnessScore: number; structureScore: number; summary: string } | null>(null);
+  const [guestReport, setGuestReport] = useState<{ reportId: string; confidenceScore: number; clarityScore: number; calmnessScore: number; structureScore: number; summary: string } | null>(null);
   const backgroundPausedRef = useRef(false);
   const pauseForBackgroundRef = useRef<() => void>(() => undefined);
   const resumeFromBackgroundRef = useRef<() => void>(() => undefined);
@@ -1706,12 +1711,14 @@ export default function SessionPage() {
       if (isGuestMode) {
         // Guest users see a preview overlay — not the full report (which requires auth).
         setGuestReport({
+          reportId: report.id,
           confidenceScore: report.confidenceScore,
           clarityScore: report.clarityScore,
           calmnessScore: report.calmnessScore,
           structureScore: report.structureScore,
           summary: report.summary,
         });
+        markGuestTrialUsed().catch(() => {});
       } else {
         // Only the free plan's timer auto-end should trigger the upgrade prompt on the
         // report page -- a paid plan's session simply running its full 45/90 min length,
@@ -2233,7 +2240,9 @@ export default function SessionPage() {
   return <ProtectedRoute>{sessionContent}</ProtectedRoute>;
 }
 
-function GuestReportOverlay({ report }: { report: { confidenceScore: number; clarityScore: number; calmnessScore: number; structureScore: number; summary: string } }) {
+function GuestReportOverlay({ report }: { report: { reportId: string; confidenceScore: number; clarityScore: number; calmnessScore: number; structureScore: number; summary: string } }) {
+  const router = useRouter();
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const scores = [
     { label: "Confidence", value: report.confidenceScore },
     { label: "Clarity", value: report.clarityScore },
@@ -2257,12 +2266,13 @@ function GuestReportOverlay({ report }: { report: { confidenceScore: number; cla
         <div className="mt-3 rounded-2xl bg-violet-50 p-4 text-sm font-medium text-violet-700 dark:bg-violet-400/10 dark:text-violet-200">
           <strong className="font-bold">Sign up free</strong> to unlock your full breakdown — confidence by turn, weak moments, coaching suggestions, and progress tracking.
         </div>
-        <a
-          href="/?auth=signup"
+        <button
+          type="button"
+          onClick={() => setAuthMode("signup")}
           className="mt-4 block w-full rounded-2xl bg-[#6200a8] px-5 py-4 text-center text-lg font-bold text-white shadow-[0_18px_44px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5"
         >
           Save my results — it's free
-        </a>
+        </button>
         <a
           href="/try"
           className="mt-3 block w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-white/10 dark:bg-white/10 dark:text-white"
@@ -2270,6 +2280,15 @@ function GuestReportOverlay({ report }: { report: { confidenceScore: number; cla
           Try another scenario
         </a>
       </div>
+      {/* Signing up here links onto the guest's existing anonymous account (see
+          signUpWithEmailAction/signInWithGoogleAction) instead of creating a fresh one,
+          so this exact session and report land under the account they end up with. */}
+      <AuthDialog
+        mode={authMode}
+        onClose={() => setAuthMode(null)}
+        onModeChange={setAuthMode}
+        onAuthenticated={() => router.push(reportHref(report.reportId))}
+      />
     </div>
   );
 }

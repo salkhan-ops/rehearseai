@@ -19,6 +19,8 @@ export type Entitlements = {
   maxSessionsPerMonth: number | "unlimited";
   maxMessagesPerSession: number;
   maxSessionMinutes: number;
+  // Anonymous guest trials (see /try) read this instead of maxSessionMinutes.
+  guestTrialMinutes: number;
   allowBrutalMode: boolean;
   allowNerveMode: boolean;
   allowChallengeMode: boolean;
@@ -544,6 +546,7 @@ const baseEntitlements: Entitlements = {
   maxSessionsPerMonth: 3,
   maxMessagesPerSession: 16,
   maxSessionMinutes: 15,
+  guestTrialMinutes: 3,
   allowBrutalMode: false,
   allowNerveMode: false,
   allowChallengeMode: false,

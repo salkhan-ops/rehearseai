@@ -31,6 +31,11 @@ export function Nav() {
   const trainRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
   const { loading, logout, user, profile } = useAuth();
+  // An anonymous guest trial (see /try) is a real Firebase user under the hood, but the
+  // person never took an explicit "sign in" action -- showing them Account/Sign out here
+  // would look like they got silently enrolled. Nav treats them as logged-out until they
+  // actually create an account.
+  const isRealUser = user != null && !user.isAnonymous;
 
   useEffect(() => {
     const stored = window.localStorage.getItem("theme");
@@ -85,7 +90,7 @@ export function Nav() {
 
         {/* Desktop nav links */}
         <div className="hidden items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-white/72 lg:flex">
-          {user ? (
+          {isRealUser ? (
             <>
               <Link href="/practice/setup?type=Job%20Interview" className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-2 transition hover:bg-slate-100 dark:hover:bg-white/10">
                 <Briefcase size={14} /> Job Interview
@@ -159,18 +164,18 @@ export function Nav() {
           <button type="button" onClick={toggleTheme} className="grid size-11 place-items-center rounded-2xl bg-white/80 text-[#6200a8] ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-violet-100 dark:ring-white/15" aria-label="Toggle dark mode">
             {dark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          {user && <NotificationBell />}
+          {isRealUser && <NotificationBell />}
           {/* Desktop auth */}
           <div className="hidden items-center gap-1.5 lg:flex">
-            {user ? (
+            {isRealUser ? (
               <div className="flex items-center gap-1.5">
                 {/* User identity pill */}
                 <div className="flex shrink-0 items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/15">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white">
-                    {(profile?.displayName || user.displayName || user.email || "U").charAt(0).toUpperCase()}
+                    {(profile?.displayName || user?.displayName || user?.email || "U").charAt(0).toUpperCase()}
                   </span>
                   <span className="max-w-[140px] truncate text-sm font-semibold text-slate-800 dark:text-white">
-                    {profile?.displayName || user.displayName || user.email?.split("@")[0] || "Account"}
+                    {profile?.displayName || user?.displayName || user?.email?.split("@")[0] || "Account"}
                   </span>
                 </div>
                 <button type="button" onClick={logout} className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl bg-white/80 px-3.5 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:-translate-y-0.5 dark:bg-white/10 dark:text-white dark:ring-white/15">
@@ -183,11 +188,11 @@ export function Nav() {
               </Link>
             )}
             <Link
-              href={user ? "/practice" : "/try"}
-              onClick={() => track.ctaClicked(user ? "nav_practice_now" : "nav_start_free")}
+              href={isRealUser ? "/practice" : "/try"}
+              onClick={() => track.ctaClicked(isRealUser ? "nav_practice_now" : "nav_start_free")}
               className="shrink-0 whitespace-nowrap rounded-2xl bg-[#6200a8] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(98,0,168,0.25)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
             >
-              {user ? "Practice now" : "Start free"}
+              {isRealUser ? "Practice now" : "Start free"}
             </Link>
           </div>
           {/* Mobile hamburger */}
@@ -217,7 +222,7 @@ export function Nav() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-5">
-              {user ? (
+              {isRealUser ? (
                 <>
                   <Link href="/practice/setup?type=Job%20Interview" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-2xl bg-violet-50 px-3 py-3 text-violet-700 transition hover:bg-violet-100 dark:bg-violet-400/10 dark:text-violet-200">
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-white text-violet-700 dark:bg-white/10 dark:text-violet-200"><Briefcase size={15} /></span>
@@ -269,14 +274,14 @@ export function Nav() {
 
             {/* Auth footer */}
             <div className="border-t border-slate-100 px-4 py-4 dark:border-white/10">
-              {user ? (
+              {isRealUser ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white">
-                      {(profile?.displayName || user.displayName || user.email || "U").charAt(0).toUpperCase()}
+                      {(profile?.displayName || user?.displayName || user?.email || "U").charAt(0).toUpperCase()}
                     </span>
                     <span className="truncate text-sm font-semibold text-slate-800 dark:text-white">
-                      {profile?.displayName || user.displayName || user.email?.split("@")[0] || "Account"}
+                      {profile?.displayName || user?.displayName || user?.email?.split("@")[0] || "Account"}
                     </span>
                   </div>
                   <button type="button" onClick={() => { logout(); setMobileOpen(false); }} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 dark:bg-white/10 dark:text-white">

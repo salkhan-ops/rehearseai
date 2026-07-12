@@ -42,6 +42,24 @@ async def require_authenticated_user(authorization: Optional[str] = Header(defau
     return uid
 
 
+async def require_authenticated_user_claims(authorization: Optional[str] = Header(default=None)) -> dict:
+    """Like require_authenticated_user, but returns the full decoded token instead of
+    just the uid -- for endpoints that need to distinguish an anonymous guest session
+    (token claims include firebase.sign_in_provider == "anonymous") from a real account.
+    That claim comes from Firebase's own verified token, not anything client-supplied,
+    so it can't be spoofed the way a request body flag could."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authentication required. Please sign in to use this service.")
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="Invalid authorization header")
+    try:
+        _ensure_firebase_app()
+        return firebase_auth.verify_id_token(token)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Invalid Firebase token") from exc
+
+
 async def get_current_user_id_or_guest(authorization: Optional[str] = Header(default=None)) -> Optional[str]:
     """Like get_current_user_id but falls back to None (guest) when credentials are missing
     or the token cannot be verified. Use only for read-only endpoints that are safe for

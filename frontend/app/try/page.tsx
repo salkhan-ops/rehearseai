@@ -8,6 +8,7 @@ import { Nav } from "@/components/Nav";
 import { createSession } from "@/lib/api";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
+import { sessionHref } from "@/lib/routes";
 
 const QUICK_STARTS = [
   {
@@ -128,15 +129,22 @@ function ConversationPreview() {
 
 export default function TryPage() {
   const router = useRouter();
-  const { getToken, loading: authLoading, profile, user, userId } = useAuth();
+  const { getToken, loading: authLoading, profile, user, userId, signInAnonymously } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [expandedType, setExpandedType] = useState<string | null>(null);
   const [resumeText, setResumeText] = useState("");
   const [jobText, setJobText] = useState("");
+  // Set right after an anonymous guest sign-in resolves, and used to bridge the very
+  // next action (starting the session) -- the `user`/`getToken()` from useAuth() come
+  // from React state driven by onAuthStateChanged, which isn't guaranteed to have
+  // caught up in the same tick signInAnonymously's promise resolves in.
+  const [guestAuth, setGuestAuth] = useState<{ uid: string; token: string | null } | null>(null);
+  const [consentPending, setConsentPending] = useState<{ type: string; context: string; goal: string } | null>(null);
+  const [consentChecked, setConsentChecked] = useState(false);
 
-  async function startQuickSession(type: string, context: string, goal: string, documentText?: string) {
-    if (!user) {
+  async function startQuickSession(type: string, context: string, goal: string, documentText?: string, overrideAuth?: { uid: string; token: string | null }) {
+    if (!overrideAuth && !user) {
       router.push("/?auth=signup&returnTo=/try");
       return;
     }
@@ -144,9 +152,9 @@ export default function TryPage() {
     setError("");
     track.ctaClicked("quick_try_" + type.toLowerCase().replace(/\s/g, "_"));
     try {
-      const token = await getToken();
+      const token = overrideAuth ? overrideAuth.token : await getToken();
       const session = await createSession({
-        userId,
+        userId: overrideAuth?.uid ?? userId,
         practiceType: type as never,
         // Quick-start trial sessions run at Advanced so first-time visitors immediately feel
         // the AI push back and challenge vague answers — the product's actual differentiator —
@@ -163,7 +171,8 @@ export default function TryPage() {
         preferredConversationMode: "natural",
         ...(documentText ? { documentText, documentMode: "profile" as const } : {}),
       }, token);
-      router.push(`/session/${session.id}`);
+      const isGuest = Boolean(overrideAuth) || Boolean(user?.isAnonymous);
+      router.push(sessionHref(session.id, { guest: isGuest ? "true" : undefined }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start the session — please try again.");
       setLoading(false);
@@ -172,6 +181,16 @@ export default function TryPage() {
 
   function handleCardClick(type: string, context: string, goal: string) {
     if (!user) {
+      // No hard signup wall -- collect the one legally-required consent tap, then start
+      // an anonymous trial session immediately. Signup is asked for only after they've
+      // actually talked to the AI (see the guest-report gate on the session page).
+      setError("");
+      setConsentPending({ type, context, goal });
+      return;
+    }
+    if (user.isAnonymous && profile?.guestTrialUsed) {
+      // Already used their one free anonymous trial in this browser -- further scenarios
+      // require a real account rather than looping free AI-backed sessions.
       router.push("/?auth=signup&returnTo=/try");
       return;
     }
@@ -183,6 +202,33 @@ export default function TryPage() {
       return;
     }
     startQuickSession(type, context, goal);
+  }
+
+  async function beginGuestTrial() {
+    if (!consentPending || !consentChecked) return;
+    setLoading(true);
+    setError("");
+    try {
+      const auth = await signInAnonymously({
+        ageConfirmed: true,
+        minorConsentAcknowledged: false,
+        termsAccepted: true,
+        privacyAccepted: true,
+      });
+      const { type, context, goal } = consentPending;
+      setConsentPending(null);
+      setConsentChecked(false);
+      if (DOCUMENT_TEMPLATES[type as keyof typeof DOCUMENT_TEMPLATES]) {
+        setGuestAuth(auth);
+        setExpandedType(type);
+        setLoading(false);
+      } else {
+        await startQuickSession(type, context, goal, undefined, auth);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start your free trial — please try again.");
+      setLoading(false);
+    }
   }
 
   function fillTemplate(type: string) {
@@ -197,15 +243,21 @@ export default function TryPage() {
       <Nav />
       <div className="mx-auto max-w-2xl px-4 py-20 text-center">
         <p className="inline-flex items-center gap-2 rounded-full surface-low px-4 py-2 text-sm font-semibold text-secondary-token">
-          {user ? "Quick practice · saved to your account" : "Free account required · no card needed"}
+          {user && !user.isAnonymous
+            ? "Quick practice · saved to your account"
+            : user?.isAnonymous
+              ? "Free trial · sign up after to save it"
+              : "Free to start · no account needed"}
         </p>
         <h1 className="mt-6 text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-primary-token md:text-6xl">
           Pick a scenario.<br />Start talking.
         </h1>
         <p className="mx-auto mt-5 max-w-lg text-lg font-medium leading-7 text-secondary-token">
-          {user
+          {user && !user.isAnonymous
             ? "Choose a scenario and go straight into a saved practice session."
-            : "Create a free account to protect your session, save your report, and track progress."}
+            : user?.isAnonymous
+              ? "Pick another scenario and go straight in — you'll be asked to save your results afterward."
+              : "Pick a scenario and start talking immediately. Create a free account afterward to save your results."}
         </p>
 
         <div className="mt-10 grid gap-4 text-left">
@@ -277,7 +329,7 @@ export default function TryPage() {
                     <button
                       type="button"
                       disabled={!canStart || loading}
-                      onClick={() => startQuickSession(type, context, goal, buildDocumentText(resumeText, jobText))}
+                      onClick={() => startQuickSession(type, context, goal, buildDocumentText(resumeText, jobText), guestAuth ?? undefined)}
                       className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent-primary)] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
                     >
                       {loading ? "Starting…" : "Start session"} <ArrowRight size={16} />
@@ -295,7 +347,7 @@ export default function TryPage() {
           </p>
         )}
 
-        {user ? (
+        {user && !user.isAnonymous ? (
           <p className="mt-8 text-sm font-medium text-secondary-token">
             Results will be saved to {profile?.displayName || user.displayName || "your account"}.{" "}
             <a href="/history" className="font-semibold text-[var(--accent-primary)] underline underline-offset-2">View session history</a>
@@ -322,6 +374,56 @@ export default function TryPage() {
           </div>
         </div>
       </div>
+
+      {consentPending && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 px-4 py-5 backdrop-blur-md" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 cursor-default"
+            aria-label="Close"
+            onClick={() => { if (!loading) { setConsentPending(null); setConsentChecked(false); } }}
+          />
+          <div className="relative w-full max-w-md rounded-[1.5rem] bg-white p-6 shadow-2xl dark:bg-[#101827]">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent-primary)]">One tap to start</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-primary-token">Jump straight in — no account needed yet</h2>
+            <p className="mt-2 text-sm font-medium leading-6 text-secondary-token">
+              Talk to the AI right now. We&apos;ll ask you to save your results afterward.
+            </p>
+            <label className="mt-4 flex items-start gap-3 rounded-2xl surface-low p-3 text-sm ring-1 ring-[var(--border-soft)]">
+              <input
+                type="checkbox"
+                checked={consentChecked}
+                onChange={(e) => setConsentChecked(e.target.checked)}
+                className="mt-0.5 size-5 shrink-0 accent-[var(--accent-primary)]"
+              />
+              <span className="text-secondary-token">
+                I confirm I am at least 16 (with parent or guardian permission if under 18), and I agree to the{" "}
+                <a href="/terms" target="_blank" className="font-semibold text-[var(--accent-primary)] underline underline-offset-2">Terms</a> and{" "}
+                <a href="/privacy" target="_blank" className="font-semibold text-[var(--accent-primary)] underline underline-offset-2">Privacy Policy</a>.
+              </span>
+            </label>
+            {error && (
+              <p className="mt-3 text-sm font-semibold text-rose-600 dark:text-rose-300">{error}</p>
+            )}
+            <button
+              type="button"
+              disabled={!consentChecked || loading}
+              onClick={beginGuestTrial}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent-primary)] px-5 py-3.5 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+            >
+              {loading ? "Starting…" : "Start talking"} <ArrowRight size={16} />
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => { setConsentPending(null); setConsentChecked(false); setError(""); }}
+              className="mt-2 w-full rounded-2xl px-5 py-2.5 text-center text-sm font-semibold text-secondary-token disabled:opacity-40"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
