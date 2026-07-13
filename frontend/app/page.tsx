@@ -1,9 +1,10 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, BrainCircuit, CalendarDays, GitBranch, Radio, Sparkles, Trophy, Waves, Zap } from "lucide-react";
+import { ArrowRight, BrainCircuit, CalendarDays, Radio, Sparkles, Trophy, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
 import { AnimatedCard, AnimatedNumber, AnimatedPage, AnimatedSection, StaggeredGrid, TypingIndicator } from "@/components/animations";
 import { AuthDialog } from "@/components/auth/AuthDialog";
@@ -14,6 +15,7 @@ import { Footer } from "@/components/content/Footer";
 import { PracticeType, practiceTypes } from "@/lib/types";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
+import { useCtaImpression } from "@/hooks/useCtaImpression";
 
 const steps = [
   ["You speak", "Enter a real scenario — job interview, pitch, negotiation — and respond as you would in the room."],
@@ -45,24 +47,15 @@ const categoryMeta: Record<PracticeType, { shape: string; line: string; accent: 
   "Podcast / Interview Show": { shape: "broadcast wave", line: "Deliver real stories and sharp takes on mic.", accent: "from-orange-300 to-pink-500" },
 };
 
+// CSS keyframe animations (see .ambient-blob-* in globals.css) instead of framer-motion --
+// these three blobs mount immediately on every page load, above the fold, so they're pure
+// overhead on the hydration-critical path for JS-driven animation.
 function AmbientBackground() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <motion.div
-        className="absolute left-1/2 top-24 h-[46rem] w-[46rem] -translate-x-1/2 rounded-full bg-violet-500/18 blur-3xl"
-        animate={{ scale: [0.96, 1.08, 0.98], opacity: [0.45, 0.76, 0.52] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute right-[-12rem] top-[28rem] h-[34rem] w-[34rem] rounded-full bg-cyan-400/14 blur-3xl"
-        animate={{ x: [0, -38, 0], y: [0, 28, 0] }}
-        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute bottom-[22rem] left-[-14rem] h-[34rem] w-[34rem] rounded-full bg-blue-500/16 blur-3xl"
-        animate={{ x: [0, 36, 0], y: [0, -26, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-      />
+      <div className="ambient-blob-a absolute left-1/2 top-24 h-[46rem] w-[46rem] -translate-x-1/2 rounded-full bg-violet-500/18 blur-3xl" />
+      <div className="ambient-blob-b absolute right-[-12rem] top-[28rem] h-[34rem] w-[34rem] rounded-full bg-cyan-400/14 blur-3xl" />
+      <div className="ambient-blob-c absolute bottom-[22rem] left-[-14rem] h-[34rem] w-[34rem] rounded-full bg-blue-500/16 blur-3xl" />
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:78px_78px] opacity-25" />
     </div>
   );
@@ -224,47 +217,9 @@ function VideoConversationOverlay() {
   );
 }
 
-function LiveSystemDemo() {
-  return (
-    <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-      <AnimatedSection className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
-        <div className="flex items-center gap-2 text-sm font-semibold text-violet-700 dark:text-cyan-100"><GitBranch size={18} /> Decision path expanding</div>
-        <div className="relative mt-8 h-80">
-          {["Main answer", "Evidence path", "Generic path", "Defensive path", "Executive framing"].map((label, index) => (
-            <motion.div
-              key={label}
-              className="absolute rounded-full bg-white/80 dark:bg-white/[0.09] px-4 py-2 text-sm font-semibold text-slate-700 dark:text-white/76 ring-1 ring-slate-200/80 dark:ring-white/10"
-              style={{ left: `${index === 0 ? 42 : 10 + index * 18}%`, top: `${index === 0 ? 8 : 45 + (index % 2) * 22}%` }}
-              animate={{ y: [0, -8, 0], opacity: [0.62, 1, 0.72] }}
-              transition={{ duration: 3.6 + index * 0.25, repeat: Infinity, ease: "easeInOut" }}
-            >
-              {label}
-            </motion.div>
-          ))}
-          <div className="absolute left-1/2 top-24 h-40 w-px bg-gradient-to-b from-cyan-200/50 to-transparent" />
-          <div className="absolute inset-x-10 top-40 h-px bg-gradient-to-r from-transparent via-violet-200/45 to-transparent" />
-        </div>
-        <p className="mt-4 text-sm font-medium text-slate-400 dark:text-white/38">
-          <em>Executive framing:</em> how to restate the same answer at the level of risk, outcome, and decision — without changing the facts.
-        </p>
-      </AnimatedSection>
-      <AnimatedSection className="rounded-[2rem] bg-white/80 dark:bg-white/[0.07] p-6 ring-1 ring-slate-200/80 dark:ring-white/10 backdrop-blur-2xl">
-        <div className="flex items-center gap-2 text-sm font-semibold text-violet-700 dark:text-cyan-100"><Waves size={18} /> Pressure response field</div>
-        <div className="mt-8 flex h-72 items-center gap-2">
-          {Array.from({ length: 42 }).map((_, index) => (
-            <motion.span
-              key={index}
-              className="w-full rounded-full bg-gradient-to-t from-violet-500 via-cyan-300 to-white"
-              animate={{ height: [`${24 + ((index * 11) % 56)}%`, `${38 + ((index * 17) % 58)}%`, `${22 + ((index * 7) % 48)}%`] }}
-              transition={{ duration: 2.6 + (index % 5) * 0.12, repeat: Infinity, ease: "easeInOut" }}
-              style={{ opacity: 0.26 + (index % 6) * 0.09 }}
-            />
-          ))}
-        </div>
-      </AnimatedSection>
-    </div>
-  );
-}
+// Code-split out of the main hydration bundle -- it's well below the fold and has no
+// interactive elements of its own, so it doesn't need to be ready before the hero CTA is.
+const LiveSystemDemo = dynamic(() => import("@/components/home/LiveSystemDemo").then((m) => m.LiveSystemDemo), { ssr: true });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -298,6 +253,8 @@ export default function Home() {
   const { user } = useAuth();
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [stats, setStats] = useState<PublicStats>({ practitionerCount: null, completedSessions: null });
+  const heroCtaRef = useCtaImpression<HTMLButtonElement>("hero_start_free");
+  const bottomCtaRef = useCtaImpression<HTMLButtonElement>("bottom_start_free");
 
   useEffect(() => {
     fetchPublicStats().then(setStats);
@@ -370,6 +327,7 @@ export default function Home() {
 
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.24 }} className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <button
+              ref={heroCtaRef}
               type="button"
               onClick={() => { track.heroCtaClicked("hero_start_free"); startFree("hero_start_free"); }}
               className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"
@@ -409,6 +367,10 @@ export default function Home() {
             <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>No credit card</span>
             <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Cancel anytime</span>
           </motion.div>
+
+          <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.42 }} className="mx-auto mt-4 max-w-xl text-base font-medium text-slate-600 dark:text-white/68">
+            Researched and built at a university, by a professor who watched students freeze on stage and in panels — tested extensively with real students before launch.
+          </motion.p>
 
           <CognitionHero />
         </AnimatedPage>
@@ -621,6 +583,15 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Founder note — plain text only, no badges/cards/logos */}
+      <section className="relative z-10 mx-auto max-w-2xl px-4 py-16">
+        <div className="border-t border-slate-200 pt-16 text-center dark:border-white/10">
+          <p className="text-lg font-medium leading-8 text-slate-700 dark:text-white/58">
+            I&apos;m S.K., a professor. For years I watched students who knew their material freeze the moment they had to say it out loud — on stage, in panels, in interviews. Not for lack of knowledge, but fear of being watched and pushed back on. I built RehearseAI to give them a private place to work through that fear, and tested it extensively with real students before putting it out publicly.
+          </p>
+        </div>
+      </section>
+
       {/* Early adopter social proof */}
       <section className="relative z-10 mx-auto max-w-7xl px-4 py-20">
         <div className="text-center">
@@ -747,6 +718,7 @@ export default function Home() {
           <p className="mx-auto mt-5 max-w-2xl font-medium leading-8 text-slate-700 dark:text-white/58">Build pressure-tested reasoning, confidence, composure, and communication intelligence before the real moment.</p>
           <div className="mt-8">
             <button
+              ref={bottomCtaRef}
               type="button"
               onClick={() => startFree("bottom_start_free")}
               className="inline-flex items-center justify-center rounded-full bg-[#6200a8] px-7 py-4 text-base font-semibold text-white shadow-[0_18px_46px_rgba(98,0,168,0.28)] transition hover:-translate-y-0.5 hover:bg-[#50008b]"

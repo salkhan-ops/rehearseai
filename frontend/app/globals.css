@@ -61,3 +61,51 @@ body {
     radial-gradient(circle at 48% 92%, rgba(244, 114, 182, 0.16), transparent 26rem),
     var(--background);
 }
+
+/* CSS-driven replacements for what were dozens of individually JS-animated
+   framer-motion elements above and near the fold (orb spokes, ambient blobs,
+   pressure bars). Compositor-thread animations instead of per-frame React/JS
+   work, so first-load hydration on slow/low-power mobile isn't competing with
+   dozens of concurrent rAF-driven style updates. */
+@keyframes orb-spoke-pulse {
+  0%, 100% { opacity: 0.18; transform: scaleX(0.7); }
+  50% { opacity: 0.75; transform: scaleX(1.4); }
+}
+.orb-spoke {
+  animation: orb-spoke-pulse 2.2s ease-in-out infinite;
+  animation-play-state: paused;
+}
+.orb-spoke--active {
+  animation-play-state: running;
+}
+
+@keyframes ambient-blob-a {
+  0%, 100% { transform: translateX(-50%) scale(0.96); opacity: 0.45; }
+  50% { transform: translateX(-50%) scale(1.08); opacity: 0.76; }
+}
+@keyframes ambient-blob-b {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-38px, 28px); }
+}
+@keyframes ambient-blob-c {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(36px, -26px); }
+}
+.ambient-blob-a { animation: ambient-blob-a 6s ease-in-out infinite; }
+.ambient-blob-b { animation: ambient-blob-b 11s ease-in-out infinite; }
+.ambient-blob-c { animation: ambient-blob-c 12s ease-in-out infinite; }
+
+@keyframes pressure-bar {
+  0% { height: var(--bar-h-1); opacity: var(--bar-o); }
+  50% { height: var(--bar-h-2); opacity: var(--bar-o); }
+  100% { height: var(--bar-h-3); opacity: var(--bar-o); }
+}
+.pressure-bar {
+  animation: pressure-bar var(--bar-dur, 2.6s) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-spoke, .ambient-blob-a, .ambient-blob-b, .ambient-blob-c, .pressure-bar {
+    animation: none;
+  }
+}

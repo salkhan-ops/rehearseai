@@ -49,16 +49,23 @@ const stateStyles: Record<OrbState, { aura: string; core: string; label: string;
   },
 };
 
+// Plain CSS keyframe animation (see .orb-spoke in globals.css) instead of 36 individually
+// JS-driven framer-motion instances -- those ran on the main thread from first mount,
+// competing with hydration on slow/low-power mobile devices right in the hero's critical path.
 function OrbWave({ active }: { active: boolean }) {
   return (
     <div className="absolute inset-[-2.25rem] flex items-center justify-center">
       {Array.from({ length: 36 }).map((_, index) => (
-        <motion.span
+        <span
           key={index}
-          className="absolute h-1.5 w-7 rounded-full bg-cyan-100/65 shadow-[0_0_18px_rgba(125,211,252,0.45)]"
-          style={{ rotate: `${index * 10}deg`, transformOrigin: "50% 138px" }}
-          animate={active ? { opacity: [0.18, 0.75, 0.18], scaleX: [0.65, 1.4, 0.75] } : { opacity: 0.18, scaleX: 0.7 }}
-          transition={{ duration: 1.8 + (index % 5) * 0.12, repeat: active ? Infinity : 0, ease: "easeInOut" }}
+          className={`orb-spoke absolute h-1.5 w-7 rounded-full bg-cyan-100/65 shadow-[0_0_18px_rgba(125,211,252,0.45)] ${active ? "orb-spoke--active" : ""}`}
+          style={{
+            rotate: `${index * 10}deg`,
+            transformOrigin: "50% 138px",
+            animationDuration: `${1.8 + (index % 5) * 0.12}s`,
+            opacity: active ? undefined : 0.18,
+            transform: active ? undefined : "scaleX(0.7)",
+          }}
         />
       ))}
     </div>

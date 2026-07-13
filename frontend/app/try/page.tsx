@@ -216,6 +216,11 @@ export default function TryPage() {
         privacyAccepted: true,
       });
       const { type, context, goal } = consentPending;
+      // Marks the start of the anonymous-auth funnel leg (guest_trial_started ->
+      // first_ai_question_shown -> ... -> signup_completed) -- previously the only
+      // visible step in this path was the very end, so a stall between the CTA click
+      // and a real account being created was invisible.
+      track.guestTrialStarted(type);
       setConsentPending(null);
       setConsentChecked(false);
       if (DOCUMENT_TEMPLATES[type as keyof typeof DOCUMENT_TEMPLATES]) {

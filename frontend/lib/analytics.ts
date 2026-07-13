@@ -44,9 +44,13 @@ export function flushAnalyticsQueue(): void {
 
 export type UserStatus = "anonymous" | "new_user" | "returning_user";
 
-const SESSION_ID_KEY = "rehearseai_session_id";
-const UTM_KEY = "rehearseai_utm";
+// Exported so the inline gtag bootstrap script (components/analytics/GoogleAnalytics.tsx)
+// can read/write the same sessionStorage keys in plain JS, ahead of React hydration --
+// see LANDING_VIEWED_KEY below for why that matters.
+export const SESSION_ID_KEY = "rehearseai_session_id";
+export const UTM_KEY = "rehearseai_utm";
 const USER_STATUS_KEY = "rehearseai_user_status";
+export const LANDING_VIEWED_KEY = "rehearseai_landing_viewed_ga";
 
 let cachedUserStatus: UserStatus = "anonymous";
 
@@ -108,6 +112,17 @@ function getUserStatus(): UserStatus {
   return stored || cachedUserStatus;
 }
 
+// Coarse, best-effort signal for filtering obvious non-human/junk traffic out of funnel
+// reports without dropping the underlying event data. Not a security control -- a bot that
+// wants to look human can trivially spoof webdriver/UA. Good enough to explain "0s
+// engagement, 0.07 events/user" style sessions when reviewing paid-traffic quality.
+function isLikelyBot(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (navigator.webdriver) return true;
+  const ua = navigator.userAgent || "";
+  return /bot|crawl|spider|headless|puppeteer|playwright|phantomjs/i.test(ua);
+}
+
 // Fires an event to GA4, Meta Pixel (as a custom event), and — best-effort — a
 // lightweight Firestore log so the admin panel can show real (not mock) funnel
 // counts. Automatically attaches session id, first-touch UTM fields, and user
@@ -115,14 +130,16 @@ function getUserStatus(): UserStatus {
 export function trackFunnelEvent(
   name: string,
   params: Record<string, string | number | boolean> = {},
+  opts: { skipGa?: boolean } = {},
 ): void {
   const base = {
     session_id: getSessionId(),
     user_status: getUserStatus(),
+    is_likely_bot: isLikelyBot(),
     ...getUtmParams(),
   };
   const merged = { ...base, ...params };
-  trackEvent(name, merged);
+  if (!opts.skipGa) trackEvent(name, merged);
   trackMetaCustom(name, merged);
   logAnalyticsEvent(name, merged);
 }
@@ -142,10 +159,33 @@ export function once(key: string, fn: () => void): void {
 
 export const track = {
   // Landing / acquisition
-  landingPageViewed: (params?: { sourcePage?: string }) =>
-    trackFunnelEvent("landing_page_viewed", { source_page: params?.sourcePage ?? "" }),
+  //
+  // The GA4 leg of this event is normally already fired by the inline gtag bootstrap
+  // script (components/analytics/GoogleAnalytics.tsx) as soon as the GA script itself
+  // loads -- independent of React hydration finishing. That matters because this page's
+  // hero renders a heavy animated tree, and on slow/low-power mobile connections (e.g.
+  // in-app browsers from paid social) hydration can take seconds or never complete before
+  // the user bounces. Gating this event purely behind a React useEffect (the old
+  // behavior) meant those sessions were invisible here even though GA's own automatic
+  // pageview still counted them -- producing a landed-vs-instrumented gap that looked
+  // like a traffic-quality problem but was partly a measurement bug. Skip the GA leg here
+  // if the inline script already sent it, to avoid double counting; still forward to Meta
+  // Pixel + the Firestore event log either way since those only exist on this code path.
+  landingPageViewed: (params?: { sourcePage?: string }) => {
+    const alreadySentToGa =
+      typeof window !== "undefined" && safeSessionStorage()?.getItem(LANDING_VIEWED_KEY) === "1";
+    trackFunnelEvent(
+      "landing_page_viewed",
+      { source_page: params?.sourcePage ?? "" },
+      { skipGa: alreadySentToGa },
+    );
+  },
   heroCtaClicked: (label: string) => trackFunnelEvent("hero_cta_clicked", { label }),
   ctaClicked: (label: string) => trackEvent("cta_clicked", { label }),
+  ctaImpression: (label: string) => trackFunnelEvent("cta_impression", { label }),
+  scrollDepth: (percent: 25 | 50 | 75 | 100) => trackFunnelEvent("scroll_depth", { percent }),
+  timeOnPage: (seconds: number) => trackFunnelEvent("time_on_page", { seconds }),
+  guestTrialStarted: (scenario: string) => trackFunnelEvent("guest_trial_started", { scenario }),
 
   // Auth — distinct events so a new account and a repeat login are never conflated.
   signupStarted: (method: "email" | "google") => trackFunnelEvent("signup_started", { method }),

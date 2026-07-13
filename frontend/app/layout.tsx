@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { MetaPixel } from "@/components/analytics/MetaPixel";
+import { Clarity } from "@/components/analytics/Clarity";
+import { EngagementTracker } from "@/components/analytics/EngagementTracker";
 import { AuthProvider } from "@/context/AuthContext";
 import { CookieConsent } from "@/components/CookieConsent";
 import "reactflow/dist/style.css";
@@ -33,6 +35,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body suppressHydrationWarning>
         <Suspense fallback={null}><MetaPixel /></Suspense>
         <GoogleAnalytics />
+        <Clarity />
+        <Suspense fallback={null}><EngagementTracker /></Suspense>
         <AuthProvider>{children}<CookieConsent /></AuthProvider>
       </body>
     </html>
