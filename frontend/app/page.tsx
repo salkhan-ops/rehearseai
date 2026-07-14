@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { AIPresenceOrb } from "@/components/AIPresenceOrb";
+import { WhatYouGetGlass } from "@/components/home/WhatYouGetGlass";
 import { AnimatedCard, AnimatedNumber, AnimatedPage, AnimatedSection, StaggeredGrid, TypingIndicator } from "@/components/animations";
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import type { AuthMode } from "@/components/auth/AuthForm";
@@ -388,6 +389,16 @@ export default function Home() {
         </StaggeredGrid>
       </section>
 
+      {/* What you get afterward — makes the report/dashboard/reminders concrete up front
+          instead of only becoming visible after someone finishes a session. */}
+      <section className="relative z-10 mx-auto max-w-7xl px-4 py-16">
+        <div className="mb-8 max-w-2xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-cyan-100/52">What you get</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-slate-950 dark:text-white">This is what you walk away with — every time.</h2>
+        </div>
+        <WhatYouGetGlass />
+      </section>
+
       {/* How it listens — answers "does this work for accents / non-native English?" */}
       <section className="relative z-10 mx-auto max-w-7xl px-4 py-16">
         <div className="mb-8 max-w-2xl">
@@ -587,7 +598,7 @@ export default function Home() {
       <section className="relative z-10 mx-auto max-w-2xl px-4 py-16">
         <div className="border-t border-slate-200 pt-16 text-center dark:border-white/10">
           <p className="text-lg font-medium leading-8 text-slate-700 dark:text-white/58">
-            I&apos;m S.K., a professor. For years I watched students who knew their material freeze the moment they had to say it out loud — on stage, in panels, in interviews. Not for lack of knowledge, but fear of being watched and pushed back on. I built RehearseAI to give them a private place to work through that fear, and tested it extensively with real students before putting it out publicly.
+            I&apos;m a professor. For years I watched students who knew their material freeze the moment they had to say it out loud — on stage, in panels, in interviews. Not for lack of knowledge, but fear of being watched and pushed back on. I built RehearseAI to give them a private place to work through that fear, and tested it extensively with real students before putting it out publicly.
           </p>
         </div>
       </section>

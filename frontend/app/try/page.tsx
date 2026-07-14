@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, ChevronDown, Mic, Sparkles } from "lucide-react";
 import { Nav } from "@/components/Nav";
+import { WhatYouGet } from "@/components/home/WhatYouGet";
 import { createSession } from "@/lib/api";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
@@ -364,8 +365,18 @@ export default function TryPage() {
           </p>
         )}
 
+        {/* What you get afterward -- this was previously invisible until someone finished
+            a session and hit the signup wall; showing it up front here answers "what do I
+            actually get" before someone commits to talking to the AI. */}
+        <div className="mt-14 text-left">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-secondary-token">What you get after every session</p>
+          <div className="mt-4">
+            <WhatYouGet />
+          </div>
+        </div>
+
         {/* What to expect — reduces cold-start anxiety before the first session */}
-        <div className="mt-14 rounded-[1.75rem] surface-low p-6 text-left ring-1 ring-[var(--border-soft)]">
+        <div className="mt-8 rounded-[1.75rem] surface-low p-6 text-left ring-1 ring-[var(--border-soft)]">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-secondary-token">What to expect</p>
           <div className="mt-4">
             <ConversationPreview />
