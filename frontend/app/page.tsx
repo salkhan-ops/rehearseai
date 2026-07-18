@@ -370,7 +370,7 @@ export default function Home() {
           </motion.div>
 
           <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.42 }} className="mx-auto mt-4 max-w-xl text-base font-medium text-slate-600 dark:text-white/68">
-            Researched and built at a university, by a professor who watched students freeze on stage and in panels — tested extensively with real students before launch.
+            Researched and built at a university, born from watching students freeze on stage and in panels — tested extensively with real students before launch.
           </motion.p>
 
           <CognitionHero />
@@ -598,7 +598,7 @@ export default function Home() {
       <section className="relative z-10 mx-auto max-w-2xl px-4 py-16">
         <div className="border-t border-slate-200 pt-16 text-center dark:border-white/10">
           <p className="text-lg font-medium leading-8 text-slate-700 dark:text-white/58">
-            I&apos;m a professor. For years I watched students who knew their material freeze the moment they had to say it out loud — on stage, in panels, in interviews. Not for lack of knowledge, but fear of being watched and pushed back on. I built RehearseAI to give them a private place to work through that fear, and tested it extensively with real students before putting it out publicly.
+This started at a university, watching students who knew their material freeze the moment they had to say it out loud — on stage, in panels, in interviews. Not for lack of knowledge, but fear of being watched and pushed back on. RehearseAI was built to give them a private place to work through that fear, and tested extensively with real students before putting it out publicly.
           </p>
         </div>
       </section>
