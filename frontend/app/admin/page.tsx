@@ -16,6 +16,10 @@ export default function AdminPage() {
   }, []);
 
   const authCount = stats.firebaseAuthUserCount;
+  const anonymousCount = stats.firebaseAuthAnonymousCount;
+  // Only real, identified accounts are compared here -- anonymous guest-trial sessions
+  // (see /try) never get an emailed Firestore profile, so including them would falsely
+  // read as a wave of failed signups.
   const authMismatch = typeof authCount === "number" && authCount !== stats.totalUsers;
 
   return (
@@ -24,7 +28,7 @@ export default function AdminPage() {
         <div className="mb-4 flex items-start gap-2 rounded-2xl bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
           <AlertTriangle size={16} className="mt-0.5 shrink-0" />
           <span>
-            Firebase Auth has {authCount!.toLocaleString()} accounts but Firestore has {stats.totalUsers.toLocaleString()} user profiles — a signup likely partially failed.
+            Firebase Auth has {authCount!.toLocaleString()} real accounts but Firestore has {stats.totalUsers.toLocaleString()} user profiles — a signup likely partially failed.
             {" "}See <a href="/admin/growth" className="underline underline-offset-2">Growth Dashboard → Marketing Funnel</a> for details.
           </span>
         </div>
@@ -32,6 +36,7 @@ export default function AdminPage() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <AdminStatCard icon={Users} label="Total Users (Firestore)" value={stats.totalUsers} />
         <AdminStatCard icon={Users} label="Total Users (Firebase Auth)" value={authCount ?? "—"} />
+        <AdminStatCard icon={Users} label="Anonymous Guest Sessions" value={anonymousCount ?? "—"} />
         <AdminStatCard icon={Users} label="Active Users" value={stats.activeUsers} />
         <AdminStatCard icon={Layers} label="Active Plans" value={stats.activePlans} />
         <AdminStatCard icon={Box} label="Active Products" value={stats.activeProducts} />

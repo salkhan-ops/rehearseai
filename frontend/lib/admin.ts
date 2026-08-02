@@ -453,10 +453,15 @@ export type AdminStats = {
   totalPlans?: number;
   activeSubscribers?: number;
   pendingSubscriptions?: number;
-  // Independent Firebase Auth account count, so a Firestore-profile write that
-  // silently failed (or vice versa) shows up as a mismatch instead of hiding.
+  // Independent Firebase Auth account count (real, identified accounts only -- excludes
+  // anonymous guest-trial sessions), so a Firestore-profile write that silently failed
+  // (or vice versa) shows up as a mismatch instead of hiding.
   // `null`/undefined means it couldn't be computed (e.g. Firebase Admin unavailable).
   firebaseAuthUserCount?: number | null;
+  // Anonymous guest-trial sessions (see /try) -- signed into Firebase Auth but never
+  // completed a real signup, so they never get an emailed Firestore profile. Tracked
+  // separately so they're never mixed into "Total Users" or the mismatch check.
+  firebaseAuthAnonymousCount?: number | null;
 };
 
 export type AdminUser = {

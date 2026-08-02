@@ -27,7 +27,7 @@ const steps = [
 
 const faqs = [
   ["Is this therapy?", "No. RehearseAI is practice and feedback software. It is not therapy, legal, medical, or financial advice."],
-  ["Does it guarantee success?", "No. It helps you rehearse, improve confidence, and prepare better for the real moment."],
+  ["What does \"guaranteed success\" mean?", "It means showing up prepared, not a promise about someone else's decision. RehearseAI puts you through realistic pressure — pushback, interruptions, tough questions — until you can handle it calmly, so you walk into the real conversation ready instead of hoping."],
   ["Is brutal mode mean?", "No. Brutal mode is direct and high-pressure, but it is designed to stay constructive and never abusive. Intensity is fully adjustable — Beginner Mode includes step-by-step guidance and coaching hints; Brutal Mode raises the friction but keeps all feedback professional. RehearseAI is designed for users aged 16 and above."],
   ["Is my practice session private?", "Yes, in the ways that matter. Your answers are processed — including by trusted AI providers — only to generate your feedback and score. We never publish or sell your sessions. Only anonymised, de-identified patterns are ever used to improve the product."],
 ];
@@ -313,6 +313,11 @@ export default function Home() {
             <Sparkles size={17} />
             AI-powered job interview practice
             <ArrowRight size={17} />
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.04 }} className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-5 py-2.5 text-sm font-bold uppercase tracking-[0.1em] text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-200 dark:ring-emerald-400/20">
+            <Trophy size={16} />
+            Guaranteed success
           </motion.div>
 
           <motion.h1 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.08 }} className="mx-auto max-w-6xl text-balance text-[3.6rem] font-semibold leading-[0.92] tracking-[-0.065em] text-slate-950 dark:text-white sm:text-7xl lg:text-[6.6rem]">
@@ -738,6 +743,7 @@ This started at a university, watching students who knew their material freeze t
             </button>
           </div>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-medium text-white/50">
+            <span className="flex items-center gap-1.5 font-bold text-emerald-300"><Trophy size={16} />Guaranteed success</span>
             <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Free to start</span>
             <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>No credit card</span>
             <span className="flex items-center gap-1.5"><svg className="h-4 w-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Cancel anytime</span>

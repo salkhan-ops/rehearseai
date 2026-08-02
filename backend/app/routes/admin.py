@@ -72,18 +72,28 @@ async def log_action(
     )
 
 
-def _count_firebase_auth_users() -> Optional[int]:
-    """Best-effort count of real Firebase Auth accounts, independent of Firestore.
-    Used to catch signups where Auth succeeded but the Firestore profile write
-    failed (or vice versa) -- the two counts should track each other closely."""
+def _count_firebase_auth_users() -> Optional[dict[str, int]]:
+    """Best-effort count of Firebase Auth accounts, independent of Firestore, split into
+    real (identified) accounts and anonymous guest-trial sessions (see /try). Anonymous
+    users have no linked provider (empty provider_data), unlike a real signup which always
+    has at least one (password, google.com, etc). Used to catch signups where Auth
+    succeeded but the Firestore profile write failed (or vice versa) -- the two *real*
+    counts should track each other closely. Guest sessions are excluded from that
+    comparison since they never get a Firestore profile with an email and would otherwise
+    look like a wave of failed signups."""
     try:
         _ensure_firebase_app()
-        count = 0
+        real = 0
+        anonymous = 0
         page = firebase_auth.list_users()
         while page:
-            count += len(page.users)
+            for user in page.users:
+                if user.provider_data:
+                    real += 1
+                else:
+                    anonymous += 1
             page = page.get_next_page()
-        return count
+        return {"real": real, "anonymous": anonymous}
     except Exception:
         return None
 
@@ -92,7 +102,9 @@ def _count_firebase_auth_users() -> Optional[int]:
 async def admin_stats(request: Request):
     await require_admin_mvp(request)
     stats = await request.app.state.store.admin_stats()
-    stats["firebaseAuthUserCount"] = _count_firebase_auth_users()
+    auth_counts = _count_firebase_auth_users()
+    stats["firebaseAuthUserCount"] = auth_counts["real"] if auth_counts else None
+    stats["firebaseAuthAnonymousCount"] = auth_counts["anonymous"] if auth_counts else None
     return stats
 
 

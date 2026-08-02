@@ -10,9 +10,15 @@ import "reactflow/dist/style.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://rehearseai.dev"),
   title: "RehearseAI — The AI that interviews you back.",
   description: "Practice your job interview, salary negotiation, presentation, or pitch out loud. The AI challenges, interrupts, and scores how you think under pressure — free to start, no card needed.",
   icons: { icon: "/icon.svg" },
+  // The homepage renders for any query string (e.g. /?auth=signin, used to deep-link the
+  // signin/signup dialog) -- without an explicit canonical, Google indexes each variant as
+  // its own duplicate page. This is a client component so it can't export its own metadata;
+  // the root layout's canonical is what actually applies to "/".
+  alternates: { canonical: "/" },
   openGraph: {
     title: "RehearseAI — The AI that interviews you back.",
     description: "Practice your job interview, salary negotiation, presentation, or pitch out loud. The AI challenges, interrupts, and scores how you think under pressure.",
