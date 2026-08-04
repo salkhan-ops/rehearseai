@@ -1681,6 +1681,28 @@ export default function SessionPage() {
     const nextSettings = normalizePrivacySettings({ ...current, allowCameraAssistedTiming: enabled });
     setPrivacySettings(nextSettings);
     const token = await getToken();
+    // Record the toggle itself (not just the per-turn cameraEnabled flag) so on/off
+    // transitions are visible directly rather than inferred by diffing turn records.
+    // Gated only on telemetry consent, not on camera-assisted-timing itself -- otherwise
+    // switching the camera off would also silence the record that we switched it off.
+    if (current.allowLocalSignalTelemetry) {
+      saveLocalSignalTelemetry({
+        userId,
+        sessionId: id,
+        event: "camera_toggle",
+        cameraEnabled: enabled,
+        faceDetected: false,
+        mouthMovementActivity: 0,
+        visualStillnessMs: 0,
+        lookingAwayScore: 0,
+        headMovementIntensity: 0,
+        silenceMs: 0,
+        speechDurationMs: 0,
+        pauseDecision: "",
+        decisionConfidence: 0,
+        userContinuedAfterDecision: false,
+      }, token).catch(() => undefined);
+    }
     const saved = await updateTelemetryConsent(userId, nextSettings, token).catch(() => null);
     if (saved) setPrivacySettings(normalizePrivacySettings(saved));
   }

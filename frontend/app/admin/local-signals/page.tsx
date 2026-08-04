@@ -40,6 +40,9 @@ export default function LocalSignalsAdminPage() {
           ["Camera enabled", diagnostics?.cameraEnabledRecords || 0],
           ["Face detected", diagnostics?.faceDetectedRecords || 0],
           ["Opt outs", diagnostics?.optOutCount || 0],
+          ["Camera toggles", diagnostics?.cameraToggleCount || 0],
+          ["Toggled on", diagnostics?.cameraToggledOnCount || 0],
+          ["Toggled off", diagnostics?.cameraToggledOffCount || 0],
         ].map(([label, value]) => (
           <div key={label} className="rounded-[1.25rem] bg-white p-4 ring-1 ring-slate-200/75">
             <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">{label}</div>

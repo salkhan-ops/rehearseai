@@ -103,6 +103,7 @@ export function saveLocalSignalTelemetry(payload: {
   userId: string;
   sessionId: string;
   timestamp?: string;
+  event?: "turn_evaluation" | "camera_toggle";
   cameraEnabled: boolean;
   faceDetected: boolean;
   mouthMovementActivity: number;
@@ -124,6 +125,9 @@ export function getLocalSignalDiagnostics(token?: string | null) {
     totalRecords: number;
     cameraEnabledRecords: number;
     faceDetectedRecords: number;
+    cameraToggleCount: number;
+    cameraToggledOnCount: number;
+    cameraToggledOffCount: number;
     optOutCount: number;
     decisionCounts: Record<string, number>;
     averages: Record<string, number>;

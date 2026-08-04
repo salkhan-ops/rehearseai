@@ -218,7 +218,11 @@ class TelemetryService:
     async def save_local_signal_telemetry(self, payload: dict) -> Optional[dict]:
         user_id = str(payload.get("userId") or "guest")
         settings = await self.store.get_user_privacy_settings(user_id)
-        if not settings.get("allowCameraAssistedTiming", False) or not settings.get("allowLocalSignalTelemetry", False):
+        # Only user consent to telemetry itself gates recording. allowCameraAssistedTiming
+        # controls whether the camera *drives turn-taking decisions* -- it must not also gate
+        # whether we can observe camera-off sessions, or we lose the exact on/off comparison
+        # data telemetry exists to provide.
+        if not settings.get("allowLocalSignalTelemetry", False):
             return None
         telemetry_id = str(payload.get("telemetryId") or uuid4())
         record = {
@@ -226,6 +230,7 @@ class TelemetryService:
             "userId": user_id,
             "sessionId": payload.get("sessionId", ""),
             "timestamp": payload.get("timestamp") or utc_now_iso(),
+            "event": payload.get("event") or "turn_evaluation",
             "cameraEnabled": bool(payload.get("cameraEnabled", False)),
             "faceDetected": bool(payload.get("faceDetected", False)),
             "mouthMovementActivity": float(payload.get("mouthMovementActivity") or 0),
@@ -242,7 +247,8 @@ class TelemetryService:
             "expiresAt": payload.get("expiresAt") or self._expires_at(days=30),
         }
         saved = await self.store.save_local_signal_telemetry(record)
-        await self.update_local_signal_profile(user_id, record)
+        if record["event"] == "turn_evaluation":
+            await self.update_local_signal_profile(user_id, record)
         return saved
 
     async def update_local_signal_profile(self, user_id: str, telemetry: dict) -> dict:
@@ -269,7 +275,9 @@ class TelemetryService:
         return await self.store.save_voice_profile(next_profile)
 
     async def get_local_signal_diagnostics(self) -> dict:
-        records = await self.store.list_local_signal_telemetry(limit_count=1000)
+        all_records = await self.store.list_local_signal_telemetry(limit_count=1000)
+        toggle_events = [r for r in all_records if r.get("event") == "camera_toggle"]
+        records = [r for r in all_records if r.get("event", "turn_evaluation") == "turn_evaluation"]
         decisions: dict[str, int] = {}
         for record in records:
             decision = str(record.get("pauseDecision") or "unknown")
@@ -285,6 +293,9 @@ class TelemetryService:
             "totalRecords": len(records),
             "cameraEnabledRecords": sum(1 for record in records if record.get("cameraEnabled")),
             "faceDetectedRecords": sum(1 for record in records if record.get("faceDetected")),
+            "cameraToggleCount": len(toggle_events),
+            "cameraToggledOnCount": sum(1 for r in toggle_events if r.get("cameraEnabled")),
+            "cameraToggledOffCount": sum(1 for r in toggle_events if not r.get("cameraEnabled")),
             "optOutCount": await self.store.count_local_signal_opt_outs(),
             "decisionCounts": decisions,
             "averages": {
