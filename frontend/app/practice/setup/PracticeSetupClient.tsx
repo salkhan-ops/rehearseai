@@ -93,19 +93,162 @@ const quickStarts: Record<PracticeType, Array<{ label: string; topic: string; co
 // specifics instead of generic ones, so both boxes are required for these two types.
 const DOCUMENT_REQUIRED_TYPES: PracticeType[] = ["Job Interview", "Salary Negotiation"];
 
-const DOCUMENT_TEMPLATES: Partial<Record<PracticeType, { resume: string; job: string }>> = {
+const DOMAIN_OPTIONS = ["Software / Tech", "Education", "Healthcare", "Finance", "Sales & Marketing", "Legal", "Government / Public Sector", "Retail / E-commerce", "Other"];
+
+const DOCUMENT_TEMPLATES: Partial<Record<PracticeType, { resume: string; company: string; position: string; domain: string; jobDescription: string }>> = {
   "Job Interview": {
     resume: "Product Marketing Manager with 5 years of experience leading go-to-market launches for B2B SaaS products. Grew qualified pipeline 40% YoY by rebuilding positioning and messaging for our flagship product. Managed a team of 2 and partnered closely with sales, product, and design. Previously worked in growth marketing at an early-stage startup.",
-    job: "Hiring a Senior Product Marketing Manager to own positioning, launches, and sales enablement for our core platform. You'll work cross-functionally with product, sales, and design, reporting to the VP of Marketing. Looking for 4+ years of B2B SaaS marketing experience and a track record of driving measurable pipeline growth.",
+    company: "Brightline (B2B SaaS analytics platform)",
+    position: "Senior Product Marketing Manager",
+    domain: "Software / Tech",
+    jobDescription: "Hiring a Senior Product Marketing Manager to own positioning, launches, and sales enablement for our core platform. You'll work cross-functionally with product, sales, and design, reporting to the VP of Marketing. Looking for 4+ years of B2B SaaS marketing experience and a track record of driving measurable pipeline growth.",
   },
   "Salary Negotiation": {
     resume: "Senior Software Engineer with 6 years of experience, currently earning $125,000 base. Led the migration of our core service to a new architecture, cutting infra costs by 30%. Consistently rated a top performer and mentors two junior engineers.",
-    job: "Received a competing offer from another company: $140,000 base plus equity for a similar senior engineering role. Bringing this to my current manager to negotiate a raise and see if they can match or beat it before I decide.",
+    company: "Current employer, after receiving a competing offer of $140,000 base plus equity for a similar role",
+    position: "Senior Software Engineer",
+    domain: "Software / Tech",
+    jobDescription: "Received a competing offer from another company: $140,000 base plus equity for a similar senior engineering role. Bringing this to my current manager to negotiate a raise and see if they can match or beat it before I decide.",
   },
 };
 
-function buildDocumentText(resume: string, job: string) {
-  return `=== CANDIDATE CV / RESUME ===\n${resume.trim()}\n\n=== JOB OPPORTUNITY / ROLE DETAILS ===\n${job.trim()}`;
+function buildDocumentText(resume: string, company: string, position: string, domain: string, jobDescription: string) {
+  const roleLines = [
+    company.trim() && `Company: ${company.trim()}`,
+    position.trim() && `Position: ${position.trim()}`,
+    domain.trim() && `Domain: ${domain.trim()}`,
+  ].filter(Boolean).join("\n");
+  const jobSection = [roleLines, jobDescription.trim()].filter(Boolean).join("\n\n");
+  return `=== CANDIDATE CV / RESUME ===\n${resume.trim() || "(not provided)"}\n\n=== JOB OPPORTUNITY / ROLE DETAILS ===\n${jobSection || "(not provided)"}`;
+}
+
+// Shared "coaching style" chip vocabulary — how the AI should coach, independent of scenario type.
+const NOTES_CHIP_OPTIONS = [
+  "Interrupt me if I ramble",
+  "Challenge weak evidence or vague claims",
+  "Stay professional, not hostile",
+  "Push me twice before accepting an answer",
+  "Point out filler words and hedging",
+  "Go easy — this is my first time practicing this",
+];
+const DEFAULT_NOTES_SELECTION = ["Interrupt me if I ramble", "Challenge weak evidence or vague claims"];
+
+// "What is happening?" chip vocabulary. Most types share a pressure-framed default set;
+// a few (casual/teaching/podcast) get their own set since "skeptical" framing doesn't fit them.
+const DEFAULT_CONTEXT_OPTIONS = [
+  "One-on-one, high stakes",
+  "Multiple people in the room",
+  "They'll challenge my numbers or evidence",
+  "Personal or emotional stakes involved",
+  "Time pressure — need to be concise",
+  "They're already skeptical going in",
+];
+const CASUAL_CONTEXT_OPTIONS = [
+  "Talking with someone I know well",
+  "Just met this person",
+  "No particular agenda — just talking",
+  "Want to keep it light and easy",
+  "A bit nervous about small talk",
+];
+const TEACHING_CONTEXT_OPTIONS = [
+  "Student is confused and needs it simplified",
+  "Student keeps asking 'but why'",
+  "Teaching a multi-step process",
+  "Mixed group with different skill levels",
+  "Time-boxed — need to be efficient",
+];
+const PODCAST_CONTEXT_OPTIONS = [
+  "Friendly, curious host",
+  "Host will ask pointed follow-ups",
+  "Live audience Q&A",
+  "Time-boxed segment — need to be concise",
+  "Want a memorable, quotable moment",
+];
+const CONTEXT_OPTIONS_BY_TYPE: Partial<Record<PracticeType, string[]>> = {
+  "Casual Chat": CASUAL_CONTEXT_OPTIONS,
+  "Teaching Session": TEACHING_CONTEXT_OPTIONS,
+  "Podcast / Interview Show": PODCAST_CONTEXT_OPTIONS,
+};
+const DEFAULT_CONTEXT_SELECTION: Partial<Record<PracticeType, string[]>> = {
+  "Job Interview": ["One-on-one, high stakes", "They're already skeptical going in"],
+  "U.S. Visa Interview": ["One-on-one, high stakes", "Time pressure — need to be concise"],
+  "Presentation / Public Speaking": ["Multiple people in the room", "They'll challenge my numbers or evidence"],
+  "Panel Discussion": ["Multiple people in the room", "They're already skeptical going in"],
+  "Thesis Defense": ["Multiple people in the room", "They'll challenge my numbers or evidence"],
+  "Salary Negotiation": ["One-on-one, high stakes", "Time pressure — need to be concise"],
+  "Difficult Conversation": ["One-on-one, high stakes", "Personal or emotional stakes involved"],
+  "Sales Pitch": ["One-on-one, high stakes", "They're already skeptical going in"],
+  "Casual Chat": ["Talking with someone I know well"],
+  "Teaching Session": ["Student is confused and needs it simplified"],
+  "Podcast / Interview Show": ["Friendly, curious host"],
+};
+
+function getContextOptions(type: PracticeType) {
+  return CONTEXT_OPTIONS_BY_TYPE[type] || DEFAULT_CONTEXT_OPTIONS;
+}
+function getDefaultContextSelection(type: PracticeType) {
+  return DEFAULT_CONTEXT_SELECTION[type] || ["One-on-one, high stakes"];
+}
+
+// "Win condition" chip vocabulary — same pattern as context above.
+const DEFAULT_GOAL_OPTIONS = [
+  "Sound calm and in control",
+  "Be concise — no rambling",
+  "Back every claim with specifics",
+  "Hold my position without folding",
+  "Come across as credible and senior",
+];
+const CASUAL_GOAL_OPTIONS = [
+  "Keep the conversation flowing naturally",
+  "Ask good follow-up questions",
+  "Feel comfortable, not overthinking it",
+  "Be warm and genuine",
+];
+const TEACHING_GOAL_OPTIONS = [
+  "Explain clearly without sounding impatient",
+  "Check understanding before moving on",
+  "Simplify without losing accuracy",
+  "Keep their attention",
+];
+const GOAL_OPTIONS_BY_TYPE: Partial<Record<PracticeType, string[]>> = {
+  "Casual Chat": CASUAL_GOAL_OPTIONS,
+  "Teaching Session": TEACHING_GOAL_OPTIONS,
+};
+const DEFAULT_GOAL_SELECTION: Partial<Record<PracticeType, string[]>> = {
+  "Casual Chat": ["Keep the conversation flowing naturally"],
+  "Teaching Session": ["Explain clearly without sounding impatient"],
+};
+
+function getGoalOptions(type: PracticeType) {
+  return GOAL_OPTIONS_BY_TYPE[type] || DEFAULT_GOAL_OPTIONS;
+}
+function getDefaultGoalSelection(type: PracticeType) {
+  return DEFAULT_GOAL_SELECTION[type] || ["Sound calm and in control"];
+}
+
+function composeFromChips(chips: string[], other?: string) {
+  return [...chips, ...(other?.trim() ? [other.trim()] : [])].join("; ");
+}
+
+function ChipGroup({ options, selected, onToggle }: { options: string[]; selected: string[]; onToggle: (label: string) => void }) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {options.map((label) => {
+        const active = selected.includes(label);
+        return (
+          <button
+            key={label}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onToggle(label)}
+            className={`rounded-full px-3.5 py-2 text-left text-xs font-semibold ring-1 transition ${active ? "bg-slate-950 text-white ring-slate-950 dark:bg-white dark:text-slate-950" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white/60 dark:ring-white/10"}`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 const STEP_LABELS = ["Scenario", "How"];
@@ -169,8 +312,16 @@ function SetupForm() {
   const [documentText, setDocumentText] = useState("");
   const [documentMode, setDocumentMode] = useState<DocumentMode>("neutral");
   const [resumeText, setResumeText] = useState("");
-  const [jobText, setJobText] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [positionTitle, setPositionTitle] = useState("");
+  const [jobDomain, setJobDomain] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
   const [docUsage, setDocUsage] = useState<{ used: number; limit: number | "unlimited"; remaining: number | "unlimited" } | null>(null);
+  const [selectedContextChips, setSelectedContextChips] = useState<string[]>(() => getDefaultContextSelection("Job Interview"));
+  const [contextOtherEnabled, setContextOtherEnabled] = useState(false);
+  const [contextOtherText, setContextOtherText] = useState("");
+  const [selectedGoalChips, setSelectedGoalChips] = useState<string[]>(() => getDefaultGoalSelection("Job Interview"));
+  const [selectedNotesChips, setSelectedNotesChips] = useState<string[]>(DEFAULT_NOTES_SELECTION);
   const [customDuration, setCustomDuration] = useState(false);
   const [createRoutine, setCreateRoutine] = useState(false);
   const [frequencyType, setFrequencyType] = useState<"daily" | "twice_weekly" | "three_times_weekly" | "weekdays" | "custom">("daily");
@@ -201,7 +352,7 @@ function SetupForm() {
     setCameraAssistedTiming(Boolean(profile?.privacySettings?.allowCameraAssistedTiming));
   }, [profile?.preferredFeedbackLanguage, profile?.preferredPracticeLanguage, profile?.privacySettings?.allowCameraAssistedTiming]);
 
-  // Auto-set duration and document mode when the arena changes
+  // Auto-set duration, document mode, and chip defaults when the arena changes
   useEffect(() => {
     setDurationPreference(getCourseConfig(practiceType).defaultDuration);
     setCustomDuration(false);
@@ -211,14 +362,51 @@ function SetupForm() {
       setDocumentMode("neutral");
     }
     if (practiceType === "U.S. Visa Interview" || DOCUMENT_REQUIRED_TYPES.includes(practiceType)) setUseDocument(true);
+    const contextDefaults = getDefaultContextSelection(practiceType);
+    const goalDefaults = getDefaultGoalSelection(practiceType);
+    setSelectedContextChips(contextDefaults);
+    setContextOtherEnabled(false);
+    setContextOtherText("");
+    setContext(composeFromChips(contextDefaults));
+    setSelectedGoalChips(goalDefaults);
+    setGoal(composeFromChips(goalDefaults));
+    setSelectedNotesChips(DEFAULT_NOTES_SELECTION);
+    setOptionalNotes(composeFromChips(DEFAULT_NOTES_SELECTION));
   }, [practiceType]);
 
-  // CV + job opportunity are collected as two separate boxes for these types, then merged
-  // into the single documentText field the rest of the form/backend already expects.
+  function toggleContextChip(label: string) {
+    const next = selectedContextChips.includes(label) ? selectedContextChips.filter((c) => c !== label) : [...selectedContextChips, label];
+    setSelectedContextChips(next);
+    setContext(composeFromChips(next, contextOtherEnabled ? contextOtherText : ""));
+  }
+  function toggleContextOther() {
+    const enabled = !contextOtherEnabled;
+    setContextOtherEnabled(enabled);
+    setContext(composeFromChips(selectedContextChips, enabled ? contextOtherText : ""));
+  }
+  function updateContextOtherText(text: string) {
+    setContextOtherText(text);
+    setContext(composeFromChips(selectedContextChips, text));
+  }
+  function toggleGoalChip(label: string) {
+    const next = selectedGoalChips.includes(label) ? selectedGoalChips.filter((c) => c !== label) : [...selectedGoalChips, label];
+    setSelectedGoalChips(next);
+    setGoal(composeFromChips(next));
+  }
+  function toggleNotesChip(label: string) {
+    const next = selectedNotesChips.includes(label) ? selectedNotesChips.filter((c) => c !== label) : [...selectedNotesChips, label];
+    setSelectedNotesChips(next);
+    setOptionalNotes(composeFromChips(next));
+  }
+
+  // CV, company, position, domain, and job description are all optional inputs for these
+  // types, collected separately and merged into the single documentText field the rest of
+  // the form/backend already expects.
   useEffect(() => {
     if (!DOCUMENT_REQUIRED_TYPES.includes(practiceType)) return;
-    setDocumentText(resumeText.trim() || jobText.trim() ? buildDocumentText(resumeText, jobText) : "");
-  }, [resumeText, jobText, practiceType]);
+    const hasAny = resumeText.trim() || companyName.trim() || positionTitle.trim() || jobDomain.trim() || jobDescription.trim();
+    setDocumentText(hasAny ? buildDocumentText(resumeText, companyName, positionTitle, jobDomain, jobDescription) : "");
+  }, [resumeText, companyName, positionTitle, jobDomain, jobDescription, practiceType]);
 
   async function updateCameraAssistedTiming(enabled: boolean) {
     setCameraAssistedTiming(enabled);
@@ -251,14 +439,8 @@ function SetupForm() {
         return;
       }
     }
-    if (DOCUMENT_REQUIRED_TYPES.includes(practiceType)) {
-      const resumeWords = resumeText.trim() ? resumeText.trim().split(/\s+/).length : 0;
-      const jobWords = jobText.trim() ? jobText.trim().split(/\s+/).length : 0;
-      if (resumeWords < 25 || jobWords < 25) {
-        setError("Add your CV/résumé and the job opportunity (or use the example) — both are required, at least a few sentences each, so the AI can ask targeted questions instead of generic ones.");
-        return;
-      }
-    }
+    // Company, position, domain, job description, and CV are all optional here — the more
+    // that's filled in, the more targeted the AI's questions, but none of it blocks starting.
     if (entitlements) {
       if (difficulty === "Brutal" && !entitlements.allowBrutalMode) { setError("Brutal mode requires Pro or Coach."); return; }
       if (difficulty === "Nerve" && !entitlements.allowNerveMode && !entitlements.allowBrutalMode) { setError("Nerve Mode requires Pro or Coach."); return; }
@@ -269,7 +451,7 @@ function SetupForm() {
       }
       if (useDocument && documentText.trim()) {
         const docWordCount = documentText.trim().split(/\s+/).length;
-        if (docWordCount < 50) {
+        if (docWordCount < 50 && !DOCUMENT_REQUIRED_TYPES.includes(practiceType)) {
           setError("Document is too short — paste at least 50 words for meaningful grounding.");
           return;
         }
@@ -385,7 +567,7 @@ function SetupForm() {
               <div className="mt-5 rounded-2xl bg-slate-50 p-4 dark:bg-white/10">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs font-semibold text-slate-600 dark:text-white/60">
-                    Add your CV and the role — required so the AI asks targeted questions. 30 seconds, or use an example.
+                    All optional, but the more you add the more targeted the AI's questions. 10 seconds, or use an example.
                   </p>
                   <button
                     type="button"
@@ -393,30 +575,57 @@ function SetupForm() {
                       const template = DOCUMENT_TEMPLATES[practiceType];
                       if (!template) return;
                       setResumeText(template.resume);
-                      setJobText(template.job);
+                      setCompanyName(template.company);
+                      setPositionTitle(template.position);
+                      setJobDomain(template.domain);
+                      setJobDescription(template.jobDescription);
                     }}
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-violet-100 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-200 dark:bg-white/10 dark:text-violet-200"
                   >
                     <Sparkles size={13} /> Use example
                   </button>
                 </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-white/60">
+                    Company <span className="font-normal text-slate-400 dark:text-white/35">(optional)</span>
+                    <input
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value.slice(0, 120))}
+                      placeholder="Example: Acme Inc."
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-white/60">
+                    Position <span className="font-normal text-slate-400 dark:text-white/35">(optional)</span>
+                    <input
+                      value={positionTitle}
+                      onChange={(e) => setPositionTitle(e.target.value.slice(0, 120))}
+                      placeholder="Example: Senior Product Manager"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
+                    />
+                  </label>
+                </div>
+                <div className="mt-3 text-xs font-semibold text-slate-600 dark:text-white/60">
+                  Domain <span className="font-normal text-slate-400 dark:text-white/35">(optional)</span>
+                  <ChipGroup options={DOMAIN_OPTIONS} selected={jobDomain ? [jobDomain] : []} onToggle={(label) => setJobDomain((prev) => (prev === label ? "" : label))} />
+                </div>
                 <label className="mt-3 block text-xs font-semibold text-slate-600 dark:text-white/60">
-                  Your CV / résumé
+                  Job description <span className="font-normal text-slate-400 dark:text-white/35">(optional)</span>
+                  <textarea
+                    value={jobDescription}
+                    onChange={(e) => setJobDescription(e.target.value.slice(0, 4000))}
+                    rows={3}
+                    placeholder="Paste the job posting, offer details, or a few lines about the role…"
+                    className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
+                  />
+                </label>
+                <label className="mt-3 block text-xs font-semibold text-slate-600 dark:text-white/60">
+                  Your CV / résumé <span className="font-normal text-slate-400 dark:text-white/35">(optional)</span>
                   <textarea
                     value={resumeText}
                     onChange={(e) => setResumeText(e.target.value.slice(0, 4000))}
                     rows={3}
                     placeholder="Paste your CV, LinkedIn summary, or a few lines about your background…"
-                    className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
-                  />
-                </label>
-                <label className="mt-3 block text-xs font-semibold text-slate-600 dark:text-white/60">
-                  Job opportunity / description
-                  <textarea
-                    value={jobText}
-                    onChange={(e) => setJobText(e.target.value.slice(0, 4000))}
-                    rows={3}
-                    placeholder="Paste the job posting, offer details, or a few lines about the role…"
                     className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
                   />
                 </label>
@@ -427,7 +636,7 @@ function SetupForm() {
 
             <button
               type="button"
-              disabled={loading || (DOCUMENT_REQUIRED_TYPES.includes(practiceType) && (!resumeText.trim() || !jobText.trim()))}
+              disabled={loading}
               onClick={() => {
                 const template = quickStarts[practiceType][0];
                 applyTemplate(template);
@@ -590,14 +799,30 @@ function SetupForm() {
                   Topic
                   <input value={topic} onChange={(e) => setTopic(e.target.value)} required className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white" placeholder="Example: final-round PM interview, investor pitch, tense 1:1..." />
                 </label>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-white/75">
+                <div className="block text-sm font-semibold text-slate-700 dark:text-white/75">
                   What is happening?
-                  <textarea value={context} onChange={(e) => setContext(e.target.value)} required rows={3} className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white" placeholder="Short is fine. Who is in the room? What pressure should the AI create?" />
-                </label>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-white/75">
+                  <ChipGroup options={getContextOptions(practiceType)} selected={selectedContextChips} onToggle={toggleContextChip} />
+                  <button
+                    type="button"
+                    onClick={toggleContextOther}
+                    className="mt-2 text-xs font-bold text-violet-600 underline underline-offset-2 dark:text-violet-300"
+                  >
+                    {contextOtherEnabled ? "− Remove custom detail" : "+ Add a detail not listed above"}
+                  </button>
+                  {contextOtherEnabled && (
+                    <textarea
+                      value={contextOtherText}
+                      onChange={(e) => updateContextOtherText(e.target.value)}
+                      rows={2}
+                      className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                      placeholder="Anything specific the chips above don't cover…"
+                    />
+                  )}
+                </div>
+                <div className="block text-sm font-semibold text-slate-700 dark:text-white/75">
                   Win condition
-                  <input value={goal} onChange={(e) => setGoal(e.target.value)} required className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white" placeholder="Example: sound calm, concise, strategic, and credible" />
-                </label>
+                  <ChipGroup options={getGoalOptions(practiceType)} selected={selectedGoalChips} onToggle={toggleGoalChip} />
+                </div>
               </div>
 
               {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
@@ -730,7 +955,7 @@ function SetupForm() {
               <section className="mt-5 rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/10">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-white/75">
-                    <BookOpen size={16} /> {practiceType === "U.S. Visa Interview" ? "Application and background brief (required)" : DOCUMENT_REQUIRED_TYPES.includes(practiceType) ? "CV and job opportunity (required)" : "Ground in a document"}
+                    <BookOpen size={16} /> {practiceType === "U.S. Visa Interview" ? "Application and background brief (required)" : DOCUMENT_REQUIRED_TYPES.includes(practiceType) ? "Company, position & job details (optional)" : "Ground in a document"}
                   </div>
                   <button
                     type="button"
@@ -745,7 +970,7 @@ function SetupForm() {
                   {practiceType === "U.S. Visa Interview"
                     ? "Paste a redacted summary of your real application, travel or study/work purpose, funding, background, and relevant CV details. Never paste passport, case, bank-account, or other sensitive identification numbers."
                     : DOCUMENT_REQUIRED_TYPES.includes(practiceType)
-                    ? "The AI needs your CV and the role to ask questions that trace to real specifics instead of generic ones."
+                    ? "All optional — but company, position, domain, job description, and CV each sharpen the AI's questions further away from generic ones."
                     : "Paste your CV, research, pitch deck, or any text — the AI reads it before the session and asks targeted questions from it."}
                 </p>
 
@@ -768,31 +993,58 @@ function SetupForm() {
                           const template = DOCUMENT_TEMPLATES[practiceType];
                           if (!template) return;
                           setResumeText(template.resume);
-                          setJobText(template.job);
+                          setCompanyName(template.company);
+                          setPositionTitle(template.position);
+                          setJobDomain(template.domain);
+                          setJobDescription(template.jobDescription);
                         }}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-violet-100 px-3 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-200 dark:bg-white/10 dark:text-violet-200"
                       >
                         <Sparkles size={13} /> Use example
                       </button>
                     </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-white/60">
+                        Company <span className="font-normal text-slate-400 dark:text-white/35">(optional)</span>
+                        <input
+                          value={companyName}
+                          onChange={(e) => setCompanyName(e.target.value.slice(0, 120))}
+                          placeholder="Example: Acme Inc."
+                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
+                        />
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-white/60">
+                        Position <span className="font-normal text-slate-400 dark:text-white/35">(optional)</span>
+                        <input
+                          value={positionTitle}
+                          onChange={(e) => setPositionTitle(e.target.value.slice(0, 120))}
+                          placeholder="Example: Senior Product Manager"
+                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
+                        />
+                      </label>
+                    </div>
+                    <div className="text-xs font-semibold text-slate-600 dark:text-white/60">
+                      Domain <span className="font-normal text-slate-400 dark:text-white/35">(optional)</span>
+                      <ChipGroup options={DOMAIN_OPTIONS} selected={jobDomain ? [jobDomain] : []} onToggle={(label) => setJobDomain((prev) => (prev === label ? "" : label))} />
+                    </div>
                     <label className="block text-xs font-semibold text-slate-600 dark:text-white/60">
-                      Your CV / résumé
+                      Job description <span className="font-normal text-slate-400 dark:text-white/35">(optional)</span>
+                      <textarea
+                        value={jobDescription}
+                        onChange={(e) => setJobDescription(e.target.value.slice(0, 4000))}
+                        rows={5}
+                        className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
+                        placeholder="Paste the job posting, offer details, or a few lines about the role…"
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-white/60">
+                      Your CV / résumé <span className="font-normal text-slate-400 dark:text-white/35">(optional)</span>
                       <textarea
                         value={resumeText}
                         onChange={(e) => setResumeText(e.target.value.slice(0, 4000))}
                         rows={5}
                         className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
                         placeholder="Paste your CV, LinkedIn summary, or a few lines about your background…"
-                      />
-                    </label>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white/60">
-                      Job opportunity / description
-                      <textarea
-                        value={jobText}
-                        onChange={(e) => setJobText(e.target.value.slice(0, 4000))}
-                        rows={5}
-                        className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-white/30"
-                        placeholder="Paste the job posting, offer details, or a few lines about the role…"
                       />
                     </label>
                   </div>
@@ -909,10 +1161,10 @@ function SetupForm() {
                 />
               </div>
 
-              <label className="mt-5 block text-sm font-semibold text-slate-700 dark:text-white/75">
+              <div className="mt-5 block text-sm font-semibold text-slate-700 dark:text-white/75">
                 Optional coaching style
-                <textarea value={optionalNotes} onChange={(e) => setOptionalNotes(e.target.value)} rows={2} className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:border-white/10 dark:bg-white/10 dark:text-white" placeholder="Example: interrupt me if I ramble, challenge weak evidence, stay professional" />
-              </label>
+                <ChipGroup options={NOTES_CHIP_OPTIONS} selected={selectedNotesChips} onToggle={toggleNotesChip} />
+              </div>
 
               {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
 
